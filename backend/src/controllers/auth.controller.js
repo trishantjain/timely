@@ -52,6 +52,18 @@ export const login = async (req, res) => {
         { expiresIn: "1d" }
     );
 
+    //! HAVE TO VERIFY WORKING
+    user.password = undefined
+
     res.json({ token, user });
 
 };
+
+export const getUsers = async (req, res) => {
+
+  const users = await User.find({ role: "user" })
+    .select("_id username email")
+
+  res.json(users)
+
+}
