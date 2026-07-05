@@ -29,35 +29,63 @@ export const createUser = async (req, res) => {
 
 // LOGIN USER CONTROLLER
 export const login = async (req, res) => {
+
+    console.time("LOGIN TOTAL");
+
     const { email, password } = req.body;
 
-    // FINDING USER WITH EMAIL
+    console.time("Find User");
+
     const user = await User.findOne({ email });
 
-    // RETURNING ERROR IF EMAIL NOT FOUND
+    console.timeEnd("Find User");
+
     if (!user) {
-        return res.status(401).json({ message: "Invalid credentials" });
+        console.timeEnd("LOGIN TOTAL");
+        return res.status(401).json({
+            message: "Invalid credentials"
+        });
     }
 
-    // MATCHING PASSWORD
-    const match = await bcrypt.compare(password, user.password);
+    console.time("Compare Password");
 
-    if (!match) {
-        return res.status(401).json({ message: "Invalid credentials" });
-    }
-
-    // CREATING TOKEN AND SENDING RESPONSE
-    const token = jwt.sign(
-        { id: user._id, role: user.role },
-        process.env.JWT_SECRET,
-        { expiresIn: "1d" }
+    const match = await bcrypt.compare(
+        password,
+        user.password
     );
 
-    //! HAVE TO VERIFY WORKING
-    user.password = undefined
+    console.timeEnd("Compare Password");
 
-    res.json({ token, user });
+    if (!match) {
+        console.timeEnd("LOGIN TOTAL");
+        return res.status(401).json({
+            message: "Invalid credentials"
+        });
+    }
 
+    console.time("Generate Token");
+
+    const token = jwt.sign(
+        {
+            id: user._id,
+            role: user.role
+        },
+        process.env.JWT_SECRET,
+        {
+            expiresIn: "1d"
+        }
+    );
+
+    console.timeEnd("Generate Token");
+
+    console.timeEnd("LOGIN TOTAL");
+
+    user.password = undefined;
+
+    res.json({
+        token,
+        user
+    });
 };
 
 export const getUsers = async (req, res) => {
