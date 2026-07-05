@@ -47,6 +47,26 @@ app.use(cors({
 
 app.use(express.json());
 
+app.use((req, res, next) => {
+
+    const start = process.hrtime.bigint();
+
+    res.on("finish", () => {
+
+        const end = process.hrtime.bigint();
+
+        console.log(
+            `${req.method} ${req.originalUrl} : ${
+                Number(end - start) / 1_000_000
+            } ms`
+        );
+
+    });
+
+    next();
+
+});
+
 app.get("/", (req, res) => {
     res.json({
         success: true,

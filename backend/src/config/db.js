@@ -1,4 +1,13 @@
-import mongoose from "mongoose"
+import mongoose from "mongoose";
+
+mongoose.set("debug", function (collection, method, query, doc) {
+    console.log("================================");
+    console.log(collection);
+    console.log(method);
+    console.log(query);
+    console.log(doc);
+    console.log("================================");
+});
 
 const connectDB = async () => {
   try {

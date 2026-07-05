@@ -36,8 +36,14 @@ export const login = async (req, res) => {
 
     console.time("Find User");
 
+    const start = performance.now();
+
     const user = await User.findOne({ email });
 
+    console.log(
+        "Mongo Find User:",
+        performance.now() - start
+    );
     console.timeEnd("Find User");
 
     if (!user) {
