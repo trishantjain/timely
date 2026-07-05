@@ -19,6 +19,12 @@ const projectSchema = new mongoose.Schema({
     required: true
   },
 
+  domains: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Domain"
+  }],
+
+
   members: [
     {
       user_id: {
@@ -27,8 +33,8 @@ const projectSchema = new mongoose.Schema({
       },
       role: {
         type: String,
-        enum: ["admin", "member"],
-        default: "member"
+        enum: ["admin", "employee"],
+        default: "employee"
       }
     }
   ],

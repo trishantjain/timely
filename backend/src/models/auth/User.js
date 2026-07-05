@@ -19,9 +19,14 @@ const userSchema = new mongoose.Schema({
 
   role: {
     type: String,
-    enum: ["admin", "user"],
-    default: "user"
-  }
+    enum: ["admin", "employee"],
+    default: "employee"
+  },
+
+  expertise: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Domain"
+  }]
 
 }, { timestamps: true })
 
