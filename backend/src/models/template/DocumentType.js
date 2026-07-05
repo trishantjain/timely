@@ -39,4 +39,8 @@ const documentTypeSchema = new mongoose.Schema(
     timestamps: true
 });
 
+documentTypeSchema.index({
+    domain: 1
+});
+
 export default mongoose.model("DocumentType", documentTypeSchema);

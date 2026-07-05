@@ -461,12 +461,13 @@ export const getPendingReviews = async (req, res) => {
     try {
 
         const submissions = await Submission.find({
-            status: "UNDER_REVIEW"
         })
+        status: "UNDER_REVIEW"
             .populate("project", "name")
             .populate("projectComponent", "name")
-            .populate("latestSubmission");
-
+            .populate("latestSubmission")
+            .lean();
+            
         return res.json({
             success: true,
             data: submissions

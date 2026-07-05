@@ -72,6 +72,11 @@ const submissionVersionSchema = new mongoose.Schema(
     }
 );
 
+submissionVersionSchema.index({
+    submission: 1,
+    version: -1
+});
+
 export default mongoose.model(
     "SubmissionVersion",
     submissionVersionSchema

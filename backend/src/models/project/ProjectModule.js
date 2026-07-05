@@ -38,9 +38,9 @@ const projectModuleSchema = new mongoose.Schema(
 
 
 // Prevent duplicate active modules
-projectModuleSchema.index(
-    { name: 1 },
-    { unique: true }
-);
+// projectModuleSchema.index(
+//     { name: 1 },
+//     { unique: true }
+// );
 
 export default mongoose.model("ProjectModule", projectModuleSchema);

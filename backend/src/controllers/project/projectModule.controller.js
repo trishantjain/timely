@@ -84,7 +84,7 @@ export const getProjectModules = async (req, res) => {
     try {
         const modules = await ProjectModule.find().sort({
             name: 1
-        });
+        }).lean();
 
         console.log(`[ProjectModule] ${modules.length} modules found.`);
 

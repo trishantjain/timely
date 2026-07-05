@@ -40,6 +40,19 @@ const projectMemberSchema = new mongoose.Schema(
 
 );
 
+projectMemberSchema.index({
+    employee: 1
+});
+
+projectMemberSchema.index({
+    project: 1
+});
+
+projectMemberSchema.index({
+    project: 1,
+    employee: 1
+});
+
 export default mongoose.model(
     "ProjectMember",
     projectMemberSchema

@@ -50,8 +50,9 @@ export const getProjects = async (req, res) => {
             "members.user_id": req.user.id
         })
             .populate("members.user_id", "username email")
-            .populate("domains", "name color");
-
+            .populate("domains", "name color")
+            .lean();
+            
         res.json(projects)
     } catch (error) {
         res.status(500).json({ message: "Error fetching projects" })

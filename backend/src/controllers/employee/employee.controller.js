@@ -11,7 +11,8 @@ export const getEmployees = async (req, res) => {
             role: "employee"
         })
             .populate("expertise", "name color")
-            .select("-password");
+            .select("-password")
+            .lean();
 
         res.json({
             success: true,

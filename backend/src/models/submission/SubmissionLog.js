@@ -42,6 +42,10 @@ const submissionLogSchema = new mongoose.Schema(
     }
 );
 
+submissionLogSchema.index({
+    submission: 1
+});
+
 export default mongoose.model(
     "SubmissionLog",
     submissionLogSchema

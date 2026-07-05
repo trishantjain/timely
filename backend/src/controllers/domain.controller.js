@@ -42,7 +42,7 @@ export const getAllDomains = async (req, res) => {
             isActive: true
         }).sort({
             name: 1
-        });
+        }).lean();
 
         res.json({
             success: true,
