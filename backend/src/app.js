@@ -17,9 +17,34 @@ import componentTemplateRoutes from "./routes/template/componentTemplate.routes.
 
 dotenv.config();
 
+const allowedOrigins = [
+    "http://localhost:5173",      // Local React
+    process.env.CLIENT_URL         // Production Vercel URL
+].filter(Boolean);
+
 const app = express();
 
-app.use(cors());
+app.use(cors({
+    origin: function (origin, callback) {
+
+        // Allow Postman, curl, server-to-server requests
+        if (!origin) {
+            return callback(null, true);
+        }
+
+        if (allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        }
+
+        return callback(
+            new Error(`CORS blocked: ${origin}`)
+        );
+    },
+
+    credentials: true
+})
+);
+
 app.use(express.json());
 
 app.get("/", (req, res) => {
