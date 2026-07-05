@@ -9,3 +9,6 @@ export const addMember = (projectId, data) =>
 
 export const getProjectById = (id) =>
   api.get(`/projects/${id}`);
+
+export const deleteProject = (id) =>
+  api.delete(`/projects/${id}`);

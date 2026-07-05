@@ -3,10 +3,17 @@ import cors from "cors";
 import dotenv from "dotenv";
 
 // ROUTES
-import authRoutes from "./routes/auth.routes.js"
-import projectRoutes from "./routes/project.routes.js"
+import authRoutes from "./routes/auth/auth.routes.js"
+import projectRoutes from "./routes/project/project.routes.js"
 // import taskRoutes from "./routes/taskRoutes.js"
 import domainRoutes from "./routes/domain.routes.js"
+import employeeRoutes from "./routes/employee/employee.routes.js";
+import projectDocumentRoutes from "./routes/project/projectDocument.routes.js"
+import assignmentRoutes from "./routes/assignment/assignment.routes.js";
+import projectModuleRoutes from "./routes/project/projectModule.routes.js";
+import projectComponentRoutes from "./routes/project/projectComponent.routes.js";
+import submissionRoutes from "./routes/submission/submission.routes.js";
+import componentTemplateRoutes from "./routes/template/componentTemplate.routes.js";
 
 dotenv.config();
 
@@ -20,5 +27,12 @@ app.use("/api/projects", projectRoutes);
 // app.use("/api/tasks", taskRoutes);
 
 app.use("/api/domains", domainRoutes);
+app.use("/api/employees", employeeRoutes);
+app.use("/api/project-documents", projectDocumentRoutes);
+app.use("/api/assignments", assignmentRoutes);
+app.use("/api/project-modules", projectModuleRoutes);
+app.use("/api/project-components", projectComponentRoutes);
+app.use("/api/submissions", submissionRoutes);
+app.use("/api/component-template", componentTemplateRoutes);
 
 export default app;

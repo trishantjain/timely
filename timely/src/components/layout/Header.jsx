@@ -1,23 +1,31 @@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
+import CreateProjectDialog from "../project/CreateProjectDialog"
+import { Menu, Bell } from "lucide-react"
 
-export default function Header() {
+export default function Header({ title = "Admin Panel" }) {
     return (
-        <div className="flex items-center justify-between border-b bg-background px-6 py-4">
+
+        <header className="flex items-center justify-between px-6 py-4 bg-white border-b">
+
             <div>
-                <h2 className="text-lg font-semibold leading-none">Admin Dashboard</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                    Manage projects, teams, and track real-time task progress.
-                </p>
+                <h1 className="text-2xl font-bold">
+                    {title}
+                </h1>
             </div>
 
-            <div className="flex items-center gap-2">
-                <Button variant="outline">Invite Member</Button>
-                <Button>+ New Project</Button>
-                <Avatar className="ml-2 h-9 w-9">
-                    <AvatarFallback>AJ</AvatarFallback>
-                </Avatar>
+            <div className="flex items-center gap-4">
+
+                <button className="p-2 rounded-full hover:bg-gray-100">
+                    <Bell size={20} />
+                </button>
+
+                <div className="flex items-center justify-center w-10 h-10 font-semibold bg-gray-200 rounded-full">
+                    AJ
+                </div>
+
             </div>
-        </div>
+
+        </header>
     )
 }
