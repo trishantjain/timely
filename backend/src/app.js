@@ -78,7 +78,7 @@ app.use(express.json());
 
 // Strips any request keys starting with "$" or containing "." to prevent
 // NoSQL operator injection (e.g. { "email": { "$gt": "" } } style payloads).
-app.use(mongoSanitize());
+// app.use(mongoSanitize());
 
 // General API-wide rate limit — a broader safety net in addition to the
 // stricter limiter already applied to /api/auth/login.
