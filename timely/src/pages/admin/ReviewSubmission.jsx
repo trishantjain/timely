@@ -1,214 +1,1332 @@
-import { getSubmissionHistory, reviewSubmission } from "@/api/submissionAPI";
+import {
+    getSubmissionHistory,
+    reviewSubmission
+} from "@/api/submissionAPI";
+
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
 
-export default function ReviewSubmission() {
-    const { submissionId } = useParams();
+import {
+    useEffect,
+    useState
+} from "react";
 
-    const navigate = useNavigate();
+import {
+    useNavigate,
+    useParams
+} from "react-router-dom";
 
-    const [loading, setLoading] = useState(true);
-    const [submission, setSubmission] = useState(null);
+import api from "@/services/api";
 
-    // const [reviewStatus, setReviewStatus] = useState("APPROVED");
-    const [reviewComment, setReviewComment] = useState("");
+import {
+    ArrowLeft,
+    Calendar,
+    CheckCircle2,
+    ChevronDown,
+    ChevronUp,
+    Clock,
+    FileText,
+    History,
+    Mail,
+    User,
+    XCircle
+} from "lucide-react";
 
-    const loadSubmission = async () => {
-        try {
-            const res = await getSubmissionHistory(submissionId);
-            console.log("FULL RESPONSE");
-            console.log(res);
 
-            console.log("DATA");
-            console.log(res.data);
+// ==========================================
+// OPEN FILE
+// ==========================================
 
-            console.log("HISTORY");
-            console.log(res.data.history);
+const openFile = async (file) => {
 
-            setSubmission(res.data);
-        }
-        catch (err) {
-            console.error(err);
+    try {
 
-            alert("Unable to load submission.");
-        }
-        finally {
-            setLoading(false);
-        }
-    }
-
-    useEffect(() => {
-        loadSubmission();
-    }, []);
-
-    const handleReview = async (status) => {
-        try {
-
-            await reviewSubmission(
-                submissionId,
+        const response =
+            await api.get(
+                file.previewUrl,
                 {
-                    // status: reviewStatus,
-                    // reviewComment
-                    reviewStatus: status,
-                    reviewRemark: reviewComment
+                    responseType: "blob"
                 }
             );
 
-            alert("Review submitted successfully.");
-
-            navigate(-1);
-        }
-        catch (err) {
-            console.error(err);
-
-            alert(
-                err.response?.data?.message ||
-                "Review failed."
+        const blob =
+            new Blob(
+                [response.data],
+                {
+                    type:
+                        file.mimeType
+                }
             );
-        }
-    };
 
-    if (loading)
-        return <div className="p-8">Loading...</div>;
+        const blobUrl =
+            window.URL.createObjectURL(
+                blob
+            );
 
-    if (!submission ||
-        !submission.history || submission.history.length === 0)
-        return (
-            <div className="p-8">
-                Submission not found.
-            </div>
+        window.open(
+            blobUrl,
+            "_blank"
         );
 
-    const latest = submission.latestSubmission;
+        setTimeout(() => {
 
-    const reviewed =
-        latest.reviewStatus === "APPROVED" ||
-        latest.reviewStatus === "REJECTED";
+            window.URL.revokeObjectURL(
+                blobUrl
+            );
+
+        }, 1000);
+
+    }
+    catch (err) {
+
+        console.error(err);
+
+        alert(
+            "Unable to open file."
+        );
+
+    }
+
+};
+
+
+// ==========================================
+// FORMAT FILE SIZE
+// ==========================================
+
+const formatFileSize = (bytes) => {
+
+    if (!bytes)
+        return "0 KB";
+
+    if (bytes < 1024 * 1024) {
+
+        return `${(
+            bytes / 1024
+        ).toFixed(1)} KB`;
+
+    }
+
+    return `${(
+        bytes /
+        (1024 * 1024)
+    ).toFixed(2)} MB`;
+
+};
+
+
+// ==========================================
+// STATUS STYLE
+// ==========================================
+
+const getStatusStyle = (status) => {
+
+    const styles = {
+
+        UNDER_REVIEW:
+            "bg-amber-50 text-amber-700 border-amber-200",
+
+        APPROVED:
+            "bg-green-50 text-green-700 border-green-200",
+
+        REJECTED:
+            "bg-red-50 text-red-700 border-red-200",
+
+        PENDING:
+            "bg-slate-100 text-slate-600 border-slate-200"
+
+    };
 
     return (
+        styles[status] ||
+        styles.PENDING
+    );
 
-        <div className="max-w-5xl p-8 mx-auto">
+};
 
-            <h1 className="text-3xl font-bold">
-                Review Submission
-            </h1>
 
-            <div className="p-6 mt-8 space-y-3 border rounded-lg">
+// ==========================================
+// COMPONENT
+// ==========================================
 
-                <p>
-                    <strong>Version :</strong>{" "}
-                    {latest.version}
-                </p>
+export default function ReviewSubmission() {
 
-                <p>
-                    <strong>Submitted By :</strong>{" "}
-                    {latest.submittedBy?.username}
-                </p>
+    const {
+        submissionId
+    } = useParams();
 
-                <p>
-                    <strong>Email :</strong>{" "}
-                    {latest.submittedBy?.email}
-                </p>
+    const navigate =
+        useNavigate();
 
-                <p>
-                    <strong>Submitted On :</strong>{" "}
-                    {new Date(
-                        latest.createdAt
-                    ).toLocaleString()}
-                </p>
 
-                <p>
-                    <strong>Status :</strong>{" "}
-                    {latest.reviewStatus}
-                </p>
+    // ==========================================
+    // STATE
+    // ==========================================
 
-            </div>
+    const [
+        loading,
+        setLoading
+    ] = useState(true);
 
-            <div>
-                {submission.history.slice(1).map((version) => (
-                    <div
-                        key={version._id}
-                        className="p-4 mb-4 border rounded-lg"
-                    >
-                        <h3 className="font-semibold">
-                            Version {version.version}
-                        </h3>
+    const [
+        submission,
+        setSubmission
+    ] = useState(null);
 
-                        <p className="text-sm text-gray-500">
-                            {new Date(version.createdAt).toLocaleString()}
-                        </p>
+    const [
+        reviewComment,
+        setReviewComment
+    ] = useState("");
 
-                        <div className="mt-3 whitespace-pre-wrap">
-                            {version.textSubmission}
-                        </div>
+    const [
+        showHistory,
+        setShowHistory
+    ] = useState(false);
 
-                        {version.reviewRemark && (
-                            <div className="p-3 mt-3 rounded bg-red-50">
-                                <strong>Previous Review</strong>
+    const [
+        selectedVersion,
+        setSelectedVersion
+    ] = useState(null);
 
-                                <p>{version.reviewRemark}</p>
-                            </div>
-                        )}
-                    </div>
-                ))}
-            </div>
 
-            <div className="mt-8">
+    // ==========================================
+    // LOAD SUBMISSION
+    // ==========================================
 
-                <h3 className="mb-3 text-lg font-semibold">
-                    Employee Submission
-                </h3>
+    const loadSubmission =
+        async () => {
 
-                <div className="p-5 whitespace-pre-wrap border rounded-lg min-h-40">
+            try {
+
+                const res =
+                    await getSubmissionHistory(
+                        submissionId
+                    );
+
+                console.log(
+                    "Submission:",
+                    res.data
+                );
+
+                setSubmission(
+                    res.data
+                );
+
+            }
+            catch (err) {
+
+                console.error(err);
+
+                alert(
+                    "Unable to load submission."
+                );
+
+            }
+            finally {
+
+                setLoading(false);
+
+            }
+
+        };
+
+
+    useEffect(() => {
+
+        loadSubmission();
+
+    }, []);
+
+
+    // ==========================================
+    // REVIEW
+    // ==========================================
+
+    const handleReview =
+        async (status) => {
+
+            try {
+
+                await reviewSubmission(
+                    submissionId,
                     {
-                        latest.textSubmission ||
-                        "No text submitted."
+
+                        reviewStatus:
+                            status,
+
+                        reviewRemark:
+                            reviewComment
+
                     }
+                );
+
+                alert(
+                    "Review submitted successfully."
+                );
+
+                navigate(-1);
+
+            }
+            catch (err) {
+
+                console.error(err);
+
+                alert(
+
+                    err.response
+                        ?.data
+                        ?.message ||
+
+                    "Review failed."
+
+                );
+
+            }
+
+        };
+
+
+    // ==========================================
+    // LOADING
+    // ==========================================
+
+    if (loading) {
+
+        return (
+
+            <div className="flex items-center justify-center min-h-[60vh]">
+
+                <div className="text-sm text-muted-foreground">
+
+                    Loading submission...
+
                 </div>
 
             </div>
 
-            <div className="mt-8">
+        );
 
-                <h3 className="mb-3 font-semibold">
-                    Review Comment
-                </h3>
+    }
 
-                <Textarea
-                    value={reviewComment}
-                    onChange={(e) =>
-                        setReviewComment(
-                            e.target.value
-                        )
-                    }
-                    placeholder="Write review..."
-                    className="min-h-40"
-                />
+
+    // ==========================================
+    // NOT FOUND
+    // ==========================================
+
+    if (
+        !submission ||
+        !submission.history ||
+        submission.history.length === 0
+    ) {
+
+        return (
+
+            <div className="p-8">
+
+                Submission not found.
 
             </div>
 
-            <div className="flex gap-4 mt-8">
+        );
 
-                <Button
-                    disabled={reviewed}
-                    variant="destructive"
-                    onClick={() => handleReview("REJECTED")}
-                >
-                    Reject
-                </Button>
+    }
 
-                <Button
-                    disabled={reviewed}
-                    onClick={() => handleReview("APPROVED")}
+
+    // ==========================================
+    // CURRENT VERSION
+    // ==========================================
+
+    const latest =
+        submission.latestSubmission;
+
+    const currentSubmission =
+        selectedVersion ||
+        latest;
+
+
+    const reviewed =
+        latest.reviewStatus ===
+        "APPROVED" ||
+
+        latest.reviewStatus ===
+        "REJECTED";
+
+
+    const previousVersions =
+        submission.history.filter(
+
+            version =>
+                version._id !==
+                latest._id
+
+        );
+
+
+    return (
+
+        <div className="w-full p-4 mx-auto max-w-7xl md:p-6">
+
+
+            {/* ======================================
+                HEADER
+            ====================================== */}
+
+            <div className="mb-6">
+
+                <div className="flex flex-wrap items-center gap-2 mb-5 text-sm">
+
+                    <button
+                        onClick={() => navigate("/admin/projects")}
+                        className="transition-colors  text-muted-foreground hover:text-foreground"
+                    >
+                        Projects
+                    </button>
+
+                    <span className="text-muted-foreground">
+                        /
+                    </span>
+
+                    <button
+                        onClick={() => navigate(-1)}
+                        className="transition-colors  text-muted-foreground hover:text-foreground"
+                    >
+                        {submission.project?.name || "Project"}
+                    </button>
+
+                    <span className="text-muted-foreground">
+                        /
+                    </span>
+
+                    <span className="font-medium text-foreground">
+                        {submission.task?.title || "Review Submission"}
+                    </span>
+
+                </div>
+
+                <div
+                    className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"
                 >
-                    Approve
-                </Button>
+
+                    <div>
+
+                        <div className="flex items-center gap-3">
+
+                            <h1
+                                className="text-2xl font-semibold tracking-tight md:text-3xl"
+                            >
+
+                                {submission.task?.title ||
+                                    "Review Submission"}
+
+                            </h1>
+
+
+                            <span
+                                className={`
+                                    inline-flex
+                                    items-center
+                                    rounded-full
+                                    border
+                                    px-3
+                                    py-1
+                                    text-xs
+                                    font-medium
+                                    ${getStatusStyle(
+                                    currentSubmission.reviewStatus
+                                )}
+                                `}
+                            >
+
+                                {currentSubmission.reviewStatus
+                                    ?.replaceAll(
+                                        "_",
+                                        " "
+                                    )}
+
+                            </span>
+
+                        </div>
+
+
+                        <div
+                            className="flex flex-wrap gap-2 mt-2 text-sm text-muted-foreground"
+                        >
+
+                            <span>
+                                {submission.project?.name}
+                            </span>
+
+                            <span>•</span>
+
+                            <span>
+                                {submission.component?.name}
+                            </span>
+
+                            <span>•</span>
+
+                            <span>
+                                {submission.module?.name}
+                            </span>
+
+                        </div>
+
+                    </div>
+
+
+                    {previousVersions.length > 0 && (
+
+                        <Button
+
+                            variant="outline"
+
+                            onClick={() =>
+                                setShowHistory(
+                                    !showHistory
+                                )
+                            }
+
+                            className="gap-2 shrink-0"
+                        >
+
+                            <History size={16} />
+
+                            Previous Versions
+
+                            {showHistory
+                                ? (
+                                    <ChevronUp
+                                        size={16}
+                                    />
+                                )
+                                : (
+                                    <ChevronDown
+                                        size={16}
+                                    />
+                                )}
+
+                        </Button>
+
+                    )}
+
+                </div>
+
+            </div>
+
+
+
+            {/* ======================================
+                SUBMISSION INFO
+            ====================================== */}
+
+            <div
+                className="grid grid-cols-1 gap-px mb-6 overflow-hidden border rounded-xl bg-border sm:grid-cols-2 lg:grid-cols-4"
+            >
+
+                {/* Submitted By */}
+
+                <div className="p-4 bg-background">
+
+                    <div
+                        className="flex items-center gap-2 mb-2 text-xs text-muted-foreground"
+                    >
+
+                        <User size={15} />
+
+                        Submitted By
+
+                    </div>
+
+                    <p className="font-medium">
+
+                        {currentSubmission
+                            .submittedBy
+                            ?.username ||
+                            "-"}
+
+                    </p>
+
+                </div>
+
+
+                {/* Email */}
+
+                <div className="p-4 bg-background">
+
+                    <div
+                        className="flex items-center gap-2 mb-2 text-xs text-muted-foreground"
+                    >
+
+                        <Mail size={15} />
+
+                        Email
+
+                    </div>
+
+                    <p
+                        className="text-sm font-medium truncate "
+                    >
+
+                        {currentSubmission
+                            .submittedBy
+                            ?.email ||
+                            "-"}
+
+                    </p>
+
+                </div>
+
+
+                {/* Submitted On */}
+
+                <div className="p-4 bg-background">
+
+                    <div
+                        className="flex items-center gap-2 mb-2 text-xs text-muted-foreground"
+                    >
+
+                        <Calendar size={15} />
+
+                        Submitted On
+
+                    </div>
+
+                    <p className="text-sm font-medium">
+
+                        {new Date(
+                            currentSubmission.createdAt
+                        ).toLocaleString()}
+
+                    </p>
+
+                </div>
+
+
+                {/* Version */}
+
+                <div className="p-4 bg-background">
+
+                    <div
+                        className="flex items-center gap-2 mb-2 text-xs text-muted-foreground"
+                    >
+
+                        <Clock size={15} />
+
+                        Version
+
+                    </div>
+
+                    <p className="font-medium">
+
+                        Version{" "}
+
+                        {
+                            currentSubmission
+                                .version
+                        }
+
+                    </p>
+
+                </div>
+
+            </div>
+
+
+
+            {/* ======================================
+                PREVIOUS VERSIONS
+            ====================================== */}
+
+            {
+                showHistory &&
+                previousVersions.length > 0 &&
+                (
+
+                    <div
+                        className="p-4 mb-6 border rounded-xl bg-muted/20"
+                    >
+
+                        <div
+                            className="flex items-center justify-between mb-4 "
+                        >
+
+                            <div>
+
+                                <h3 className="font-semibold">
+
+                                    Previous Submissions
+
+                                </h3>
+
+                                <p
+                                    className="mt-1 text-sm text-muted-foreground"
+                                >
+
+                                    Select a previous
+                                    version to view.
+
+                                </p>
+
+                            </div>
+
+                        </div>
+
+
+                        <div className="space-y-2">
+
+                            {previousVersions.map(
+                                version => (
+
+                                    <button
+
+                                        key={
+                                            version._id
+                                        }
+
+                                        onClick={() =>
+                                            setSelectedVersion(
+                                                version
+                                            )
+                                        }
+
+                                        className={`
+                                            w-full
+                                            rounded-lg
+                                            border
+                                            p-4
+                                            text-left
+                                            transition-colors
+                                            hover:bg-muted/50
+
+                                            ${currentSubmission._id ===
+                                                version._id
+                                                ? "border-primary bg-primary/5"
+                                                : "bg-background"
+                                            }
+                                        `}
+                                    >
+
+                                        <div
+                                            className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
+                                        >
+
+                                            <div>
+
+                                                <p className="font-medium">
+
+                                                    Version{" "}
+
+                                                    {
+                                                        version.version
+                                                    }
+
+                                                </p>
+
+                                                <p
+                                                    className="mt-1 text-xs text-muted-foreground"
+                                                >
+
+                                                    {new Date(
+                                                        version.createdAt
+                                                    ).toLocaleString()}
+
+                                                </p>
+
+                                            </div>
+
+
+                                            <span
+                                                className={`
+                                                    inline-flex
+                                                    w-fit
+                                                    rounded-full
+                                                    border
+                                                    px-2.5
+                                                    py-1
+                                                    text-xs
+                                                    font-medium
+                                                    ${getStatusStyle(
+                                                    version.reviewStatus
+                                                )}
+                                                `}
+                                            >
+
+                                                {
+                                                    version.reviewStatus
+                                                        ?.replaceAll(
+                                                            "_",
+                                                            " "
+                                                        )
+                                                }
+
+                                            </span>
+
+                                        </div>
+
+                                    </button>
+
+                                )
+                            )}
+
+                        </div>
+
+
+                        {selectedVersion && (
+
+                            <Button
+
+                                variant="ghost"
+
+                                size="sm"
+
+                                className="mt-4"
+
+                                onClick={() =>
+                                    setSelectedVersion(
+                                        null
+                                    )
+                                }
+
+                            >
+
+                                Show Current Submission
+
+                            </Button>
+
+                        )}
+
+                    </div>
+
+                )
+            }
+
+
+
+            {/* ======================================
+                MAIN REVIEW WORKSPACE
+            ====================================== */}
+
+            <div
+                className="
+                    grid
+                    grid-cols-1
+                    gap-6
+                    lg:grid-cols-[minmax(0,1fr)_360px]
+                "
+            >
+
+
+                {/* ==================================
+                    LEFT — SUBMISSION
+                ================================== */}
+
+                <div className="space-y-6">
+
+
+                    {/* TEXT SUBMISSION */}
+
+                    <section
+                        className="overflow-hidden border rounded-xl bg-background"
+                    >
+
+                        <div
+                            className="flex items-center justify-between px-5 py-4 border-b "
+                        >
+
+                            <div>
+
+                                <h2 className="font-semibold">
+
+                                    Employee Submission
+
+                                </h2>
+
+                                <p
+                                    className="mt-1 text-sm text-muted-foreground"
+                                >
+
+                                    Text submitted
+                                    by the employee.
+
+                                </p>
+
+                            </div>
+
+                        </div>
+
+
+                        <div className="p-5">
+
+                            {
+                                currentSubmission
+                                    .textSubmission
+                                    ? (
+
+                                        <div
+                                            className="text-sm leading-7 whitespace-pre-wrap "
+                                        >
+
+                                            {
+                                                currentSubmission
+                                                    .textSubmission
+                                            }
+
+                                        </div>
+
+                                    )
+                                    : (
+
+                                        <div
+                                            className="py-6 text-sm text-center text-muted-foreground"
+                                        >
+
+                                            No text submission
+                                            provided.
+
+                                        </div>
+
+                                    )
+                            }
+
+                        </div>
+
+                    </section>
+
+
+
+                    {/* FILES */}
+
+                    <section
+                        className="overflow-hidden border rounded-xl bg-background"
+                    >
+
+                        <div
+                            className="flex items-center justify-between px-5 py-4 border-b "
+                        >
+
+                            <div>
+
+                                <h2 className="font-semibold">
+
+                                    Uploaded Files
+
+                                </h2>
+
+                                <p
+                                    className="mt-1 text-sm text-muted-foreground"
+                                >
+
+                                    {
+                                        currentSubmission
+                                            .files
+                                            ?.length ||
+                                        0
+                                    }
+
+                                    {" "}
+
+                                    file(s) submitted.
+
+                                </p>
+
+                            </div>
+
+                        </div>
+
+
+                        <div className="p-4">
+
+                            {
+                                currentSubmission
+                                    .files
+                                    ?.length > 0
+                                    ? (
+
+                                        <div className="space-y-3">
+
+                                            {
+                                                currentSubmission.files.map(
+                                                    (
+                                                        file,
+                                                        index
+                                                    ) => (
+
+                                                        <div
+
+                                                            key={
+                                                                index
+                                                            }
+
+                                                            className="flex items-center justify-between gap-4 p-4 border rounded-lg "
+
+                                                        >
+
+                                                            <div
+                                                                className="flex items-center min-w-0 gap-3 "
+                                                            >
+
+                                                                <div
+                                                                    className="flex items-center justify-center w-10 h-10 rounded-lg bg-muted shrink-0"
+                                                                >
+
+                                                                    <FileText
+                                                                        size={19}
+                                                                    />
+
+                                                                </div>
+
+
+                                                                <div className="min-w-0">
+
+                                                                    <p
+                                                                        className="font-medium truncate "
+                                                                    >
+
+                                                                        {
+                                                                            file.originalName
+                                                                        }
+
+                                                                    </p>
+
+                                                                    <p
+                                                                        className="mt-1 text-xs text-muted-foreground"
+                                                                    >
+
+                                                                        {
+                                                                            formatFileSize(
+                                                                                file.size
+                                                                            )
+                                                                        }
+
+                                                                    </p>
+
+                                                                </div>
+
+                                                            </div>
+
+
+                                                            <Button
+
+                                                                size="sm"
+
+                                                                variant="outline"
+
+                                                                onClick={() =>
+                                                                    openFile(
+                                                                        file
+                                                                    )
+                                                                }
+
+                                                            >
+
+                                                                View
+
+                                                            </Button>
+
+                                                        </div>
+
+                                                    )
+                                                )
+                                            }
+
+                                        </div>
+
+                                    )
+                                    : (
+
+                                        <div
+                                            className="py-6 text-sm text-center text-muted-foreground"
+                                        >
+
+                                            No files uploaded.
+
+                                        </div>
+
+                                    )
+                            }
+
+                        </div>
+
+                    </section>
+
+
+                    {/* PREVIOUS REVIEW REMARK */}
+
+                    {
+                        selectedVersion
+                            ?.reviewRemark &&
+                        (
+
+                            <section
+                                className="p-5 border rounded-xl bg-red-50/50"
+                            >
+
+                                <h3 className="font-semibold">
+
+                                    Previous Review Feedback
+
+                                </h3>
+
+                                <p
+                                    className="mt-3 text-sm leading-6 whitespace-pre-wrap text-muted-foreground"
+                                >
+
+                                    {
+                                        selectedVersion
+                                            .reviewRemark
+                                    }
+
+                                </p>
+
+                            </section>
+
+                        )
+                    }
+
+                </div>
+
+
+
+                {/* ==================================
+                    RIGHT — REVIEW PANEL
+                ================================== */}
+
+                <aside
+                    className=" h-fit lg:sticky lg:top-6"
+                >
+
+                    <div
+                        className="overflow-hidden border rounded-xl bg-background"
+                    >
+
+                        <div className="p-5 border-b">
+
+                            <h2 className="font-semibold">
+
+                                Review Decision
+
+                            </h2>
+
+                            <p
+                                className="mt-1 text-sm text-muted-foreground"
+                            >
+
+                                Approve or reject
+                                the current submission.
+
+                            </p>
+
+                        </div>
+
+
+                        <div className="p-5">
+
+
+                            {/* STATUS */}
+
+                            <div className="mb-5">
+
+                                <p
+                                    className="mb-2 text-xs font-medium tracking-wide uppercase text-muted-foreground"
+                                >
+
+                                    Current Status
+
+                                </p>
+
+
+                                <div
+                                    className={`
+                                        inline-flex
+                                        items-center
+                                        gap-2
+                                        rounded-lg
+                                        border
+                                        px-3
+                                        py-2
+                                        text-sm
+                                        font-medium
+                                        ${getStatusStyle(
+                                        latest.reviewStatus
+                                    )}
+                                    `}
+                                >
+
+                                    {
+                                        latest.reviewStatus ===
+                                            "APPROVED"
+                                            ? (
+                                                <CheckCircle2
+                                                    size={16}
+                                                />
+                                            )
+                                            : latest.reviewStatus ===
+                                                "REJECTED"
+                                                ? (
+                                                    <XCircle
+                                                        size={16}
+                                                    />
+                                                )
+                                                : (
+                                                    <Clock
+                                                        size={16}
+                                                    />
+                                                )
+                                    }
+
+                                    {
+                                        latest.reviewStatus
+                                            ?.replaceAll(
+                                                "_",
+                                                " "
+                                            )
+                                    }
+
+                                </div>
+
+                            </div>
+
+
+                            {/* REVIEW COMMENT */}
+
+                            <div>
+
+                                <label
+                                    className="block mb-2 text-sm font-medium "
+                                >
+
+                                    Review Comment
+
+                                </label>
+
+
+                                <Textarea
+
+                                    value={
+                                        reviewComment
+                                    }
+
+                                    onChange={(e) =>
+                                        setReviewComment(
+                                            e.target.value
+                                        )
+                                    }
+
+                                    placeholder="
+                                        Add feedback for
+                                        the employee...
+                                    "
+
+                                    disabled={
+                                        reviewed ||
+                                        currentSubmission._id !==
+                                        latest._id
+                                    }
+
+                                    className="
+                                        min-h-[160px]
+                                        resize-none
+                                    "
+
+                                />
+
+                            </div>
+
+
+                            {/* ACTIONS */}
+                            <div
+                                className="grid grid-cols-2 gap-3 pt-5 "
+                            >
+
+                                <Button
+
+                                    disabled={
+                                        reviewed ||
+                                        currentSubmission._id !==
+                                        latest._id
+                                    }
+
+                                    variant="outline"
+
+                                    className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700"
+
+                                    onClick={() =>
+                                        handleReview(
+                                            "REJECTED"
+                                        )
+                                    }
+
+                                >
+                                    Reject
+                                </Button>
+
+
+                                <Button
+
+                                    disabled={
+                                        reviewed ||
+                                        currentSubmission._id !==
+                                        latest._id
+                                    }
+
+                                    onClick={() =>
+                                        handleReview(
+                                            "APPROVED"
+                                        )
+                                    }
+
+                                >
+                                    Approve
+                                </Button>
+
+                            </div>
+
+
+                            {
+                                currentSubmission._id !==
+                                latest._id &&
+                                (
+
+                                    <p
+                                        className="mt-4 text-xs leading-5 text-center text-muted-foreground"
+                                    >
+                                        You are viewing
+                                        a previous version.
+                                        Switch back to the
+                                        current submission
+                                        to review it.
+                                    </p>
+
+                                )
+                            }
+
+
+                            {
+                                reviewed &&
+                                currentSubmission._id ===
+                                latest._id &&
+                                (
+
+                                    <p
+                                        className="mt-4 text-xs leading-5 text-center text-muted-foreground"
+                                    >
+                                        This submission
+                                        has already been
+                                        reviewed.
+                                    </p>
+
+                                )
+                            }
+
+                        </div>
+
+                    </div>
+
+                </aside>
 
             </div>
 
         </div>
 
     );
+
 }

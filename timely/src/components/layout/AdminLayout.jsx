@@ -1,20 +1,25 @@
 import { Outlet } from "react-router-dom";
-import Header from "./Header";
+
 import Sidebar from "./Sidebar";
+import Navbar from "./Navbar";
 
 export default function AdminLayout() {
     return (
-        <div className="flex h-screen bg-gray-100">
+        <div className="flex h-screen overflow-hidden bg-background">
 
-            {/* Sidebar */}
+            {/* SIDEBAR */}
             <Sidebar />
 
-            {/* Main Content */}
-            <div className="flex flex-col flex-1 overflow-hidden">
+            {/* MAIN AREA */}
+            <div className="flex flex-col flex-1 min-w-0">
 
-                <Header title="Admin Dashboard" />
+                {/* FIXED TOP NAVIGATION */}
+                <div className="sticky top-0 z-50 shrink-0">
+                    <Navbar />
+                </div>
 
-                <main className="flex-1 p-6 overflow-y-auto">
+                {/* SCROLLABLE PAGE CONTENT */}
+                <main className="flex-1 overflow-y-auto">
                     <Outlet />
                 </main>
 

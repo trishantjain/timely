@@ -1,12 +1,54 @@
 import mongoose from "mongoose";
 
+const submissionFileSchema = new mongoose.Schema(
+    {
+        originalName: {
+            type: String,
+            required: true
+        },
+
+        publicId: {
+            type: String,
+            required: true
+        },
+
+        url: {
+            type: String,
+            required: true
+        },
+
+        secureUrl: {
+            type: String,
+            required: true
+        },
+
+        resourceType: {
+            type: String,
+            default: "raw"
+        },
+
+        mimeType: {
+            type: String,
+            default: ""
+        },
+
+        size: {
+            type: Number,
+            default: 0
+        }
+    },
+    {
+        _id: false
+    }
+);
+
 const submissionVersionSchema = new mongoose.Schema(
     {
-
         submission: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "Submission",
-            required: true
+            required: true,
+            index: true
         },
 
         version: {
@@ -19,25 +61,15 @@ const submissionVersionSchema = new mongoose.Schema(
             default: ""
         },
 
-        files: [
-            {
-                originalName: String,
-                storedName: String,
-                path: String,
-                mimeType: String,
-                size: Number
-            }
-        ],
+        files: {
+            type: [submissionFileSchema],
+            default: []
+        },
 
         submittedBy: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
             required: true
-        },
-
-        submittedAt: {
-            type: Date,
-            default: Date.now
         },
 
         reviewStatus: {
@@ -50,6 +82,11 @@ const submissionVersionSchema = new mongoose.Schema(
             default: "PENDING"
         },
 
+        reviewRemark: {
+            type: String,
+            default: ""
+        },
+
         reviewedBy: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
@@ -59,23 +96,22 @@ const submissionVersionSchema = new mongoose.Schema(
         reviewedAt: {
             type: Date,
             default: null
-        },
-
-        reviewRemark: {
-            type: String,
-            default: ""
         }
-
     },
     {
         timestamps: true
     }
 );
 
-submissionVersionSchema.index({
-    submission: 1,
-    version: -1
-});
+submissionVersionSchema.index(
+    {
+        submission: 1,
+        version: 1
+    },
+    {
+        unique: true
+    }
+);
 
 export default mongoose.model(
     "SubmissionVersion",

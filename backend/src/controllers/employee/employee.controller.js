@@ -7,16 +7,46 @@ export const getEmployees = async (req, res) => {
 
     try {
 
-        const employees = await User.find({
-            role: "employee"
-        })
+        const filter = { role: "employee" };
+
+        // Pagination is opt-in: if the caller doesn't pass page/limit,
+        // behave exactly as before (return the full list) so the
+        // existing Employees.jsx page — which renders res.data.data as
+        // a complete array — doesn't silently get truncated.
+        const paginationRequested = req.query.page !== undefined || req.query.limit !== undefined;
+
+        let query = User.find(filter)
             .populate("expertise", "name color")
             .select("-password")
             .lean();
 
+        if (!paginationRequested) {
+            const employees = await query;
+
+            return res.json({
+                success: true,
+                data: employees
+            });
+        }
+
+        const page = Math.max(parseInt(req.query.page) || 1, 1);
+        const limit = Math.min(Math.max(parseInt(req.query.limit) || 20, 1), 100);
+        const skip = (page - 1) * limit;
+
+        const [employees, total] = await Promise.all([
+            query.skip(skip).limit(limit),
+            User.countDocuments(filter)
+        ]);
+
         res.json({
             success: true,
-            data: employees
+            data: employees,
+            pagination: {
+                page,
+                limit,
+                total,
+                totalPages: Math.ceil(total / limit)
+            }
         });
 
     } catch (err) {

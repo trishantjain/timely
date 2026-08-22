@@ -169,7 +169,6 @@ export const assignTaskToEmployee = async (req, res) => {
     try {
 
         const { componentId, taskId } = req.params;
-
         const { projectMemberId, deadline } = req.body;
 
         // Validate Project Member
@@ -182,6 +181,9 @@ export const assignTaskToEmployee = async (req, res) => {
             });
         }
 
+        console.log("\n===== PROJECT MEMBER =====");
+        console.log(member);
+
         // Validate Component
         const component = await ProjectComponent.findById(componentId);
 
@@ -191,6 +193,21 @@ export const assignTaskToEmployee = async (req, res) => {
                 message: "Project Component not found."
             });
         }
+
+        console.log("\n===== COMPONENT FOUND =====");
+        console.log("Component ID:", component._id.toString());
+
+        console.log("\n===== TASKS IN COMPONENT =====");
+        component.tasks.forEach((t, index) => {
+            console.log({
+                index,
+                id: t._id.toString(),
+                title: t.title,
+                assignedEmployee: t.assignedEmployee,
+                deadline: t.deadline,
+                status: t.status
+            });
+        });
 
         // Ensure member belongs to this project
         if (member.project.toString() !== component.project.toString()) {
@@ -202,28 +219,54 @@ export const assignTaskToEmployee = async (req, res) => {
 
         }
 
+        console.log("\nRequested Task ID:", taskId);
+
         // Find Task
         const task = component.tasks.id(taskId);
 
         if (!task) {
+
+            console.log("❌ Task NOT FOUND");
+
             return res.status(404).json({
                 success: false,
                 message: "Task not found."
             });
         }
 
+        console.log("\n===== BEFORE ASSIGNMENT =====");
+        console.log(task.toObject());
+
         // Assign
         task.assignedEmployee = member.employee;
         task.deadline = deadline;
 
+        console.log("\n===== AFTER ASSIGNMENT (BEFORE SAVE) =====");
+        console.log(task.toObject());
+
         await component.save();
+
+        console.log("\n===== SAVE COMPLETED =====");
+
+        // Reload from MongoDB
+        const updatedComponent = await ProjectComponent.findById(componentId);
+
+        const updatedTask = updatedComponent.tasks.id(taskId);
+
+        console.log("\n===== TASK AFTER RELOADING FROM DB =====");
+
+        if (updatedTask) {
+            console.log(updatedTask.toObject());
+        } else {
+            console.log("❌ Task missing after reload");
+        }
 
         console.log("[ProjectComponent] Task Assigned Successfully");
 
         return res.json({
             success: true,
             message: "Task assigned successfully.",
-            data: task
+            data: updatedTask || task
         });
 
     }
@@ -239,7 +282,6 @@ export const assignTaskToEmployee = async (req, res) => {
     }
 
 };
-
 // =========================================
 // GET MY TASKS
 // =========================================
@@ -251,36 +293,141 @@ export const getMyTasks = async (req, res) => {
     console.log("========================================");
 
     try {
+
         const components = await ProjectComponent.find({
             "tasks.assignedEmployee": req.user.id
         })
             .populate("project", "name")
             .populate("projectModule", "name");
 
+
+        console.log(
+            `[ProjectComponent] Components found: ${components.length}`
+        );
+
+
         const myTasks = [];
 
+
         for (const component of components) {
+
+            console.log("\n===== COMPONENT =====");
+
+            console.log(
+                "Component ID:",
+                component._id.toString()
+            );
+
+            console.log(
+                "Component Name:",
+                component.name
+            );
+
+            console.log(
+                "Raw Project:",
+                component.project
+            );
+
+            console.log(
+                "Raw Project Module:",
+                component.projectModule
+            );
+
+
+            // Prevent crash if referenced project
+            // has been deleted or is missing.
+
+            if (!component.project) {
+
+                console.error(
+                    "[Get My Tasks] Project not found for component:",
+                    component._id.toString()
+                );
+
+                continue;
+
+            }
+
+
+            // Prevent crash if referenced project module
+            // has been deleted or is missing.
+
+            if (!component.projectModule) {
+
+                console.error(
+                    "[Get My Tasks] Project Module not found for component:",
+                    component._id.toString()
+                );
+
+                continue;
+
+            }
+
 
             for (const task of component.tasks) {
 
                 if (
                     task.assignedEmployee &&
-                    task.assignedEmployee.toString() === req.user.id
+                    task.assignedEmployee.toString() ===
+                    req.user.id.toString()
                 ) {
 
+                    console.log("\n----- MATCHING TASK -----");
+
+                    console.log(
+                        "Task ID:",
+                        task._id.toString()
+                    );
+
+                    console.log(
+                        "Task Title:",
+                        task.title
+                    );
+
+                    console.log(
+                        "Assigned Employee:",
+                        task.assignedEmployee.toString()
+                    );
+
+
                     myTasks.push({
-                        projectId: component.project._id,
-                        projectName: component.project.name,
-                        componentId: component._id,
-                        componentName: component.name,
-                        moduleId: component.projectModule._id,
-                        moduleName: component.projectModule.name,
-                        taskId: task._id,
-                        taskTitle: task.title,
-                        taskDescription: task.description,
-                        deadline: task.deadline,
-                        status: task.status,
-                        submissionType: task.submissionRule.type
+
+                        projectId:
+                            component.project._id,
+
+                        projectName:
+                            component.project.name,
+
+                        componentId:
+                            component._id,
+
+                        componentName:
+                            component.name,
+
+                        moduleId:
+                            component.projectModule._id,
+
+                        moduleName:
+                            component.projectModule.name,
+
+                        taskId:
+                            task._id,
+
+                        taskTitle:
+                            task.title,
+
+                        taskDescription:
+                            task.description,
+
+                        deadline:
+                            task.deadline,
+
+                        status:
+                            task.status,
+
+                        submissionType:
+                            task.submissionRule?.type || "TEXT"
+
                     });
 
                 }
@@ -289,25 +436,44 @@ export const getMyTasks = async (req, res) => {
 
         }
 
-        console.log(`[ProjectComponent] ${myTasks.length} task(s) found.`);
+
+        console.log(
+            `\n[ProjectComponent] ${myTasks.length} task(s) found.`
+        );
+
+        console.log(
+            "Final Tasks:",
+            myTasks
+        );
+
 
         return res.status(200).json({
+
             success: true,
-            count: myTasks.length,
-            data: myTasks
+
+            count:
+                myTasks.length,
+
+            data:
+                myTasks
+
         });
 
     }
     catch (err) {
 
-        console.error("[ProjectComponent] Get My Tasks Error");
+        console.error(
+            "[ProjectComponent] Get My Tasks Error"
+        );
+
         console.error(err);
 
         return res.status(500).json({
 
             success: false,
 
-            message: err.message
+            message:
+                err.message
 
         });
 

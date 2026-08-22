@@ -3,56 +3,33 @@ import ProjectModule from "../../models/project/ProjectModule.js";
 // CREATE MODULE
 export const createProjectModule = async (req, res) => {
 
-    console.log("\n========================================");
-    console.log("[ProjectModule] Create Request");
-    console.log("User :", req.user.id);
-    console.log("Payload :", req.body);
-    console.log("========================================");
-
     try {
         const { name, description, color } = req.body;
 
         if (!name || name.trim() === "") {
-
-            console.log("[ProjectModule] Validation Failed : Name missing");
-
             return res.status(400).json({
                 success: false,
                 message: "Module name is required."
             });
-
         }
-
-        console.log("[ProjectModule] Checking duplicate module...");
 
         const exists = await ProjectModule.findOne({
             name: name.trim()
         });
 
         if (exists) {
-
-            console.log("[ProjectModule] Duplicate module found.");
-
             return res.status(400).json({
                 success: false,
                 message: "Module already exists."
             });
-
         }
 
-        console.log("[ProjectModule] Creating module...");
-
         const module = await ProjectModule.create({
-
             name: name.trim(),
             description,
             color,
             createdBy: req.user.id
-
         });
-
-        console.log("[ProjectModule] Created Successfully.");
-        console.log("Module ID :", module._id);
 
         res.status(201).json({
             success: true,
@@ -61,15 +38,105 @@ export const createProjectModule = async (req, res) => {
 
     }
     catch (err) {
-
-        console.error("[ProjectModule] ERROR");
-        console.error(err);
+        console.error("[ProjectModule] ERROR", err);
 
         res.status(500).json({
             success: false,
             message: err.message
         });
+    }
 
+};
+
+// UPDATE MODULE
+export const updateProjectModule = async (req, res) => {
+
+    try {
+        const { id } = req.params;
+        const { name, description, color, isActive } = req.body;
+
+        const module = await ProjectModule.findById(id);
+
+        if (!module) {
+            return res.status(404).json({
+                success: false,
+                message: "Module not found."
+            });
+        }
+
+        if (name !== undefined) {
+            const duplicate = await ProjectModule.findOne({
+                name: name.trim(),
+                _id: { $ne: id }
+            });
+
+            if (duplicate) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Another module with this name already exists."
+                });
+            }
+
+            module.name = name.trim();
+        }
+
+        if (description !== undefined) module.description = description;
+        if (color !== undefined) module.color = color;
+        if (typeof isActive === "boolean") module.isActive = isActive;
+
+        await module.save();
+
+        res.json({
+            success: true,
+            data: module
+        });
+
+    }
+    catch (err) {
+        console.error("[ProjectModule] Update Error", err);
+
+        res.status(500).json({
+            success: false,
+            message: err.message
+        });
+    }
+
+};
+
+// DEACTIVATE MODULE (soft delete)
+// Hard-deleting would orphan ComponentTemplate.projectModule references.
+export const deactivateProjectModule = async (req, res) => {
+
+    try {
+        const { id } = req.params;
+
+        const module = await ProjectModule.findByIdAndUpdate(
+            id,
+            { isActive: false },
+            { new: true }
+        );
+
+        if (!module) {
+            return res.status(404).json({
+                success: false,
+                message: "Module not found."
+            });
+        }
+
+        res.json({
+            success: true,
+            message: "Module deactivated successfully.",
+            data: module
+        });
+
+    }
+    catch (err) {
+        console.error("[ProjectModule] Deactivate Error", err);
+
+        res.status(500).json({
+            success: false,
+            message: err.message
+        });
     }
 
 };
@@ -77,16 +144,12 @@ export const createProjectModule = async (req, res) => {
 // GET ALL MODULES
 export const getProjectModules = async (req, res) => {
 
-    console.log("\n========================================");
-    console.log("[ProjectModule] Fetch All");
-    console.log("========================================");
-
     try {
-        const modules = await ProjectModule.find().sort({
+        const modules = await ProjectModule.find({
+            // isActive: true
+        }).sort({
             name: 1
         }).lean();
-
-        console.log(`[ProjectModule] ${modules.length} modules found.`);
 
         res.json({
             success: true,
@@ -94,15 +157,12 @@ export const getProjectModules = async (req, res) => {
         });
     }
     catch (err) {
-
-        console.error("[ProjectModule] ERROR");
-        console.error(err);
+        console.error("[ProjectModule] ERROR", err);
 
         res.status(500).json({
             success: false,
             message: err.message
         });
-
     }
 
 };

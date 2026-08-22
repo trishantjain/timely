@@ -1,104 +1,124 @@
 import bcrypt from "bcrypt"
 import User from "../../models/auth/User.js"
-import jwt from "jsonwebtoken"
+import { signToken } from "../../config/jwt.js"
 
-// CREATER USER CONTROLLER
+const isDev = process.env.NODE_ENV !== "production";
+
+// CREATE USER CONTROLLER
 export const createUser = async (req, res) => {
 
-    const { username, email, password, role, expertise } = req.body;
+    try {
+        const { username, email, password, role, expertise } = req.body;
 
-    // HASHING PASSWORD
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+        // Prevent duplicate email up front with a clear message
+        // (otherwise this fails later with a raw Mongo E11000 error).
+        const existing = await User.findOne({ email });
 
-    // CREATING USER OBJECT
-    const user = new User({
-        username,
-        email,
-        password: hashedPassword,
-        role,
-        expertise
-    });
+        if (existing) {
+            return res.status(409).json({
+                success: false,
+                message: "A user with this email already exists."
+            });
+        }
 
-    // SAVING USER
-    await user.save()
+        // HASHING PASSWORD
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
 
-    // SENDING RESPONSE
-    res.json(user)
+        // CREATING USER OBJECT
+        const user = new User({
+            username,
+            email,
+            password: hashedPassword,
+            role,
+            expertise
+        });
+
+        // SAVING USER
+        await user.save();
+
+        user.password = undefined;
+
+        res.status(201).json({
+            success: true,
+            data: user
+        });
+
+    } catch (err) {
+        res.status(500).json({
+            success: false,
+            message: err.message
+        });
+    }
 };
 
 // LOGIN USER CONTROLLER
 export const login = async (req, res) => {
 
-    console.time("LOGIN TOTAL");
+    try {
+        const { email, password } = req.body;
 
-    const { email, password } = req.body;
+        const user = await User.findOne({ email });
 
-    console.time("Find User");
+        // Same generic message whether the email doesn't exist or the
+        // password is wrong — avoids leaking which emails are registered.
+        if (!user) {
+            return res.status(401).json({
+                success: false,
+                message: "Invalid credentials"
+            });
+        }
 
-    const start = performance.now();
+        const match = await bcrypt.compare(password, user.password);
 
-    const user = await User.findOne({ email });
+        if (!match) {
+            return res.status(401).json({
+                success: false,
+                message: "Invalid credentials"
+            });
+        }
 
-    console.log(
-        "Mongo Find User:",
-        performance.now() - start
-    );
-    console.timeEnd("Find User");
-
-    if (!user) {
-        console.timeEnd("LOGIN TOTAL");
-        return res.status(401).json({
-            message: "Invalid credentials"
-        });
-    }
-
-    console.time("Compare Password");
-
-    const match = await bcrypt.compare(
-        password,
-        user.password
-    );
-
-    console.timeEnd("Compare Password");
-
-    if (!match) {
-        console.timeEnd("LOGIN TOTAL");
-        return res.status(401).json({
-            message: "Invalid credentials"
-        });
-    }
-
-    console.time("Generate Token");
-
-    const token = jwt.sign(
-        {
+        const token = signToken({
             id: user._id,
             role: user.role
-        },
-        process.env.JWT_SECRET,
-        {
-            expiresIn: "1d"
-        }
-    );
+        });
 
-    console.timeEnd("Generate Token");
+        user.password = undefined;
 
-    console.timeEnd("LOGIN TOTAL");
+        res.json({
+            success: true,
+            token,
+            user
+        });
 
-    user.password = undefined;
-
-    res.json({
-        token,
-        user
-    });
+    } catch (err) {
+        res.status(500).json({
+            success: false,
+            message: err.message
+        });
+    }
 };
 
+// GET USERS (admin-only lookup, e.g. for assignment dropdowns)
 export const getUsers = async (req, res) => {
 
-    const users = await User.find({ role: "user" })
-        .select("_id username email")
+    try {
+        // NOTE: this previously filtered `role: "user"`, which does not
+        // exist in the User schema enum ("admin" | "employee") and so
+        // always returned an empty array. Fixed to return employees,
+        // which matches how this endpoint is actually consumed.
+        const users = await User.find({ role: "employee" })
+            .select("_id username email");
 
-    res.json(users)
-
-}
+        // NOTE: kept as a bare array (not {success, data}) because the
+        // frontend consumer (AddTaskDialog.jsx via api/userAPI.js) does
+        // `setUsers(res.data)` expecting an array directly. Wrapping it
+        // would silently break that dropdown.
+        res.json(users);
+    } catch (err) {
+        res.status(500).json({
+            success: false,
+            message: err.message
+        });
+    }
+};

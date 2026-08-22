@@ -1,17 +1,19 @@
 import express from "express"
 import { createProject, getProjects, addMember, getProjectById, deleteProject, getProjectMembers } from "../../controllers/project/project.controller.js"
 import { adminOnly, protect } from "../../middleware/authMiddleware.js"
+import { createProjectRules, addMemberRules } from "../../validations/project.validation.js";
+import validate from "../../middleware/validate.js";
 
 const router = express.Router();
 
 // 'CREATE PROJECT' FOR 'ADMIN' ONLY
-router.post("/", protect, adminOnly, createProject);
+router.post("/", protect, adminOnly, createProjectRules, validate, createProject);
 
 // GET PROJECTS
 router.get("/", protect, getProjects);
 
 // ADD MEMBERS TO THE PROJECT
-router.post("/:id/add-member", protect, adminOnly, addMember);
+router.post("/:id/add-member", protect, adminOnly, addMemberRules, validate, addMember);
 
 // GET PROJECT BY ID
 router.get("/:id", protect, getProjectById);

@@ -1,33 +1,36 @@
-import jwt from "jsonwebtoken";
+import { verifyToken } from "../config/jwt.js";
 
 export const protect = (req, res, next) => {
     // FETCHING TOKEN
-    const token = req.headers.authorization?.split(" ")[1]
+    const authHeader = req.headers.authorization;
 
-    // ERROR IF TOKEN NOT FOUND
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return res.status(401).json({ success: false, message: "Not authorized" });
+    }
+
+    const token = authHeader.split(" ")[1];
+
     if (!token) {
-        return res.status(401).json({ message: "Not authorized" })
+        return res.status(401).json({ success: false, message: "Not authorized" });
     }
 
     try {
         // DECODING TOKEN TO CHECK IF LOGIN IS BY 'ADMIN'
-        const decoded = jwt.verify(token, process.env.JWT_SECRET)
+        const decoded = verifyToken(token);
 
-        req.user = decoded
+        req.user = decoded;
 
-        next()
-
+        next();
     } catch (err) {
-        return res.status(401).json({ message: "Invalid token" });
+        return res.status(401).json({ success: false, message: "Invalid or expired token" });
     }
 };
 
 // CHECKING 'ADMIN' LOGIN
 export const adminOnly = (req, res, next) => {
-
-    if (req.user.role !== "admin") {
-        return res.status(403).json({ message: "Admin only" })
+    if (!req.user || req.user.role !== "admin") {
+        return res.status(403).json({ success: false, message: "Admin only" });
     }
 
-    next()
-}
+    next();
+};

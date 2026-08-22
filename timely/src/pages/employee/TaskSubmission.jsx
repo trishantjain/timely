@@ -1,10 +1,31 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+
 import { getTaskDetails } from "@/api/projectComponentAPI";
 import { submitTask } from "@/api/submissionAPI";
+
+import {
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle
+} from "@/components/ui/card";
+
+import {
+    Badge
+} from "@/components/ui/badge";
+
+import {
+    Upload,
+    File,
+    Calendar,
+    CheckCircle2,
+    AlertCircle,
+    Trash2
+} from "lucide-react";
 
 export default function TaskSubmission() {
 
@@ -17,6 +38,10 @@ export default function TaskSubmission() {
 
     // const [task, setTask] = useState(null);
     const [textSubmission, setTextSubmission] = useState("");
+    const [selectedFiles, setSelectedFiles] = useState([]);
+    const [uploading, setUploading] = useState(false);
+    const [dragging, setDragging] = useState(false);
+    const [errors, setErrors] = useState([]);
 
 
     const loadTask = async () => {
@@ -50,10 +75,137 @@ export default function TaskSubmission() {
 
     }, []);
 
+    const submissionRule = taskData?.task?.submissionRule;
+
+    const acceptedExtensions = useMemo(() => {
+
+        if (!submissionRule) return [];
+
+        return submissionRule.allowedExtensions?.map(ext =>
+            ext.toLowerCase()
+        ) || [];
+
+    }, [submissionRule]);
+
+    const validateFiles = (files) => {
+
+        const validationErrors = [];
+
+        if (!submissionRule)
+            return [];
+
+        if (
+            submissionRule.maxFiles &&
+            files.length > submissionRule.maxFiles
+        ) {
+
+            validationErrors.push(
+                `Maximum ${submissionRule.maxFiles} file(s) allowed.`
+            );
+
+        }
+
+        files.forEach(file => {
+
+            const extension =
+                "." +
+                file.name
+                    .split(".")
+                    .pop()
+                    .toLowerCase();
+
+            if (
+                acceptedExtensions.length &&
+                !acceptedExtensions.includes(extension)
+            ) {
+
+                validationErrors.push(
+                    `${file.name} is not an allowed file type.`
+                );
+
+            }
+
+            const sizeMB =
+                file.size / 1024 / 1024;
+
+            if (
+                submissionRule.maxFileSizeMB &&
+                sizeMB > submissionRule.maxFileSizeMB
+            ) {
+
+                validationErrors.push(
+                    `${file.name} exceeds ${submissionRule.maxFileSizeMB} MB`
+                );
+
+            }
+
+        });
+
+        return validationErrors;
+
+    };
+
+    const handleFiles = (incomingFiles) => {
+
+        const files = Array.from(incomingFiles);
+
+        const validation =
+            validateFiles(files);
+
+        setErrors(validation);
+
+        if (validation.length)
+            return;
+
+        setSelectedFiles(files);
+
+    };
+
+    const removeFile = (index) => {
+
+        setSelectedFiles(prev =>
+            prev.filter((_, i) => i !== index)
+        );
+
+    };
+
+    // const handleSubmit = async () => {
+
+    //     try {
+
+    //         await submitTask({
+
+    //             projectComponentId: componentId,
+
+    //             taskId,
+
+    //             textSubmission
+
+    //         });
+
+    //         alert("Task submitted successfully.");
+
+    //         navigate("/employee/tasks");
+
+    //     }
+    //     catch (err) {
+
+    //         console.error(err);
+
+    //         alert(
+    //             err.response?.data?.message ||
+    //             "Submission failed."
+    //         );
+
+    //     }
+
+    // };
 
     const handleSubmit = async () => {
 
         try {
+
+            setUploading(true);
 
             await submitTask({
 
@@ -61,7 +213,9 @@ export default function TaskSubmission() {
 
                 taskId,
 
-                textSubmission
+                textSubmission,
+
+                files: selectedFiles
 
             });
 
@@ -78,6 +232,11 @@ export default function TaskSubmission() {
                 err.response?.data?.message ||
                 "Submission failed."
             );
+
+        }
+        finally {
+
+            setUploading(false);
 
         }
 
@@ -108,95 +267,381 @@ export default function TaskSubmission() {
 
             </p>
 
-            <div className="grid grid-cols-2 gap-6 mt-8">
+            <div className="grid grid-cols-3 gap-5 mt-8">
 
-                <div>
+                <Card>
 
-                    <p>
-                        <strong>Project :</strong>{" "}
-                        {taskData.projectName}
-                    </p>
+                    <CardHeader>
 
-                    <p>
-                        <strong>Module :</strong>{" "}
-                        {taskData.moduleName}
-                    </p>
+                        <CardTitle>
 
-                </div>
+                            Status
 
-                <div>
+                        </CardTitle>
 
-                    <p>
-                        <strong>Status :</strong>{" "}
-                        {task.status}
-                    </p>
+                    </CardHeader>
 
-                    <p>
-                        <strong>Deadline :</strong>{" "}
-                        {
-                            task.deadline
-                                ? new Date(task.deadline).toLocaleDateString()
-                                : "No Deadline"
-                        }
-                    </p>
+                    <CardContent>
 
-                </div>
+                        <Badge>
+
+                            {task.status}
+
+                        </Badge>
+
+                    </CardContent>
+
+                </Card>
+
+                <Card>
+
+                    <CardHeader>
+
+                        <CardTitle>
+
+                            Deadline
+
+                        </CardTitle>
+
+                    </CardHeader>
+
+                    <CardContent>
+
+                        <div className="flex items-center gap-2">
+
+                            <Calendar size={18} />
+
+                            {
+                                task.deadline
+                                    ? new Date(task.deadline).toLocaleDateString()
+                                    : "No deadline"
+                            }
+
+                        </div>
+
+                    </CardContent>
+
+                </Card>
+
+                <Card>
+
+                    <CardHeader>
+
+                        <CardTitle>
+
+                            Submission Type
+
+                        </CardTitle>
+
+                    </CardHeader>
+
+                    <CardContent>
+
+                        <Badge variant="secondary">
+
+                            {submissionRule.type}
+
+                        </Badge>
+
+                    </CardContent>
+
+                </Card>
 
             </div>
 
             <div className="mt-8">
 
                 <h3 className="mb-2 text-lg font-semibold">
-
                     Instructions
-
                 </h3>
 
                 <div className="p-4 border rounded-lg">
-
                     {
                         task.description
                             ? task.description
                             : "No instructions provided."
                     }
-
                 </div>
 
             </div>
 
-            {
-                task.submissionRule.type === "TEXT" && (
 
-                    <div className="mt-8">
+            <Card className="mb-6">
+                <CardHeader>
+                    <CardTitle>
+                        Submission Rules
+                    </CardTitle>
+                </CardHeader>
 
-                        <h3 className="mb-2 text-lg font-semibold">
+                <CardContent className="space-y-3">
 
-                            Submission
+                    <div className="flex flex-wrap gap-2">
+                        {
+                            acceptedExtensions.length
+                                ? acceptedExtensions.map(ext => (
+                                    <Badge
+                                        key={ext}
+                                        variant="outline"
+                                    >
+                                        {ext}
+                                    </Badge>
+                                ))
+                                : (
+                                    <Badge>
+                                        Any
+                                    </Badge>
+                                )
+                        }
+                    </div>
 
-                        </h3>
+                    <div>
 
-                        <Textarea
-                            className="min-h-40"
-                            placeholder="Enter your work..."
-                            value={textSubmission}
-                            onChange={(e) =>
-                                setTextSubmission(e.target.value)
-                            }
-                        />
+                        Maximum Files :
+                        <strong>
+                            {" "}
+                            {submissionRule.maxFiles}
+                        </strong>
 
                     </div>
 
-                )
+                    <div>
+
+                        Maximum Size :
+                        <strong>
+                            {" "}
+                            {submissionRule.maxFileSizeMB} MB
+                        </strong>
+
+                    </div>
+
+                </CardContent>
+
+            </Card>
+
+            {
+                // task.submissionRule.type === "TEXT" && (
+
+                //     <div className="mt-8">
+
+                //         <h3 className="mb-2 text-lg font-semibold">
+
+                //             Submission
+
+                //         </h3>
+
+                //         <Textarea
+                //             className="min-h-40"
+                //             placeholder="Enter your work..."
+                //             value={textSubmission}
+                //             onChange={(e) =>
+                //                 setTextSubmission(e.target.value)
+                //             }
+                //         />
+
+                //     </div>
+
+                // )
+
+                <div className="mt-8">
+
+                    <h3 className="mb-4 text-lg font-semibold">
+                        Submission
+                    </h3>
+
+                    {submissionRule.type === "TEXT" && (
+
+                        <Textarea
+
+                            className="min-h-40"
+
+                            placeholder="Enter your work..."
+
+                            value={textSubmission}
+
+                            onChange={(e) =>
+                                setTextSubmission(e.target.value)
+                            }
+
+                        />
+
+                    )}
+
+                    {submissionRule.type !== "TEXT" && (
+
+                        <>
+
+                            <div
+
+                                className={`border-2 border-dashed rounded-lg p-8 text-center transition
+
+                ${dragging
+                                        ? "border-blue-500 bg-blue-50"
+                                        : "border-gray-300"
+                                    }`}
+
+                                onDragOver={(e) => {
+
+                                    e.preventDefault();
+
+                                    setDragging(true);
+
+                                }}
+
+                                onDragLeave={() =>
+                                    setDragging(false)
+                                }
+
+                                onDrop={(e) => {
+
+                                    e.preventDefault();
+
+                                    setDragging(false);
+
+                                    handleFiles(
+                                        e.dataTransfer.files
+                                    );
+
+                                }}
+
+                            >
+
+                                <label className="block cursor-pointer">
+
+                                    <input
+                                        hidden
+                                        type="file"
+                                        multiple={submissionRule.maxFiles > 1}
+                                        onChange={(e) =>
+                                            handleFiles(e.target.files)
+                                        }
+                                    />
+
+                                    <div className="flex flex-col items-center justify-center py-10">
+
+                                        <Upload size={42} />
+
+                                        <p className="mt-4 font-medium">
+                                            Click or Drag Files Here
+                                        </p>
+
+                                        <p className="text-sm text-gray-500">
+                                            Upload your submission
+                                        </p>
+
+                                    </div>
+
+                                </label>
+
+                                <p className="mt-3 text-sm text-gray-500">
+
+                                    Drag & Drop files here
+
+                                </p>
+
+                            </div>
+
+                            {errors.length > 0 && (
+
+                                <div className="p-4 mt-4 text-red-700 border rounded bg-red-50">
+
+                                    {errors.map(error => (
+
+                                        <div key={error}>
+                                            • {error}
+                                        </div>
+
+                                    ))}
+
+                                </div>
+
+                            )}
+
+                            {selectedFiles.length > 0 && (
+
+                                <div className="mt-5 space-y-2">
+
+                                    {selectedFiles.map((file, index) => (
+
+                                        <div
+
+                                            key={index}
+
+                                            className="flex items-center justify-between p-3 border rounded"
+
+                                        >
+
+                                            <div className="flex items-center gap-3">
+
+                                                <File size={18} />
+
+                                                <div>
+
+                                                    <p className="font-medium">
+
+                                                        {file.name}
+
+                                                    </p>
+
+                                                    <p className="text-xs text-gray-500">
+
+                                                        {(file.size / 1024).toFixed(1)} KB
+
+                                                    </p>
+
+                                                </div>
+
+                                            </div>
+                                            <Button
+
+                                                variant="ghost"
+
+                                                size="icon"
+
+                                                onClick={() =>
+                                                    removeFile(index)
+                                                }
+
+                                            >
+
+                                                <Trash2 size={18} />
+
+                                            </Button>
+                                        </div>
+
+                                    ))}
+
+                                </div>
+
+                            )}
+
+                        </>
+
+                    )}
+
+                </div>
             }
+
 
             <div className="mt-8">
 
                 <Button
-                    onClick={handleSubmit}
-                >
-                    Submit
-                </Button>
 
+                    disabled={
+                        uploading ||
+                        errors.length > 0
+                    }
+
+                    onClick={handleSubmit}
+
+                >
+
+                    {
+                        uploading
+                            ? "Submitting..."
+                            : "Submit"
+                    }
+
+                </Button>
             </div>
 
         </div>

@@ -79,6 +79,11 @@ function App() {
               path="reviews"
               element={<PendingReviews />}
             />
+
+            <Route
+              path="projects"
+              element={<AdminDashboard />}
+            />
           </Route>
 
           <Route
