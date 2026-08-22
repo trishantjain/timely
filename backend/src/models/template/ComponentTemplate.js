@@ -31,6 +31,68 @@ const submissionRuleSchema = new mongoose.Schema(
         maxFileSizeMB: {
             type: Number,
             default: 10
+        },
+
+        // ==========================================
+        // DOCUMENT TEMPLATE VERIFICATION
+        // ==========================================
+        templateVerification: {
+
+            enabled: {
+                type: Boolean,
+                default: false
+            },
+
+            templateFile: {
+
+                originalName: {
+                    type: String,
+                    default: ""
+                },
+
+                publicId: {
+                    type: String,
+                    default: ""
+                },
+
+                url: {
+                    type: String,
+                    default: ""
+                },
+
+                secureUrl: {
+                    type: String,
+                    default: ""
+                },
+
+                resourceType: {
+                    type: String,
+                    default: "raw"
+                },
+
+                mimeType: {
+                    type: String,
+                    default: ""
+                },
+
+                size: {
+                    type: Number,
+                    default: 0
+                },
+
+                uploadedAt: {
+                    type: Date,
+                    default: null
+                }
+            },
+
+            // This will be generated later after
+            // analyzing the reference PDF.
+            templateProfile: {
+                type: mongoose.Schema.Types.Mixed,
+                default: null
+            }
+
         }
     },
     {

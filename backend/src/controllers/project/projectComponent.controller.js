@@ -109,39 +109,33 @@ export const addProjectComponent = async (req, res) => {
 export const getProjectComponents = async (req, res) => {
 
     try {
+
         const { projectId } = req.params;
 
         const components = await ProjectComponent.find({
-            project: req.params.projectId
+            project: projectId
         })
-            .populate("projectModule", "name")
+            .populate(
+                "projectModule",
+                "name"
+            )
+            .populate(
+                "tasks.assignedEmployee",
+                "username email"
+            )
             .sort({
                 createdAt: 1
-            })
+            });
 
-        console.log("Components Type:", typeof components);
-        console.log("Is Array:", Array.isArray(components));
         console.log("Components:", components);
-
-        // for (const component of components) {
-        //     for (const task of component.tasks) {
-        //         console.log("Component:", component);
-        //         console.log("Tasks:", component.tasks);
-
-        //         const submission = await Submission.findOne({
-        //             projectComponent: component._id,
-        //             taskId: task._id
-        //         });
-
-        //         task.submissionId = submission?._id || null;
-        //     }
-        // }
 
         res.status(200).json({
             success: true,
             data: components
         });
-    } catch (err) {
+
+    }
+    catch (err) {
 
         console.error(err);
 
@@ -153,7 +147,6 @@ export const getProjectComponents = async (req, res) => {
     }
 
 };
-
 
 // =========================================
 // ASSIGN TASK TO EMPLOYEE
@@ -282,6 +275,7 @@ export const assignTaskToEmployee = async (req, res) => {
     }
 
 };
+
 // =========================================
 // GET MY TASKS
 // =========================================

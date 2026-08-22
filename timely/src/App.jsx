@@ -19,6 +19,8 @@ import MyTasks from './pages/employee/MyTasks'
 import TaskSubmission from './pages/employee/TaskSubmission'
 import PendingReviews from './pages/admin/PendingReviews'
 import ReviewSubmission from './pages/admin/ReviewSubmission'
+import WorkspaceManagement from "./pages/admin/WorkspaceManagement";
+
 
 
 function App() {
@@ -83,6 +85,11 @@ function App() {
             <Route
               path="projects"
               element={<AdminDashboard />}
+            />
+
+            <Route
+              path="workspace"
+              element={<WorkspaceManagement />}
             />
           </Route>
 
