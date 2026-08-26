@@ -6,57 +6,56 @@ export const createDomain = async (req, res) => {
         const { name, description, color } = req.body;
 
         const exists = await Domain.findOne({
-            name: name.trim()
+            name: name.trim(),
         });
 
         if (exists) {
             return res.status(400).json({
                 success: false,
-                message: "Domain already exists"
+                message: "Domain already exists",
             });
         }
 
         const domain = await Domain.create({
             name,
             description,
-            color
+            color,
         });
 
         res.status(201).json({
             success: true,
-            data: domain
+            data: domain,
         });
-
     } catch (err) {
         res.status(500).json({
             success: false,
-            message: err.message
+            message: err.message,
         });
     }
-}
+};
 
 // GET ALL DOMAINS
 export const getAllDomains = async (req, res) => {
     try {
         const domains = await Domain.find({
             // isActive: true
-        }).sort({
-            name: 1
-        }).lean();
+        })
+            .sort({
+                name: 1,
+            })
+            .lean();
 
         res.json({
             success: true,
-            data: domains
+            data: domains,
         });
-    }
-    catch (err) {
+    } catch (err) {
         res.status(500).json({
             success: false,
-            message: err.message
+            message: err.message,
         });
-
     }
-}
+};
 
 // UPDATE DOMAIN
 export const updateDomain = async (req, res) => {
@@ -69,20 +68,20 @@ export const updateDomain = async (req, res) => {
         if (!domain) {
             return res.status(404).json({
                 success: false,
-                message: "Domain not found"
+                message: "Domain not found",
             });
         }
 
         if (name !== undefined) {
             const duplicate = await Domain.findOne({
                 name: name.trim(),
-                _id: { $ne: id }
+                _id: { $ne: id },
             });
 
             if (duplicate) {
                 return res.status(400).json({
                     success: false,
-                    message: "Another domain with this name already exists"
+                    message: "Another domain with this name already exists",
                 });
             }
 
@@ -97,16 +96,42 @@ export const updateDomain = async (req, res) => {
 
         res.json({
             success: true,
-            data: domain
+            data: domain,
         });
-
     } catch (err) {
         res.status(500).json({
             success: false,
-            message: err.message
+            message: err.message,
         });
     }
-}
+};
+
+// GET SINGLE DOMAIN
+
+export const getDomainById = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        const domain = await Domain.findById(id).lean();
+
+        if (!domain) {
+            return res.status(404).json({
+                success: false,
+                message: "Domain not found",
+            });
+        }
+
+        res.json({
+            success: true,
+            data: domain,
+        });
+    } catch (err) {
+        res.status(500).json({
+            success: false,
+            message: err.message,
+        });
+    }
+};
 
 // DEACTIVATE DOMAIN (soft delete)
 // Hard-deleting would orphan every User.expertise / ProjectMember.domain /
@@ -118,26 +143,25 @@ export const deactivateDomain = async (req, res) => {
         const domain = await Domain.findByIdAndUpdate(
             id,
             { isActive: false },
-            { new: true }
+            { new: true },
         );
 
         if (!domain) {
             return res.status(404).json({
                 success: false,
-                message: "Domain not found"
+                message: "Domain not found",
             });
         }
 
         res.json({
             success: true,
             message: "Domain deactivated successfully",
-            data: domain
+            data: domain,
         });
-
     } catch (err) {
         res.status(500).json({
             success: false,
-            message: err.message
+            message: err.message,
         });
     }
-}
+};

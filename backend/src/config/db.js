@@ -5,12 +5,6 @@ import mongoose from "mongoose";
 // always-on.
 if (process.env.NODE_ENV !== "production") {
     mongoose.set("debug", function (collection, method, query, doc) {
-        console.log("================================");
-        console.log(collection);
-        console.log(method);
-        console.log(query);
-        console.log(doc);
-        console.log("================================");
     });
 }
 

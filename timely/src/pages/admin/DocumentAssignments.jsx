@@ -16,7 +16,7 @@ export default function Assignments() {
         try {
             const res = await getProjectById(id);
             setProject(res.data);
-            console.log("Project:", res.data);
+            // console.log("Project:", res.data);
         } catch (err) {
             console.error(err);
         }
@@ -26,7 +26,7 @@ export default function Assignments() {
         try {
             const res = await getEmployees();
             setEmployees(res.data.data);
-            console.log("Fetched employees:", res.data.data);
+            // console.log("Fetched employees:", res.data.data);
         } catch (err) {
             console.error(err);
         }

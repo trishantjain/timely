@@ -22,27 +22,6 @@ import { notFound, errorHandler } from "./middleware/errorMiddleware.js";
 
 dotenv.config();
 
-console.log("===== ENV VALUES =====");
-
-console.log("PORT:", process.env.PORT);
-console.log("MONGO_URI:", process.env.MONGO_URI ? "FOUND" : "MISSING");
-
-console.log(
-    "CLOUDINARY_CLOUD_NAME:",
-    process.env.CLOUDINARY_CLOUD_NAME || "MISSING"
-);
-
-console.log(
-    "CLOUDINARY_API_KEY:",
-    process.env.CLOUDINARY_API_KEY ? "FOUND" : "MISSING"
-);
-
-console.log(
-    "CLOUDINARY_API_SECRET:",
-    process.env.CLOUDINARY_API_SECRET ? "FOUND" : "MISSING"
-);
-
-console.log("======================");
 const allowedOrigins = [
     "http://localhost:5173",      // Local React
     process.env.CLIENT_URL         // Production Vercel URL

@@ -1,35 +1,30 @@
 import express from "express";
 
 import {
-    getEmployees,
-    getMyProjectDetails,
-    getMyProjects
+  getEmployees,
+  getEmployeeById,
+  updateEmployee,
+  getMyProjectDetails,
+  getMyProjects,
 } from "../../controllers/employee/employee.controller.js";
 
-import {
-    protect,
-    adminOnly
-} from "../../middleware/authMiddleware.js";
+import { protect, adminOnly } from "../../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-router.get(
-    "/",
-    protect,
-    adminOnly,
-    getEmployees
-);
+// GET ALL EMPLOYEES
+router.get("/", protect, adminOnly, getEmployees);
 
-router.get(
-    "/projects",
-    protect,
-    getMyProjects
-);
+// GET LOGGED-IN EMPLOYEE PROJECTS
+router.get("/projects", protect, getMyProjects);
 
-router.get(
-    "/projects/:projectId",
-    protect,
-    getMyProjectDetails
-);
+// GET SINGLE PROJECT DETAILS
+router.get("/projects/:projectId", protect, getMyProjectDetails);
+
+// GET SINGLE EMPLOYEE
+router.get("/:id", protect, adminOnly, getEmployeeById);
+
+// UPDATE EMPLOYEE
+router.put("/:id", protect, adminOnly, updateEmployee);
 
 export default router;
