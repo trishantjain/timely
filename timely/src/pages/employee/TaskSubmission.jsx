@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
@@ -13,10 +13,11 @@ import { Badge } from "@/components/ui/badge";
 
 import {
   Upload,
-  CalendarDays,
-  ClipboardList,
-  FileText,
-  ArrowLeft,
+  File,
+  Calendar,
+  CheckCircle2,
+  AlertCircle,
+  Trash2,
 } from "lucide-react";
 
 export default function TaskSubmission() {
@@ -27,13 +28,11 @@ export default function TaskSubmission() {
   const [loading, setLoading] = useState(true);
   const [taskData, setTaskData] = useState(null);
 
-  // const [task, setTask] = useState(null);
   const [textSubmission, setTextSubmission] = useState("");
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [errors, setErrors] = useState([]);
-  const fileInputRef = useRef(null);
 
   const loadTask = async () => {
     try {
@@ -109,52 +108,9 @@ export default function TaskSubmission() {
     setSelectedFiles(files);
   };
 
-  const handleFileChange = (event) => {
-    const files = event.target.files;
-
-    if (!files || !files.length) return;
-
-    handleFiles(files);
-
-    // Allows selecting the same file again after removing it
-    event.target.value = "";
-  };
-
   const removeFile = (index) => {
     setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
   };
-
-  // const handleSubmit = async () => {
-
-  //     try {
-
-  //         await submitTask({
-
-  //             projectComponentId: componentId,
-
-  //             taskId,
-
-  //             textSubmission
-
-  //         });
-
-  //         alert("Task submitted successfully.");
-
-  //         navigate("/employee/tasks");
-
-  //     }
-  //     catch (err) {
-
-  //         console.error(err);
-
-  //         alert(
-  //             err.response?.data?.message ||
-  //             "Submission failed."
-  //         );
-
-  //     }
-
-  // };
 
   const handleSubmit = async () => {
     try {
@@ -162,11 +118,8 @@ export default function TaskSubmission() {
 
       await submitTask({
         projectComponentId: componentId,
-
         taskId,
-
         textSubmission,
-
         files: selectedFiles,
       });
 
@@ -176,230 +129,256 @@ export default function TaskSubmission() {
     } catch (err) {
       console.error(err);
 
-      alert(err.response?.data?.message || "Submission failed.");
+      alert(err.response?.data?.message || "Unable to submit task.");
     } finally {
       setUploading(false);
     }
   };
 
   if (loading) {
-    return <div className="p-8">Loading...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <p className="text-sm text-muted-foreground">Loading task...</p>
+      </div>
+    );
   }
 
-  const task = taskData.task;
+  if (!taskData?.task) {
+    return <div className="p-8 text-muted-foreground">Task not found.</div>;
+  }
+
+  const { task, component, project, module } = taskData;
+
+  const isTextSubmission = submissionRule?.type === "TEXT";
 
   return (
-    <div className="w-full px-6 py-5 lg:px-8">
-      {/* BACK BUTTON */}
+    <div className="max-w-5xl p-6 mx-auto lg:p-8">
       <button
         onClick={() => navigate(-1)}
-        className="flex items-center gap-2 mb-5 text-sm text-muted-foreground hover:text-foreground"
+        className="mb-5 text-sm transition-colors text-muted-foreground hover:text-foreground"
       >
-        <ArrowLeft size={16} />
-        Back to Tasks
+        ← Back
       </button>
 
-      {/* TASK HEADER */}
-      <div className="mb-5 text-center">
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-          {task.title}
-        </h1>
+      <div className="grid gap-5 lg:grid-cols-[1fr_280px]">
+        <div className="space-y-5">
+          <Card className="border-border bg-card">
+            <CardHeader className="pb-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm text-muted-foreground">
+                    {project?.name}
+                  </p>
 
-        {task.moduleName && (
-          <p className="mt-1 text-sm text-muted-foreground">
-            {task.moduleName}
-          </p>
-        )}
-      </div>
+                  <CardTitle className="mt-1 text-xl">{task.title}</CardTitle>
+                </div>
 
-      {/* TASK SUMMARY */}
-      <Card className="mb-5">
-        <CardContent className="p-0">
-          <div className="grid grid-cols-1 divide-y md:grid-cols-3 md:divide-x md:divide-y-0">
-            {/* STATUS */}
-            <div className="p-4">
-              <p className="mb-2 text-xs font-medium uppercase text-muted-foreground">
-                Status
-              </p>
-
-              <Badge variant="secondary" className="px-3 py-1 font-medium">
-                {task.status || "PENDING"}
-              </Badge>
-            </div>
-
-            {/* DEADLINE */}
-            <div className="p-4">
-              <p className="mb-2 text-xs font-medium uppercase text-muted-foreground">
-                Deadline
-              </p>
-
-              <div className="flex items-center gap-2 text-sm font-medium">
-                <CalendarDays size={17} className="text-muted-foreground" />
-
-                {task.deadline
-                  ? new Date(task.deadline).toLocaleDateString()
-                  : "No deadline"}
-              </div>
-            </div>
-
-            {/* SUBMISSION TYPE */}
-            <div className="p-4">
-              <p className="mb-2 text-xs font-medium uppercase text-muted-foreground">
-                Submission Type
-              </p>
-
-              <Badge variant="outline">
-                {task.submissionType || "DOCUMENT"}
-              </Badge>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* INSTRUCTIONS + RULES */}
-      <div className="grid gap-5 mb-6 md:grid-cols-2">
-        {/* INSTRUCTIONS */}
-        <Card>
-          <CardContent className="p-5">
-            <div className="flex items-center gap-2 mb-3">
-              <FileText size={18} className="text-muted-foreground" />
-
-              <h2 className="font-semibold">Instructions</h2>
-            </div>
-
-            <p className="text-sm leading-6 text-muted-foreground">
-              {task.description || "No instructions provided."}
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* SUBMISSION RULES */}
-        <Card>
-          <CardContent className="p-5">
-            <div className="flex items-center gap-2 mb-4">
-              <ClipboardList size={18} className="text-muted-foreground" />
-
-              <h2 className="font-semibold">Submission Rules</h2>
-            </div>
-
-            <div className="space-y-3 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Allowed files</span>
-
-                <Badge variant="outline">
-                  {task.allowedFileTypes?.length
-                    ? task.allowedFileTypes.join(", ")
-                    : "Any"}
+                <Badge
+                  variant="outline"
+                  className="border-border bg-muted text-muted-foreground"
+                >
+                  {task.status}
                 </Badge>
               </div>
+            </CardHeader>
 
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Maximum files</span>
+            <CardContent>
+              {task.description && (
+                <p className="text-sm leading-6 text-muted-foreground">
+                  {task.description}
+                </p>
+              )}
+            </CardContent>
+          </Card>
 
-                <span className="font-medium">{task.maxFiles || 1}</span>
-              </div>
+          <Card className="border-border bg-card">
+            <CardHeader>
+              <CardTitle className="text-base">Submit Work</CardTitle>
+            </CardHeader>
 
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Maximum size</span>
+            <CardContent className="space-y-5">
+              {isTextSubmission && (
+                <Textarea
+                  placeholder="Write your submission here..."
+                  value={textSubmission}
+                  onChange={(e) => setTextSubmission(e.target.value)}
+                  className="min-h-[220px] resize-y bg-background"
+                />
+              )}
 
-                <span className="font-medium">{task.maxFileSize || 10} MB</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+              {!isTextSubmission && (
+                <>
+                  <div
+                    className={`flex flex-col items-center justify-center rounded-lg border border-dashed p-8 transition-colors ${
+                      dragging
+                        ? "border-primary bg-muted"
+                        : "border-border bg-muted/30 hover:bg-muted/60"
+                    }`}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setDragging(true);
+                    }}
+                    onDragLeave={() => setDragging(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
 
-      {/* SUBMISSION */}
-      <div className="mb-4">
-        <h2 className="text-lg font-semibold">Submission</h2>
+                      setDragging(false);
 
-        <p className="mt-1 text-sm text-muted-foreground">
-          Upload your completed work for this task.
-        </p>
-      </div>
+                      handleFiles(e.dataTransfer.files);
+                    }}
+                  >
+                    <Upload className="w-6 h-6 text-muted-foreground" />
 
-      <Card>
-        <CardContent className="p-5">
-          {/* YOUR EXISTING UPLOAD COMPONENT / DROPZONE GOES HERE */}
+                    <p className="mt-3 text-sm font-medium">
+                      Drag and drop files here
+                    </p>
 
-          <div className="border-2 border-dashed rounded-xl">
-            <div className="flex flex-col items-center justify-center px-6 py-10 text-center">
-              <div className="flex items-center justify-center mb-3 border rounded-full w-11 h-11 bg-muted">
-                <Upload size={21} />
-              </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      or select files from your device
+                    </p>
 
-              <p className="font-medium">Upload your submission</p>
+                    <label className="mt-4">
+                      <Button type="button" variant="outline" asChild>
+                        <span>Select Files</span>
+                      </Button>
 
-              <p className="mt-1 text-sm text-muted-foreground">
-                Drag and drop your file here, or click to browse.
-              </p>
-
-              <Button
-                type="button"
-                variant="outline"
-                className="mt-4"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                Choose File
-              </Button>
-
-              <input
-                ref={fileInputRef}
-                type="file"
-                className="hidden"
-                onChange={handleFileChange}
-              />
-            </div>
-          </div>
-
-          {/* EXISTING SELECTED FILE UI */}
-          {selectedFiles.length > 0 && (
-            <div className="mt-4 space-y-2">
-              {selectedFiles.map((file, index) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-between gap-3 p-3 border rounded-lg"
-                >
-                  <div className="flex items-center min-w-0 gap-3">
-                    <div className="flex items-center justify-center border rounded-lg w-9 h-9 bg-muted">
-                      <FileText size={17} />
-                    </div>
-
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium truncate">
-                        {file.name}
-                      </p>
-
-                      <p className="text-xs text-muted-foreground">
-                        {(file.size / 1024 / 1024).toFixed(2)} MB
-                      </p>
-                    </div>
+                      <input
+                        type="file"
+                        className="hidden"
+                        multiple={submissionRule?.maxFiles !== 1}
+                        onChange={(e) => handleFiles(e.target.files)}
+                      />
+                    </label>
                   </div>
 
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeFile(index)}
-                  >
-                    Remove
-                  </Button>
+                  {errors.length > 0 && (
+                    <div className="space-y-2">
+                      {errors.map((error, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center gap-2 text-sm text-destructive"
+                        >
+                          <AlertCircle size={16} />
+                          {error}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {selectedFiles.length > 0 && (
+                    <div className="space-y-2">
+                      {selectedFiles.map((file, index) => (
+                        <div
+                          key={`${file.name}-${index}`}
+                          className="flex items-center justify-between gap-3 p-3 border rounded-lg border-border bg-muted/40"
+                        >
+                          <div className="flex items-center min-w-0 gap-3">
+                            <File
+                              size={18}
+                              className="shrink-0 text-muted-foreground"
+                            />
+
+                            <div className="min-w-0">
+                              <p className="text-sm truncate">{file.name}</p>
+
+                              <p className="text-xs text-muted-foreground">
+                                {(file.size / 1024 / 1024).toFixed(2)} MB
+                              </p>
+                            </div>
+                          </div>
+
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeFile(index)}
+                          >
+                            <Trash2 size={16} />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+
+              <div className="flex justify-end pt-2">
+                <Button onClick={handleSubmit} disabled={uploading}>
+                  {uploading ? "Submitting..." : "Submit Task"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="space-y-4">
+          <Card className="border-border bg-card">
+            <CardContent className="p-4">
+              <p className="text-xs uppercase text-muted-foreground">
+                Component
+              </p>
+
+              <p className="mt-1 text-sm font-medium">{component?.name}</p>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border bg-card">
+            <CardContent className="p-4">
+              <p className="text-xs uppercase text-muted-foreground">Module</p>
+
+              <p className="mt-1 text-sm font-medium">{module?.name}</p>
+            </CardContent>
+          </Card>
+
+          {task.deadline && (
+            <Card className="border-border bg-card">
+              <CardContent className="flex items-center gap-3 p-4">
+                <Calendar size={18} className="text-muted-foreground" />
+
+                <div>
+                  <p className="text-xs uppercase text-muted-foreground">
+                    Deadline
+                  </p>
+
+                  <p className="mt-1 text-sm font-medium">
+                    {new Date(task.deadline).toLocaleDateString()}
+                  </p>
                 </div>
-              ))}
-            </div>
+              </CardContent>
+            </Card>
           )}
 
-          {/* SUBMIT BUTTON */}
-          <div className="flex justify-end pt-5 mt-5 border-t">
-            <Button
-              onClick={handleSubmit}
-              disabled={uploading || selectedFiles.length === 0}
-            >
-              {uploading ? "Submitting..." : "Submit Work"}
-            </Button>{" "}
-          </div>
-        </CardContent>
-      </Card>
+          <Card className="border-border bg-card">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <CheckCircle2
+                  size={18}
+                  className="mt-0.5 text-muted-foreground"
+                />
+
+                <div>
+                  <p className="text-sm font-medium">Submission Rules</p>
+
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                    Type: {submissionRule?.type || "Not specified"}
+                  </p>
+
+                  {submissionRule?.maxFiles && (
+                    <p className="text-xs leading-5 text-muted-foreground">
+                      Maximum files: {submissionRule.maxFiles}
+                    </p>
+                  )}
+
+                  {submissionRule?.maxFileSizeMB && (
+                    <p className="text-xs leading-5 text-muted-foreground">
+                      Maximum size: {submissionRule.maxFileSizeMB} MB
+                    </p>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }

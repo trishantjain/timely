@@ -1,3 +1,5 @@
+// WorkspaceManagement.jsx
+
 import { useEffect, useState } from "react";
 
 import PageHeader from "@/components/common/PageHeader";
@@ -77,16 +79,12 @@ export default function WorkspaceManagement() {
 
   const [newComponentTasks, setNewComponentTasks] = useState([]);
 
-  // ==========================================
-  // FETCH DATA
-  // ==========================================
   const fetchData = async () => {
     try {
       setLoading(true);
 
       const [modulesRes, componentsRes] = await Promise.all([
         getProjectModules(),
-
         getComponentTemplates(),
       ]);
 
@@ -97,8 +95,6 @@ export default function WorkspaceManagement() {
       setModules(modulesData);
 
       setComponents(componentsData);
-
-      // Expand all modules initially
 
       const initialExpanded = {};
 
@@ -122,20 +118,13 @@ export default function WorkspaceManagement() {
     fetchData();
   }, []);
 
-  // ==========================================
-  // TOGGLE MODULE
-  // ==========================================
   const toggleModule = (moduleId) => {
     setExpandedModules((previous) => ({
       ...previous,
-
       [moduleId]: !previous[moduleId],
     }));
   };
 
-  // ==========================================
-  // GET COMPONENTS FOR MODULE
-  // ==========================================
   const getModuleComponents = (moduleId) => {
     return components.filter((component) => {
       const componentModuleId =
@@ -179,7 +168,6 @@ export default function WorkspaceManagement() {
   const addTask = () => {
     setEditTasks((previous) => [
       ...previous,
-
       {
         title: "",
         description: "",
@@ -224,11 +212,8 @@ export default function WorkspaceManagement() {
 
       await updateComponentTemplate(editingComponent._id, {
         name: editName.trim(),
-
         description: editDescription,
-
         projectModule: editModule,
-
         tasks: editTasks,
       });
 
@@ -285,7 +270,6 @@ export default function WorkspaceManagement() {
   const addNewTask = () => {
     setNewComponentTasks((previous) => [
       ...previous,
-
       {
         title: "",
         description: "",
@@ -336,11 +320,8 @@ export default function WorkspaceManagement() {
 
       await createComponentTemplate({
         projectModule: selectedModuleId,
-
         name: newComponentName.trim(),
-
         description: newComponentDescription,
-
         tasks: newComponentTasks,
       });
 
@@ -360,72 +341,58 @@ export default function WorkspaceManagement() {
     <div className="min-h-full p-4 sm:p-6 lg:p-8">
       <PageHeader
         title="Workspace"
-        description="Manage reusable modules, components and their tasks."
+        description="Manage reusable modules, components and tasks."
         actions={
-          <Button className="gap-2">
-            <FolderPlus size={17} />
+          <Button className="gap-2 shadow-sm">
+            <FolderPlus size={16} />
             Add Module
           </Button>
         }
       />
 
-      {/* ======================================
-                WORKSPACE HIERARCHY
-            ====================================== */}
-
-      <div className="mt-6 overflow-hidden border rounded-xl bg-card">
-        {/* HEADER */}
-
-        <div className="flex items-center justify-between p-5 border-b">
+      <div className="mt-6 overflow-hidden border shadow-sm rounded-2xl bg-card">
+        <div className="flex items-center justify-between gap-4 px-5 py-4 border-b sm:px-6">
           <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-muted">
-              <Layers size={20} />
+            <div className="flex items-center justify-center w-10 h-10 border rounded-xl bg-muted/60">
+              <Layers size={19} />
             </div>
 
             <div>
-              <h2 className="font-semibold">Modules & Components</h2>
+              <h2 className="text-sm font-semibold sm:text-base">
+                Modules & Components
+              </h2>
 
-              <p className="text-sm text-muted-foreground">
-                Components are organized inside their respective modules.
+              <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
+                Organize reusable components inside project modules.
               </p>
             </div>
           </div>
 
-          <div className="hidden text-sm text-muted-foreground sm:block">
+          <div className="hidden rounded-lg border bg-muted/30 px-3 py-1.5 text-xs text-muted-foreground sm:block">
             {modules.length} {modules.length === 1 ? "module" : "modules"}
           </div>
         </div>
 
-        {/* ======================================
-                    LOADING
-                ====================================== */}
-
         {loading && (
-          <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
+          <div className="flex items-center justify-center gap-2 py-20 text-sm text-muted-foreground">
             <Loader2 size={18} className="animate-spin" />
-            Loading modules...
+            Loading workspace...
           </div>
         )}
 
-        {/* ======================================
-                    EMPTY
-                ====================================== */}
-
         {!loading && modules.length === 0 && (
-          <div className="py-16 text-center">
-            <Layers size={36} className="mx-auto mb-3 text-muted-foreground" />
+          <div className="py-20 text-center">
+            <div className="flex items-center justify-center w-12 h-12 mx-auto border rounded-xl bg-muted/40">
+              <Layers size={22} className="text-muted-foreground" />
+            </div>
 
-            <p className="font-medium">No modules found</p>
+            <p className="mt-4 font-medium">No modules found</p>
 
             <p className="mt-1 text-sm text-muted-foreground">
-              Create a module to start organizing components.
+              Create a module to start organizing your workspace.
             </p>
           </div>
         )}
-
-        {/* ======================================
-                    MODULE LIST
-                ====================================== */}
 
         {!loading && modules.length > 0 && (
           <div className="divide-y">
@@ -435,56 +402,48 @@ export default function WorkspaceManagement() {
               const isExpanded = expandedModules[module._id];
 
               return (
-                <div key={module._id}>
-                  {/* =====================
-                                            MODULE HEADER
-                                        ===================== */}
-
-                  <div className="flex items-center justify-between gap-4 p-5 transition-colors hover:bg-muted/40">
+                <div key={module._id} className="group">
+                  <div className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/30 sm:px-6">
                     <button
                       type="button"
                       onClick={() => toggleModule(module._id)}
-                      className="flex items-center flex-1 gap-4 text-left"
+                      className="flex items-center flex-1 min-w-0 gap-3 text-left"
                     >
-                      {/* EXPAND ICON */}
-
-                      <div className="flex items-center justify-center w-8 h-8 rounded-md bg-muted">
+                      <div className="flex items-center justify-center w-8 h-8 border rounded-lg shrink-0 bg-muted/40">
                         {isExpanded ? (
-                          <ChevronDown size={18} />
+                          <ChevronDown size={16} />
                         ) : (
-                          <ChevronRight size={18} />
+                          <ChevronRight size={16} />
                         )}
                       </div>
 
-                      {/* MODULE ICON */}
-
                       <div
-                        className="w-3 h-10 rounded-full"
+                        className="w-1 rounded-full h-9 shrink-0"
                         style={{
                           backgroundColor: module.color || "#64748b",
                         }}
                       />
 
-                      {/* MODULE INFO */}
-
-                      <div>
-                        <div className="flex items-center gap-3">
-                          <h3 className="font-semibold">{module.name}</h3>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <h3 className="text-sm font-semibold truncate">
+                            {module.name}
+                          </h3>
 
                           {!module.isActive && (
-                            <span className="px-2 py-1 text-xs border rounded-md text-muted-foreground">
+                            <span className="rounded-md border px-1.5 py-0.5 text-[10px] text-muted-foreground">
                               Inactive
                             </span>
                           )}
                         </div>
 
                         {module.description && (
-                          <p className="mt-1 text-sm text-muted-foreground">
+                          <p className="mt-0.5 truncate text-xs text-muted-foreground">
                             {module.description}
                           </p>
                         )}
 
-                        <p className="mt-2 text-xs text-muted-foreground">
+                        <p className="mt-1 text-[11px] text-muted-foreground">
                           {moduleComponents.length}{" "}
                           {moduleComponents.length === 1
                             ? "component"
@@ -492,125 +451,88 @@ export default function WorkspaceManagement() {
                         </p>
                       </div>
                     </button>
-                    {/* ADD COMPONENT */}
+
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="gap-2"
+                      className="h-8 shrink-0 gap-1.5 px-2.5 text-xs sm:px-3"
                       onClick={() => openAddComponent(module._id)}
                     >
-                      <Plus size={16} />
-                      Add Component
-                    </Button>{" "}
+                      <Plus size={14} />
+                      <span className="hidden sm:inline">Add Component</span>
+                      <span className="sm:hidden">Add</span>
+                    </Button>
                   </div>
 
-                  {/* =====================
-                        COMPONENTS
-                    ===================== */}
-
                   {isExpanded && (
-                    <div className="bg-muted/20">
-                      {/* NO COMPONENTS */}
-
+                    <div className="border-t bg-muted/[0.12] px-3 py-2 sm:px-6">
                       {moduleComponents.length === 0 && (
-                        <div className="py-6 pl-24 text-sm text-muted-foreground">
+                        <div className="py-6 text-sm pl-11 text-muted-foreground">
                           No components in this module.
                         </div>
                       )}
 
-                      {/* COMPONENT TREE */}
-
                       {moduleComponents.length > 0 && (
-                        <div className="py-2">
-                          {moduleComponents.map((component, index) => {
-                            const isLast =
-                              index === moduleComponents.length - 1;
+                        <div className="space-y-1">
+                          {moduleComponents.map((component) => (
+                            <div
+                              key={component._id}
+                              className="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-background/70"
+                            >
+                              <div className="flex items-center justify-center w-8 h-8 border rounded-lg shrink-0 bg-background">
+                                <Boxes size={15} />
+                              </div>
 
-                            return (
-                              <div
-                                key={component._id}
-                                className="relative flex items-center gap-3 py-3 pl-12 pr-5 ml-8 transition-colors hover:bg-muted/40"
-                              >
-                                {/* TREE CONNECTOR */}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <h4 className="text-sm font-medium truncate">
+                                    {component.name}
+                                  </h4>
 
-                                <div className="absolute top-0 bottom-0 left-0 w-8">
-                                  {/* VERTICAL LINE */}
-
-                                  {!isLast && (
-                                    <div className="absolute top-0 bottom-0 border-l left-4 border-border" />
-                                  )}
-
-                                  {/* HALF VERTICAL LINE FOR LAST */}
-
-                                  {isLast && (
-                                    <div className="absolute top-0 border-l left-4 h-1/2 border-border" />
-                                  )}
-
-                                  {/* HORIZONTAL LINE */}
-
-                                  <div className="absolute w-4 border-t top-1/2 left-4 border-border" />
-                                </div>
-
-                                {/* COMPONENT ICON */}
-
-                                <div className="flex items-center justify-center flex-shrink-0 w-8 h-8 border rounded-md bg-background">
-                                  <Boxes size={16} />
-                                </div>
-
-                                {/* COMPONENT INFO */}
-
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2">
-                                    <h4 className="text-sm font-medium">
-                                      {component.name}
-                                    </h4>
-
-                                    {component.isActive === false && (
-                                      <span className="px-2 py-0.5 text-[11px] border rounded-md text-muted-foreground">
-                                        Inactive
-                                      </span>
-                                    )}
-                                  </div>
-
-                                  <div className="flex items-center gap-3 mt-1">
-                                    {component.description && (
-                                      <p className="text-xs truncate text-muted-foreground">
-                                        {component.description}
-                                      </p>
-                                    )}
-
-                                    <span className="flex items-center flex-shrink-0 gap-1 text-xs text-muted-foreground">
-                                      <ListTodo size={13} />
-                                      {component.tasks?.length || 0}{" "}
-                                      {(component.tasks?.length || 0) === 1
-                                        ? "task"
-                                        : "tasks"}
+                                  {component.isActive === false && (
+                                    <span className="rounded-md border px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                                      Inactive
                                     </span>
-                                  </div>
+                                  )}
                                 </div>
 
-                                {/* STATUS + EDIT */}
+                                <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+                                  {component.description && (
+                                    <p className="max-w-lg text-xs truncate text-muted-foreground">
+                                      {component.description}
+                                    </p>
+                                  )}
 
-                                <div className="flex items-center gap-2">
-                                  <span className="px-2 py-1 text-xs border rounded-md">
-                                    {component.isActive === false
-                                      ? "Inactive"
-                                      : "Active"}
+                                  <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                                    <ListTodo size={12} />
+                                    {component.tasks?.length || 0}{" "}
+                                    {(component.tasks?.length || 0) === 1
+                                      ? "task"
+                                      : "tasks"}
                                   </span>
-
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => openEditComponent(component)}
-                                    title="Edit component"
-                                  >
-                                    <Pencil size={16} />
-                                  </Button>
                                 </div>
                               </div>
-                            );
-                          })}
+
+                              <div className="flex items-center gap-1 shrink-0">
+                                <span className="hidden rounded-md border px-2 py-1 text-[10px] text-muted-foreground sm:inline-flex">
+                                  {component.isActive === false
+                                    ? "Inactive"
+                                    : "Active"}
+                                </span>
+
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="w-8 h-8"
+                                  onClick={() => openEditComponent(component)}
+                                  title="Edit component"
+                                >
+                                  <Pencil size={15} />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       )}
                     </div>
@@ -622,44 +544,43 @@ export default function WorkspaceManagement() {
         )}
       </div>
 
-      {/* ======================================
-    ADD COMPONENT DIALOG
-====================================== */}
-
       <Dialog open={showAddComponent} onOpenChange={setShowAddComponent}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto rounded-2xl">
           <DialogHeader>
             <DialogTitle>Add Component</DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-5">
-            <div className="space-y-2">
-              <Label>Component Name</Label>
+          <div className="py-1 space-y-5">
+            <div className="grid gap-4 sm:grid-cols-[1fr_1.4fr]">
+              <div className="space-y-2">
+                <Label>Component Name</Label>
 
-              <Input
-                value={newComponentName}
-                onChange={(e) => setNewComponentName(e.target.value)}
-                placeholder="Enter component name"
-              />
-            </div>
+                <Input
+                  value={newComponentName}
+                  onChange={(e) => setNewComponentName(e.target.value)}
+                  placeholder="Enter component name"
+                />
+              </div>
 
-            <div className="space-y-2">
-              <Label>Description</Label>
+              <div className="space-y-2">
+                <Label>Description</Label>
 
-              <Textarea
-                value={newComponentDescription}
-                onChange={(e) => setNewComponentDescription(e.target.value)}
-                placeholder="Enter component description"
-              />
+                <Textarea
+                  value={newComponentDescription}
+                  onChange={(e) => setNewComponentDescription(e.target.value)}
+                  placeholder="Enter component description"
+                  className="min-h-[88px]"
+                />
+              </div>
             </div>
 
             <div className="pt-5 border-t">
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between gap-4 mb-4">
                 <div>
-                  <h3 className="font-semibold">Tasks</h3>
+                  <h3 className="text-sm font-semibold">Tasks</h3>
 
-                  <p className="text-sm text-muted-foreground">
-                    Add tasks for this component.
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Add the reusable tasks for this component.
                   </p>
                 </div>
 
@@ -667,53 +588,68 @@ export default function WorkspaceManagement() {
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="gap-2"
+                  className="gap-1.5"
                   onClick={addNewTask}
                 >
-                  <Plus size={16} />
+                  <Plus size={15} />
                   Add Task
                 </Button>
               </div>
 
               <div className="space-y-3">
                 {newComponentTasks.map((task, index) => (
-                  <div key={index} className="p-4 border rounded-lg">
-                    <div className="flex gap-3">
-                      <div className="flex-1">
-                        <Label>Task Name</Label>
-
-                        <Input
-                          className="mt-2"
-                          value={task.title}
-                          onChange={(e) =>
-                            updateNewTask(index, "title", e.target.value)
-                          }
-                        />
+                  <div
+                    key={index}
+                    className="rounded-xl border bg-muted/[0.12] p-4"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="flex items-center justify-center text-xs font-medium border rounded-md h-7 w-7 shrink-0 bg-background text-muted-foreground">
+                        {index + 1}
                       </div>
 
-                      {newComponentTasks.length > 1 && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="mt-6 text-destructive"
-                          onClick={() => removeNewTask(index)}
-                        >
-                          Remove
-                        </Button>
-                      )}
-                    </div>
+                      <div className="flex-1 min-w-0 space-y-3">
+                        <div className="flex gap-3">
+                          <div className="flex-1">
+                            <Label>Task Name</Label>
 
-                    <div className="mt-4">
-                      <Label>Description</Label>
+                            <Input
+                              className="mt-2"
+                              value={task.title}
+                              onChange={(e) =>
+                                updateNewTask(index, "title", e.target.value)
+                              }
+                            />
+                          </div>
 
-                      <Textarea
-                        className="mt-2"
-                        value={task.description}
-                        onChange={(e) =>
-                          updateNewTask(index, "description", e.target.value)
-                        }
-                      />
+                          {newComponentTasks.length > 1 && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="mt-6 text-destructive hover:text-destructive"
+                              onClick={() => removeNewTask(index)}
+                            >
+                              Remove
+                            </Button>
+                          )}
+                        </div>
+
+                        <div>
+                          <Label>Description</Label>
+
+                          <Textarea
+                            className="mt-2 min-h-[80px]"
+                            value={task.description}
+                            onChange={(e) =>
+                              updateNewTask(
+                                index,
+                                "description",
+                                e.target.value,
+                              )
+                            }
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -721,7 +657,7 @@ export default function WorkspaceManagement() {
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
             <Button
               type="button"
               variant="outline"
@@ -742,9 +678,6 @@ export default function WorkspaceManagement() {
         </DialogContent>
       </Dialog>
 
-      {/* ======================================
-                EDIT COMPONENT DIALOG
-            ====================================== */}
       <Dialog
         open={!!editingComponent}
         onOpenChange={(open) => {
@@ -753,44 +686,40 @@ export default function WorkspaceManagement() {
           }
         }}
       >
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto rounded-2xl">
           <DialogHeader>
             <DialogTitle>Edit Component</DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-5">
-            {/* NAME */}
+          <div className="py-1 space-y-5">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Component Name</Label>
 
-            <div className="space-y-2">
-              <Label>Component Name</Label>
+                <Input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                />
+              </div>
 
-              <Input
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-              />
+              <div className="space-y-2">
+                <Label>Module</Label>
+
+                <Select value={editModule} onValueChange={setEditModule}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select module" />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    {modules.map((module) => (
+                      <SelectItem key={module._id} value={module._id}>
+                        {module.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-
-            {/* MODULE */}
-
-            <div className="space-y-2">
-              <Label>Module</Label>
-
-              <Select value={editModule} onValueChange={setEditModule}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select module" />
-                </SelectTrigger>
-
-                <SelectContent>
-                  {modules.map((module) => (
-                    <SelectItem key={module._id} value={module._id}>
-                      {module.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* DESCRIPTION */}
 
             <div className="space-y-2">
               <Label>Description</Label>
@@ -798,17 +727,16 @@ export default function WorkspaceManagement() {
               <Textarea
                 value={editDescription}
                 onChange={(e) => setEditDescription(e.target.value)}
+                className="min-h-[88px]"
               />
             </div>
 
-            {/* TASKS */}
-
             <div className="pt-5 border-t">
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between gap-4 mb-4">
                 <div>
-                  <h3 className="font-semibold">Tasks</h3>
+                  <h3 className="text-sm font-semibold">Tasks</h3>
 
-                  <p className="text-sm text-muted-foreground">
+                  <p className="mt-0.5 text-xs text-muted-foreground">
                     Manage tasks inside this component.
                   </p>
                 </div>
@@ -818,9 +746,9 @@ export default function WorkspaceManagement() {
                   variant="outline"
                   size="sm"
                   onClick={addTask}
-                  className="gap-2"
+                  className="gap-1.5"
                 >
-                  <Plus size={16} />
+                  <Plus size={15} />
                   Add Task
                 </Button>
               </div>
@@ -829,42 +757,50 @@ export default function WorkspaceManagement() {
                 {editTasks.map((task, index) => (
                   <div
                     key={task._id || index}
-                    className="p-4 border rounded-lg"
+                    className="rounded-xl border bg-muted/[0.12] p-4"
                   >
-                    <div className="flex items-center gap-3">
-                      <div className="flex-1">
-                        <Label>Task Name</Label>
-
-                        <Input
-                          className="mt-2"
-                          value={task.title || ""}
-                          onChange={(e) =>
-                            updateTask(index, "title", e.target.value)
-                          }
-                        />
+                    <div className="flex items-start gap-3">
+                      <div className="flex items-center justify-center text-xs font-medium border rounded-md h-7 w-7 shrink-0 bg-background text-muted-foreground">
+                        {index + 1}
                       </div>
 
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="mt-6 text-destructive"
-                        onClick={() => removeTask(index)}
-                      >
-                        Remove
-                      </Button>
-                    </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3">
+                          <div className="flex-1">
+                            <Label>Task Name</Label>
 
-                    <div className="mt-4">
-                      <Label>Description</Label>
+                            <Input
+                              className="mt-2"
+                              value={task.title || ""}
+                              onChange={(e) =>
+                                updateTask(index, "title", e.target.value)
+                              }
+                            />
+                          </div>
 
-                      <Textarea
-                        className="mt-2"
-                        value={task.description || ""}
-                        onChange={(e) =>
-                          updateTask(index, "description", e.target.value)
-                        }
-                      />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="mt-6 text-destructive hover:text-destructive"
+                            onClick={() => removeTask(index)}
+                          >
+                            Remove
+                          </Button>
+                        </div>
+
+                        <div className="mt-3">
+                          <Label>Description</Label>
+
+                          <Textarea
+                            className="mt-2 min-h-[80px]"
+                            value={task.description || ""}
+                            onChange={(e) =>
+                              updateTask(index, "description", e.target.value)
+                            }
+                          />
+                        </div>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -872,7 +808,7 @@ export default function WorkspaceManagement() {
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
             <Button
               type="button"
               variant="outline"

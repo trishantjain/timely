@@ -80,90 +80,82 @@ export default function CreateDomainDialog({ refreshDomains }) {
         <Button>+ Add Domain</Button>
       </DialogTrigger>
 
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="border-border bg-card sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Create Domain</DialogTitle>
+          <DialogTitle className="text-foreground">Create Domain</DialogTitle>
 
-          <DialogDescription>
+          <DialogDescription className="text-muted-foreground">
             Add a new domain for employee expertise and project work.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-5">
-          {/* DOMAIN NAME */}
-
           <div className="space-y-2">
-            <label className="text-sm font-medium">Domain Name</label>
+            <label className="text-sm font-medium text-foreground">
+              Domain Name
+            </label>
 
             <Input
               placeholder="e.g. Software"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              className="bg-background"
             />
           </div>
 
-          {/* DESCRIPTION */}
-
           <div className="space-y-2">
-            <label className="text-sm font-medium">Description</label>
+            <label className="text-sm font-medium text-foreground">
+              Description
+            </label>
 
             <Textarea
               placeholder="Briefly describe this domain..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="resize-none"
+              className="resize-none bg-background"
               rows={3}
             />
           </div>
 
-          {/* COLOR */}
-
           <div className="space-y-2">
-            <label className="text-sm font-medium">Domain Color</label>
+            <label className="text-sm font-medium text-foreground">
+              Domain Color
+            </label>
 
             <div className="flex items-center gap-3">
               <input
                 type="color"
                 value={color}
                 onChange={(e) => setColor(e.target.value)}
-                className="
-                                    w-10
-                                    h-10
-                                    p-1
-                                    border
-                                    rounded-md
-                                    cursor-pointer
-                                "
+                className="w-10 h-10 p-1 border rounded-md cursor-pointer border-border bg-background"
               />
 
               <div
-                className="w-8 h-8 border rounded-md"
+                className="w-8 h-8 border rounded-md border-border"
                 style={{
                   backgroundColor: color,
                 }}
               />
-
-              <span className="text-sm text-muted-foreground">{color}</span>
             </div>
           </div>
 
-          {/* ERROR */}
-
-          {error && <p className="text-sm text-destructive">{error}</p>}
-
-          {/* ACTIONS */}
+          {error && (
+            <div className="px-3 py-2 text-sm border rounded-md border-destructive/40 bg-destructive/10 text-destructive">
+              {error}
+            </div>
+          )}
 
           <div className="flex justify-end gap-3 pt-2">
             <Button
               type="button"
               variant="outline"
+              onClick={() => setOpen(false)}
               disabled={loading}
-              onClick={() => handleOpenChange(false)}
             >
               Cancel
             </Button>
 
-            <Button disabled={loading || !name.trim()} onClick={handleCreate}>
+            <Button onClick={handleCreate} disabled={loading}>
               {loading ? "Creating..." : "Create Domain"}
             </Button>
           </div>

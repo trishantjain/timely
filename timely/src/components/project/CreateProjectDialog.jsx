@@ -1,28 +1,21 @@
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { useEffect, useState } from "react";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger
-} from "@/components/ui/dialog"
-
-import { useEffect } from "react";
+} from "@/components/ui/dialog";
 
 import { getDomains } from "@/api/domainAPI";
-import { createProject } from "@/api/projectAPI"
+import { createProject } from "@/api/projectAPI";
 
-export default function CreateProjectDialog({ open,
-  onClose,
-  onSuccess
-}) {
-
-  // const [open, setOpen] = useState(false);
-
+export default function CreateProjectDialog({ open, onClose, onSuccess }) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [domains, setDomains] = useState([]);
@@ -30,82 +23,57 @@ export default function CreateProjectDialog({ open,
   const [loading, setLoading] = useState(false);
 
   const handleCreate = async () => {
-
     try {
-
       setLoading(true);
 
       await createProject({
         name,
         description,
-        domains: selectedDomains
+        domains: selectedDomains,
       });
 
       onSuccess();
 
       setName("");
       setDescription("");
-
       setSelectedDomains([]);
 
-      // close dialog
       onClose();
-
     } catch (err) {
-      console.error(err)
+      console.error(err);
     } finally {
       setLoading(false);
     }
-
-  }
+  };
 
   const loadDomains = async () => {
-
     try {
-
       const res = await getDomains();
+
       setDomains(res.data.data);
-
     } catch (err) {
-
       console.error(err);
-
     }
-
   };
 
   useEffect(() => {
-
     if (!open) return;
 
     loadDomains();
-
   }, [open]);
 
-
   const toggleDomain = (id) => {
-
-    setSelectedDomains(prev =>
-
+    setSelectedDomains((prev) =>
       prev.includes(id)
-
-        ? prev.filter(d => d !== id)
-
-        : [...prev, id]
-
+        ? prev.filter((domainId) => domainId !== id)
+        : [...prev, id],
     );
-
   };
 
-
-
   return (
-
     <Dialog
       open={open}
       onOpenChange={(value) => {
-        // setOpen(value);
-
         if (!value) {
           setName("");
           setDescription("");
@@ -115,15 +83,12 @@ export default function CreateProjectDialog({ open,
         }
       }}
     >
-
-      <DialogContent>
-
+      <DialogContent className="border-border bg-card text-card-foreground sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Create Project</DialogTitle>
+          <DialogTitle className="text-xl">Create Project</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
-
           <Input
             placeholder="Project Name"
             value={name}
@@ -137,49 +102,59 @@ export default function CreateProjectDialog({ open,
             rows={4}
           />
 
-          <div className="space-y-2">
+          <div className="space-y-3">
+            <div>
+              <h3 className="font-medium">Required Domains</h3>
 
-            <h3 className="font-medium">
-              Required Domains
-            </h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Select the domains required for this project.
+              </p>
+            </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              {domains.map(domain => (
-                <div
-                  key={domain._id}
-                  onClick={() => toggleDomain(domain._id)}
-                  className={`cursor-pointer rounded-lg border p-3 transition ${selectedDomains.includes(domain._id)
-                    ? "border-blue-600 bg-blue-50"
-                    : "border-gray-200"
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {domains.map((domain) => {
+                const isSelected = selectedDomains.includes(domain._id);
+
+                return (
+                  <button
+                    key={domain._id}
+                    type="button"
+                    onClick={() => toggleDomain(domain._id)}
+                    className={`flex items-center gap-3 rounded-lg border p-3 text-left transition-colors ${
+                      isSelected
+                        ? "border-primary bg-primary/10"
+                        : "border-border bg-muted/20 hover:bg-muted"
                     }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      checked={selectedDomains.includes(domain._id)}
-                    />
-                    <span>{domain.name}</span>
-                  </div>
-                </div>
-              ))}
+                  >
+                    <Checkbox checked={isSelected} />
+
+                    <span className="text-sm font-medium">{domain.name}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          <Button
-            disabled={
-              loading ||
-              !name.trim() ||
-              selectedDomains.length === 0
-            }
-            onClick={handleCreate}
-          >
-            {loading ? "Creating..." : "Create Project"}
-          </Button>
+          <div className="flex justify-end gap-3 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              disabled={loading}
+            >
+              Cancel
+            </Button>
 
+            <Button
+              type="button"
+              disabled={loading || !name.trim() || selectedDomains.length === 0}
+              onClick={handleCreate}
+            >
+              {loading ? "Creating..." : "Create Project"}
+            </Button>
+          </div>
         </div>
-
       </DialogContent>
-
     </Dialog>
-
-  )
+  );
 }

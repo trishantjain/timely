@@ -31,28 +31,28 @@ import {
 // ==========================================
 // OPEN FILE
 // ==========================================
-const openFile = async (file, versionId, fileIndex) => {
-  try {
-    const response = await api.get(
-      `/submissions/versions/${versionId}/files/${fileIndex}/download`,
-      {
-        responseType: "blob",
-      },
-    );
+// const openFile = async (file, versionId, fileIndex) => {
+//   try {
+//     const response = await api.get(
+//       `/submissions/versions/${versionId}/files/${fileIndex}/download`,
+//       {
+//         responseType: "blob",
+//       },
+//     );
 
-    const blob = new Blob([response.data], {
-      type: file.mimeType || "application/pdf",
-    });
+//     const blob = new Blob([response.data], {
+//       type: file.mimeType || "application/pdf",
+//     });
 
-    const blobUrl = URL.createObjectURL(blob);
+//     const blobUrl = URL.createObjectURL(blob);
 
-    window.open(blobUrl, "_blank");
-  } catch (err) {
-    console.error("Unable to open file:", err);
+//     window.open(blobUrl, "_blank");
+//   } catch (err) {
+//     console.error("Unable to open file:", err);
 
-    alert("Unable to open file.");
-  }
-};
+//     alert("Unable to open file.");
+//   }
+// };
 
 // ==========================================
 // FORMAT FILE SIZE
@@ -71,16 +71,15 @@ const formatFileSize = (bytes) => {
 // ==========================================
 // STATUS STYLE
 // ==========================================
-
 const getStatusStyle = (status) => {
   const styles = {
-    UNDER_REVIEW: "bg-amber-50 text-amber-700 border-amber-200",
+    UNDER_REVIEW: "border-border bg-secondary text-secondary-foreground",
 
-    APPROVED: "bg-green-50 text-green-700 border-green-200",
+    APPROVED: "border-border bg-secondary text-secondary-foreground",
 
-    REJECTED: "bg-red-50 text-red-700 border-red-200",
+    REJECTED: "border-destructive/40 bg-destructive/10 text-destructive",
 
-    PENDING: "bg-slate-100 text-slate-600 border-slate-200",
+    PENDING: "border-border bg-muted text-muted-foreground",
   };
 
   return styles[status] || styles.PENDING;
