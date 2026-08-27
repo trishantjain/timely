@@ -21,24 +21,37 @@ import {
   Mail,
   User,
   XCircle,
+  ZoomIn,
+  ZoomOut,
+  Maximize,
+  RotateCcw,
+  X,
 } from "lucide-react";
 
 // ==========================================
 // OPEN FILE
 // ==========================================
+const openFile = async (file, versionId, fileIndex) => {
+  try {
+    const response = await api.get(
+      `/submissions/versions/${versionId}/files/${fileIndex}/download`,
+      {
+        responseType: "blob",
+      },
+    );
 
-const openFile = (file) => {
-  const fileUrl = file.secureUrl || file.url || file.previewUrl;
+    const blob = new Blob([response.data], {
+      type: file.mimeType || "application/pdf",
+    });
 
-  if (!fileUrl) {
-    console.error("No valid file URL found:", file);
+    const blobUrl = URL.createObjectURL(blob);
 
-    alert("File URL is not available.");
+    window.open(blobUrl, "_blank");
+  } catch (err) {
+    console.error("Unable to open file:", err);
 
-    return;
+    alert("Unable to open file.");
   }
-
-  window.open(fileUrl, "_blank", "noopener,noreferrer");
 };
 
 // ==========================================
@@ -96,6 +109,14 @@ export default function ReviewSubmission() {
 
   const [selectedVersion, setSelectedVersion] = useState(null);
 
+  const [previewUrl, setPreviewUrl] = useState(null);
+
+  const [previewFileName, setPreviewFileName] = useState("");
+
+  const [zoom, setZoom] = useState(1);
+
+  const [previewMimeType, setPreviewMimeType] = useState("");
+
   // ==========================================
   // LOAD SUBMISSION
   // ==========================================
@@ -120,10 +141,64 @@ export default function ReviewSubmission() {
     loadSubmission();
   }, []);
 
+  const openFile = async (file, versionId, fileIndex) => {
+    try {
+      const response = await api.get(
+        `/submissions/versions/${versionId}/files/${fileIndex}/download`,
+        {
+          responseType: "blob",
+        },
+      );
+
+      const mimeType =
+        file.mimeType || response.headers["content-type"] || "application/pdf";
+
+      const blob = new Blob([response.data], {
+        type: file.mimeType || "application/pdf",
+      });
+
+      const blobUrl = URL.createObjectURL(blob);
+
+      setPreviewUrl(blobUrl);
+      setPreviewFileName(file.originalName);
+      setPreviewMimeType(mimeType);
+      setZoom(1);
+    } catch (err) {
+      console.error(err);
+      alert("Unable to open file.");
+    }
+  };
+
+  const closePreview = () => {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+
+    setPreviewUrl(null);
+    setPreviewFileName("");
+    setPreviewMimeType("");
+    setZoom(1);
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        closePreview();
+      }
+    };
+
+    if (previewUrl) {
+      window.addEventListener("keydown", handleKeyDown);
+    }
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [previewUrl]);
+
   // ==========================================
   // REVIEW
   // ==========================================
-
   const handleReview = async (status) => {
     try {
       await reviewSubmission(submissionId, {
@@ -189,7 +264,7 @@ export default function ReviewSubmission() {
         <div className="flex flex-wrap items-center gap-2 mb-5 text-sm">
           <button
             onClick={() => navigate("/admin/projects")}
-            className="transition-colors  text-muted-foreground hover:text-foreground"
+            className="transition-colors text-muted-foreground hover:text-foreground"
           >
             Projects
           </button>
@@ -198,7 +273,7 @@ export default function ReviewSubmission() {
 
           <button
             onClick={() => navigate(-1)}
-            className="transition-colors  text-muted-foreground hover:text-foreground"
+            className="transition-colors text-muted-foreground hover:text-foreground"
           >
             {submission.project?.name || "Project"}
           </button>
@@ -484,14 +559,15 @@ export default function ReviewSubmission() {
                           </p>
                         </div>
                       </div>
-
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => openFile(file)}
+                        onClick={() =>
+                          openFile(file, currentSubmission._id, index)
+                        }
                       >
                         View
-                      </Button>
+                      </Button>{" "}
                     </div>
                   ))}
                 </div>
@@ -621,6 +697,112 @@ export default function ReviewSubmission() {
           </div>
         </aside>
       </div>
+
+      {previewUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
+          onMouseDown={(e) => {
+            // Close only when clicking the outer backdrop
+            if (e.target === e.currentTarget) {
+              closePreview();
+            }
+          }}
+        >
+          <div
+            className="flex flex-col w-full max-w-[95vw] h-[92vh] overflow-hidden rounded-xl bg-background shadow-2xl"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            {/* HEADER */}
+            <div className="flex items-center justify-between gap-4 px-5 py-3 border-b">
+              <div className="min-w-0">
+                <h2 className="font-semibold truncate">{previewFileName}</h2>
+
+                <p className="text-sm text-muted-foreground">File Preview</p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {/* ZOOM OUT */}
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setZoom((prev) => Math.max(0.25, prev - 0.25))}
+                >
+                  <ZoomOut size={18} />
+                </Button>
+
+                {/* ZOOM IN */}
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setZoom((prev) => Math.min(3, prev + 0.25))}
+                >
+                  <ZoomIn size={18} />
+                </Button>
+
+                {/* FIT TO SCREEN */}
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setZoom(1)}
+                >
+                  <Maximize size={18} />
+                </Button>
+
+                {/* RESET */}
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setZoom(1)}
+                >
+                  <RotateCcw size={18} />
+                </Button>
+
+                {/* CLOSE */}
+                <Button variant="outline" size="icon" onClick={closePreview}>
+                  <X size={18} />
+                </Button>
+              </div>
+            </div>
+
+            {/* PREVIEW AREA */}
+            <div className="relative flex-1 overflow-auto bg-muted/30">
+              <div className="flex items-center justify-center min-w-full min-h-full p-6">
+                {/* IMAGE */}
+                {previewMimeType?.startsWith("image/") ? (
+                  <img
+                    src={previewUrl}
+                    alt={previewFileName}
+                    style={{
+                      transform: `scale(${zoom})`,
+                      transformOrigin: "center center",
+                    }}
+                    className="object-contain max-w-full max-h-full transition-transform duration-200"
+                  />
+                ) : (
+                  /* PDF */
+                  <iframe
+                    src={previewUrl}
+                    title={previewFileName}
+                    className="w-full h-full border-0"
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* FOOTER */}
+            {/* FOOTER */}
+            <div className="flex items-center justify-between px-5 py-2 text-xs border-t text-muted-foreground">
+              <span>
+                {previewMimeType?.startsWith("image/")
+                  ? `${Math.round(zoom * 100)}%`
+                  : "PDF Preview"}
+              </span>
+
+              <span>Press ESC to close</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

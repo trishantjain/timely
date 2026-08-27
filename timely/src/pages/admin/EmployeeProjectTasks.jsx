@@ -8,6 +8,7 @@ import {
   ClipboardList,
   FolderKanban,
   User,
+  ChevronRight,
 } from "lucide-react";
 
 import { getEmployeeProjectTasks } from "@/api/taskAPI";
@@ -73,43 +74,49 @@ export default function EmployeeProjectTasks() {
     return <div className="p-8">No data found.</div>;
   }
 
+  const handleTaskClick = (task) => {
+    console.log("Clicked task:", task);
+
+    const submissionId =
+      task.submissionId || task.submission?._id || task.submission;
+
+    if (!submissionId) {
+      alert("No submission is available for this task yet.");
+      return;
+    }
+
+    navigate(`/admin/reviews/${submissionId}`);
+  };
+
   const { project, employee, tasks } = data;
 
   return (
     <div className="max-w-6xl p-6 mx-auto lg:p-8">
       {/* BACK */}
-
       <button
         onClick={() => navigate(`/admin/project/${projectId}`)}
-        className="
-                    flex items-center gap-2
-                    mb-6 text-sm
-                    text-muted-foreground
-                    transition-colors
-                    hover:text-foreground
-                "
+        className="flex items-center gap-2 mb-5 text-sm transition-colors text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft size={16} />
         Back to Project
       </button>
 
       {/* HEADER */}
-
-      <div className="flex flex-col gap-5 pb-8 border-b md:flex-row md:items-start md:justify-between">
+      <div className="flex flex-col gap-4 pb-6 border-b md:flex-row md:items-center md:justify-between">
         <div>
           <p className="text-sm text-muted-foreground">
             Employee tasks in project
           </p>
 
-          <h1 className="mt-1 text-3xl font-bold tracking-tight">
+          <h1 className="mt-1 text-2xl font-bold tracking-tight">
             {employee.username}
           </h1>
 
-          <p className="mt-2 text-sm text-muted-foreground">{employee.email}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{employee.email}</p>
         </div>
 
-        <div className="flex items-center gap-3 px-4 py-3 border rounded-xl bg-muted/30">
-          <FolderKanban size={19} className="text-muted-foreground" />
+        <div className="flex items-center gap-3 px-4 py-3 border rounded-lg bg-muted/30">
+          <FolderKanban size={18} className="text-muted-foreground" />
 
           <div>
             <p className="text-xs text-muted-foreground">Project</p>
@@ -120,22 +127,15 @@ export default function EmployeeProjectTasks() {
       </div>
 
       {/* SUMMARY */}
-
-      <div className="grid gap-4 mt-6 sm:grid-cols-2">
+      <div className="grid gap-4 mt-5 sm:grid-cols-2">
         <Card>
-          <CardContent className="flex items-center gap-4 p-5">
-            <div
-              className="
-                            flex items-center justify-center
-                            w-10 h-10 border rounded-lg
-                            bg-muted
-                        "
-            >
-              <User size={19} />
+          <CardContent className="flex items-center gap-3 p-4">
+            <div className="flex items-center justify-center border rounded-lg w-9 h-9 bg-muted">
+              <User size={18} />
             </div>
 
             <div>
-              <p className="text-sm text-muted-foreground">Employee</p>
+              <p className="text-xs text-muted-foreground">Employee</p>
 
               <p className="font-semibold">{employee.username}</p>
             </div>
@@ -143,19 +143,13 @@ export default function EmployeeProjectTasks() {
         </Card>
 
         <Card>
-          <CardContent className="flex items-center gap-4 p-5">
-            <div
-              className="
-                            flex items-center justify-center
-                            w-10 h-10 border rounded-lg
-                            bg-muted
-                        "
-            >
-              <ClipboardList size={19} />
+          <CardContent className="flex items-center gap-3 p-4">
+            <div className="flex items-center justify-center border rounded-lg w-9 h-9 bg-muted">
+              <ClipboardList size={18} />
             </div>
 
             <div>
-              <p className="text-sm text-muted-foreground">Assigned Tasks</p>
+              <p className="text-xs text-muted-foreground">Assigned Tasks</p>
 
               <p className="font-semibold">{tasks.length}</p>
             </div>
@@ -164,115 +158,92 @@ export default function EmployeeProjectTasks() {
       </div>
 
       {/* TASKS */}
+      <div className="mt-7">
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold">Assigned Tasks</h2>
 
-      <div className="mt-8">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-lg font-semibold">Assigned Tasks</h2>
-
-            <p className="mt-1 text-sm text-muted-foreground">
-              Tasks assigned to this employee in {project.name}.
-            </p>
-          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Click a task to view its details and submission.
+          </p>
         </div>
 
         {tasks.length === 0 ? (
           <Card>
-            <CardContent className="py-14 text-center">
+            <CardContent className="py-12 text-center">
               <ClipboardList
                 size={28}
-                className="
-                                        mx-auto
-                                        text-muted-foreground
-                                    "
+                className="mx-auto text-muted-foreground"
               />
 
               <h3 className="mt-4 font-medium">No tasks assigned</h3>
 
-              <p
-                className="
-                                    mt-1 text-sm
-                                    text-muted-foreground
-                                "
-              >
+              <p className="mt-1 text-sm text-muted-foreground">
                 This employee does not currently have any tasks in this project.
               </p>
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-4">
+          <div className="space-y-3">
             {tasks.map((task) => (
               <Card
                 key={task.taskId}
-                className="
-                                            transition-shadow
-                                            hover:shadow-sm
-                                        "
+                role="button"
+                tabIndex={0}
+                onClick={() => handleTaskClick(task)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+
+                    if (!task.submissionId) {
+                      alert("No submission is available for this task yet.");
+                      return;
+                    }
+
+                    navigate(`/admin/reviews/${task.submissionId}`);
+                  }
+                }}
+                className="transition-all cursor-pointer hover:shadow-md hover:border-primary/40"
               >
-                <CardContent className="p-5">
-                  <div
-                    className="
-                                                flex flex-col gap-4
-                                                md:flex-row
-                                                md:items-start
-                                                md:justify-between
-                                            "
-                  >
-                    <div>
-                      <div
-                        className="
-                                                        flex flex-wrap
-                                                        items-center gap-2
-                                                    "
+                <CardContent className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
+                  {/* LEFT SIDE */}
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="font-semibold">{task.taskTitle}</h3>
+
+                      <Badge
+                        variant="outline"
+                        className={
+                          statusStyles[task.status] || statusStyles.PENDING
+                        }
                       >
-                        <h3 className="font-semibold">{task.taskTitle}</h3>
-
-                        <Badge
-                          variant="outline"
-                          className={
-                            statusStyles[task.status] || statusStyles.PENDING
-                          }
-                        >
-                          {task.status}
-                        </Badge>
-                      </div>
-
-                      <p
-                        className="
-                                                        mt-2 text-sm
-                                                        text-muted-foreground
-                                                    "
-                      >
-                        {task.componentName}
-                      </p>
-
-                      {task.taskDescription && (
-                        <p
-                          className="
-                                                                mt-3 text-sm
-                                                                leading-6
-                                                                text-muted-foreground
-                                                            "
-                        >
-                          {task.taskDescription}
-                        </p>
-                      )}
+                        {task.status}
+                      </Badge>
                     </div>
 
-                    <div
-                      className="
-                                                    flex items-center gap-2
-                                                    text-sm
-                                                    text-muted-foreground
-                                                    shrink-0
-                                                "
-                    >
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {task.componentName}
+                    </p>
+
+                    {task.taskDescription && (
+                      <p className="max-w-2xl mt-1 text-sm text-muted-foreground line-clamp-1">
+                        {task.taskDescription}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* RIGHT SIDE */}
+                  <div className="flex items-center gap-5 text-sm shrink-0 text-muted-foreground">
+                    <div className="flex items-center gap-2">
                       <Calendar size={16} />
 
-                      {task.deadline
-                        ? new Date(task.deadline).toLocaleDateString()
-                        : "No deadline"}
+                      <span>
+                        {task.deadline
+                          ? new Date(task.deadline).toLocaleDateString()
+                          : "No deadline"}
+                      </span>
                     </div>
+
+                    <ChevronRight size={18} className="text-muted-foreground" />
                   </div>
                 </CardContent>
               </Card>

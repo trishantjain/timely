@@ -82,6 +82,11 @@ function App() {
               path="project/:projectId/domains/:domainId/tasks"
               element={<ProjectDomainTasks />}
             />
+
+            {/* <Route
+              path="tasks/:componentId/:taskId"
+              element={<AdminTaskDetails />}
+            /> */}
           </Route>
 
           <Route

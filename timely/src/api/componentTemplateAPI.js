@@ -10,4 +10,4 @@ export const createComponentTemplate = (data) =>
     api.post("/component-template", data);
 
 export const updateComponentTemplate = (id, data) =>
-    api.put(`/component-template/${id}`, data);
+    api.patch(`/component-template/${id}`, data);

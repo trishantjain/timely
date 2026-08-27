@@ -472,6 +472,34 @@ export const getEmployeeProjectTasks = async (req, res) => {
       .lean();
 
     // =========================================
+    // GET EMPLOYEE SUBMISSIONS
+    // =========================================
+
+    const submissions = await Submission.find({
+      project: projectId,
+      assignedEmployee: employeeId,
+    }).lean();
+
+    // =========================================
+    // CREATE SUBMISSION LOOKUP
+    // componentId + taskId
+    // =========================================
+
+    const submissionMap = new Map();
+
+    submissions.forEach((submission) => {
+      const key =
+        `${submission.projectComponent.toString()}-` +
+        `${submission.taskId.toString()}`;
+
+      submissionMap.set(key, {
+        submissionId: submission._id,
+        submissionStatus: submission.status,
+        latestSubmission: submission.latestSubmission,
+      });
+    });
+
+    // =========================================
     // FIND TASKS ASSIGNED TO EMPLOYEE
     // =========================================
 
@@ -485,22 +513,24 @@ export const getEmployeeProjectTasks = async (req, res) => {
           task.assignedEmployee &&
           task.assignedEmployee.toString() === employeeId.toString()
         ) {
+          const key = `${component._id.toString()}-` + `${task._id.toString()}`;
+
+          const submissionData = submissionMap.get(key);
+
           assignedTasks.push({
             componentId: component._id,
-
             componentName: component.name,
-
             moduleName: component.projectModule?.name || "No Module",
-
             taskId: task._id,
-
             taskTitle: task.title,
-
             taskDescription: task.description || "",
-
             status: task.status,
-
             deadline: task.deadline || null,
+            submissionId: submissionData?.submissionId || null,
+            submissionStatus:
+              submissionData?.submissionStatus || "NOT_SUBMITTED",
+
+            latestSubmission: submissionData?.latestSubmission || null,
           });
         }
       });
@@ -512,7 +542,6 @@ export const getEmployeeProjectTasks = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-
       data: {
         project,
         employee,
@@ -528,10 +557,6 @@ export const getEmployeeProjectTasks = async (req, res) => {
     });
   }
 };
-
-// =========================================
-// GET DOMAIN TASK ASSIGNMENTS IN A PROJECT
-// =========================================
 
 // =========================================
 // GET DOMAIN TASK ASSIGNMENTS IN A PROJECT
@@ -561,7 +586,7 @@ export const getProjectDomainTasks = async (req, res) => {
     // =========================================
 
     const domain = project.domains.find(
-      (item) => item._id.toString() === domainId.toString()
+      (item) => item._id.toString() === domainId.toString(),
     );
 
     if (!domain) {
@@ -637,7 +662,6 @@ export const getProjectDomainTasks = async (req, res) => {
 
     components.forEach((component) => {
       (component.tasks || []).forEach((task) => {
-
         if (!task.assignedEmployee) {
           return;
         }
@@ -655,8 +679,7 @@ export const getProjectDomainTasks = async (req, res) => {
 
           componentName: component.name,
 
-          moduleName:
-            component.projectModule?.name || "No Module",
+          moduleName: component.projectModule?.name || "No Module",
 
           taskId: task._id,
 
@@ -675,33 +698,29 @@ export const getProjectDomainTasks = async (req, res) => {
     // FORMAT EMPLOYEE + TASK DATA
     // =========================================
 
-    const employeeAssignments = Array.from(
-      employeeMap.values()
-    ).map(({ employee, tasks }) => ({
-      employee: {
-        _id: employee._id,
-        username: employee.username,
-        email: employee.email,
-      },
+    const employeeAssignments = Array.from(employeeMap.values()).map(
+      ({ employee, tasks }) => ({
+        employee: {
+          _id: employee._id,
+          username: employee.username,
+          email: employee.email,
+        },
 
-      tasks,
+        tasks,
 
-      taskCount: tasks.length,
+        taskCount: tasks.length,
 
-      activeTaskCount: tasks.filter(
-        (task) =>
-          task.status !== "COMPLETED" &&
-          task.status !== "APPROVED"
-      ).length,
-    }));
+        activeTaskCount: tasks.filter(
+          (task) => task.status !== "COMPLETED" && task.status !== "APPROVED",
+        ).length,
+      }),
+    );
 
     // =========================================
     // TOTAL TASKS
     // =========================================
 
-    const allTasks = employeeAssignments.flatMap(
-      (item) => item.tasks
-    );
+    const allTasks = employeeAssignments.flatMap((item) => item.tasks);
 
     // =========================================
     // RESPONSE
@@ -729,13 +748,10 @@ export const getProjectDomainTasks = async (req, res) => {
         totalTasks: allTasks.length,
 
         activeTasks: allTasks.filter(
-          (task) =>
-            task.status !== "COMPLETED" &&
-            task.status !== "APPROVED"
+          (task) => task.status !== "COMPLETED" && task.status !== "APPROVED",
         ).length,
       },
     });
-
   } catch (err) {
     console.error("getProjectDomainTasks error:", err);
 
