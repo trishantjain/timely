@@ -5,6 +5,7 @@ import ProjectComponent from "../../models/project/ProjectComponent.js";
 import User from "../../models/auth/User.js";
 import ProjectMember from "../../models/project/ProjectMember.js";
 import Submission from "../../models/submission/Submission.js";
+import mongoose from "mongoose";
 
 // =========================================
 // ADD COMPONENT TO PROJECT (SNAPSHOT)
@@ -102,22 +103,28 @@ export const getProjectComponents = async (req, res) => {
     const components = await ProjectComponent.find({
       project: projectId,
     })
-      .populate("projectModule", "name")
+      .populate({
+        path: "projectModule",
+        select: "name description color domain",
+        populate: {
+          path: "domain",
+          select: "name color description isActive",
+        },
+      })
       .populate("tasks.assignedEmployee", "username email")
       .sort({
         createdAt: 1,
-      });
+      })
+      .lean();
 
-    console.log("Components:", components);
-
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       data: components,
     });
   } catch (err) {
-    console.error(err);
+    console.error("getProjectComponents error:", err);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: err.message,
     });
@@ -249,12 +256,38 @@ export const getMyTasks = async (req, res) => {
   console.log("\n========================================");
   console.log("[ProjectComponent] Get My Tasks");
   console.log("Employee :", req.user.id);
+  console.log("Project :", req.query.projectId || "ALL PROJECTS");
   console.log("========================================");
 
   try {
-    const components = await ProjectComponent.find({
+    const { projectId } = req.query;
+
+    // =========================================
+    // BUILD QUERY
+    // =========================================
+
+    const query = {
       "tasks.assignedEmployee": req.user.id,
-    })
+    };
+
+    // If projectId is provided, restrict tasks
+    // only to that project.
+    if (projectId) {
+      if (!mongoose.Types.ObjectId.isValid(projectId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid project ID.",
+        });
+      }
+
+      query.project = projectId;
+    }
+
+    // =========================================
+    // FIND COMPONENTS
+    // =========================================
+
+    const components = await ProjectComponent.find(query)
       .populate("project", "name")
       .populate("projectModule", "name");
 
@@ -262,32 +295,11 @@ export const getMyTasks = async (req, res) => {
 
     const myTasks = [];
 
+    // =========================================
+    // EXTRACT ONLY EMPLOYEE TASKS
+    // =========================================
+
     for (const component of components) {
-      // console.log("\n===== COMPONENT =====");
-
-      // console.log(
-      //     "Component ID:",
-      //     component._id.toString()
-      // );
-
-      // console.log(
-      //     "Component Name:",
-      //     component.name
-      // );
-
-      // console.log(
-      //     "Raw Project:",
-      //     component.project
-      // );
-
-      // console.log(
-      //     "Raw Project Module:",
-      //     component.projectModule
-      // );
-
-      // Prevent crash if referenced project
-      // has been deleted or is missing.
-
       if (!component.project) {
         console.error(
           "[Get My Tasks] Project not found for component:",
@@ -296,9 +308,6 @@ export const getMyTasks = async (req, res) => {
 
         continue;
       }
-
-      // Prevent crash if referenced project module
-      // has been deleted or is missing.
 
       if (!component.projectModule) {
         console.error(
@@ -310,57 +319,62 @@ export const getMyTasks = async (req, res) => {
       }
 
       for (const task of component.tasks) {
-        if (
+        // =========================================
+        // EMPLOYEE CHECK
+        // =========================================
+
+        const isAssignedToEmployee =
           task.assignedEmployee &&
-          task.assignedEmployee.toString() === req.user.id.toString()
-        ) {
-          // console.log("\n----- MATCHING TASK -----");
+          task.assignedEmployee.toString() === req.user.id.toString();
 
-          // console.log(
-          //     "Task ID:",
-          //     task._id.toString()
-          // );
+        // =========================================
+        // PROJECT CHECK
+        // Extra safety check
+        // =========================================
 
-          // console.log(
-          //     "Task Title:",
-          //     task.title
-          // );
+        const belongsToRequestedProject =
+          !projectId ||
+          component.project._id.toString() === projectId.toString();
 
-          // console.log(
-          //     "Assigned Employee:",
-          //     task.assignedEmployee.toString()
-          // );
-
+        if (isAssignedToEmployee && belongsToRequestedProject) {
           myTasks.push({
             projectId: component.project._id,
+
             projectName: component.project.name,
+
             componentId: component._id,
+
             componentName: component.name,
+
             moduleId: component.projectModule._id,
+
             moduleName: component.projectModule.name,
+
             taskId: task._id,
+
             taskTitle: task.title,
+
             taskDescription: task.description,
+
             deadline: task.deadline,
+
             status: task.status,
-            submissionType: task.submissionRule?.type || "TEXT",
+
+            submissionRule: {
+              type: task.submissionRule?.type || "TEXT",
+            },
           });
         }
       }
     }
 
-    // console.log(
-    //     `\n[ProjectComponent] ${myTasks.length} task(s) found.`
-    // );
-
-    // console.log(
-    //     "Final Tasks:",
-    //     myTasks
-    // );
+    console.log(`[ProjectComponent] ${myTasks.length} task(s) returned.`);
 
     return res.status(200).json({
       success: true,
+
       count: myTasks.length,
+
       data: myTasks,
     });
   } catch (err) {
@@ -370,6 +384,7 @@ export const getMyTasks = async (req, res) => {
 
     return res.status(500).json({
       success: false,
+
       message: err.message,
     });
   }
@@ -561,7 +576,6 @@ export const getEmployeeProjectTasks = async (req, res) => {
 // =========================================
 // GET DOMAIN TASK ASSIGNMENTS IN A PROJECT
 // =========================================
-
 export const getProjectDomainTasks = async (req, res) => {
   try {
     const { projectId, domainId } = req.params;
@@ -754,6 +768,161 @@ export const getProjectDomainTasks = async (req, res) => {
     });
   } catch (err) {
     console.error("getProjectDomainTasks error:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+// =========================================
+// ADD MANUAL TASK TO PROJECT COMPONENT
+// =========================================
+export const addManualTask = async (req, res) => {
+  try {
+    const { componentId } = req.params;
+
+    const {
+      title,
+      description = "",
+      assignedEmployee = null,
+      deadline = null,
+    } = req.body;
+
+    if (!title || !title.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Task title is required.",
+      });
+    }
+
+    const component = await ProjectComponent.findById(componentId);
+
+    if (!component) {
+      return res.status(404).json({
+        success: false,
+        message: "Project component not found.",
+      });
+    }
+
+    // Validate employee belongs to project
+    if (assignedEmployee) {
+      const member = await ProjectMember.findOne({
+        project: component.project,
+        employee: assignedEmployee,
+      });
+
+      if (!member) {
+        return res.status(400).json({
+          success: false,
+          message: "Employee is not assigned to this project.",
+        });
+      }
+    }
+
+    const nextDisplayOrder =
+      component.tasks.length > 0
+        ? Math.max(
+            ...component.tasks.map((task) => Number(task.displayOrder) || 0),
+          ) + 1
+        : 1;
+
+    component.tasks.push({
+      title: title.trim(),
+      description: description?.trim() || "",
+      displayOrder: nextDisplayOrder,
+
+      required: false,
+
+      assignedEmployee: assignedEmployee || null,
+      deadline: deadline || null,
+
+      status: "PENDING",
+
+      submissionRule: {
+        type: "CHECKBOX",
+      },
+    });
+
+    await component.save();
+
+    const newTask = component.tasks[component.tasks.length - 1];
+
+    return res.status(201).json({
+      success: true,
+      message: "Manual task added successfully.",
+      data: newTask,
+    });
+  } catch (err) {
+    console.error("addManualTask error:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+// =========================================
+// UPDATE MANUAL TASK COMPLETION STATUS
+// =========================================
+export const updateTaskCompletion = async (req, res) => {
+  try {
+    const { componentId, taskId } = req.params;
+
+    const { completed } = req.body;
+
+    if (typeof completed !== "boolean") {
+      return res.status(400).json({
+        success: false,
+        message: "Completed status must be true or false.",
+      });
+    }
+
+    const component = await ProjectComponent.findById(componentId);
+
+    if (!component) {
+      return res.status(404).json({
+        success: false,
+        message: "Project component not found.",
+      });
+    }
+
+    const task = component.tasks.id(taskId);
+
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        message: "Task not found.",
+      });
+    }
+
+    // Employee can only update their own assigned task
+    if (
+      req.user.role === "employee" &&
+      (!task.assignedEmployee ||
+        task.assignedEmployee.toString() !== req.user.id.toString())
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not allowed to update this task.",
+      });
+    }
+
+    task.status = completed ? "COMPLETED" : "PENDING";
+
+    await component.save();
+
+    return res.status(200).json({
+      success: true,
+      message: completed
+        ? "Task marked as completed."
+        : "Task marked as pending.",
+      data: task,
+    });
+  } catch (err) {
+    console.error("updateTaskCompletion error:", err);
 
     return res.status(500).json({
       success: false,

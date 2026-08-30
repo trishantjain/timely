@@ -4,45 +4,48 @@
 
 @layer base {
   :root {
-    /* Main background */
-    --background: 220 13% 5%;
-    --foreground: 210 20% 92%;
+    /* ========================================
+       MAIN APPLICATION THEME
+       Keep main application content LIGHT
+       ======================================== */
 
-    /* Cards and surfaces */
-    --card: 220 13% 10%;
-    --card-foreground: 210 20% 92%;
+    --background: 220 20% 96%;
+    --foreground: 222 47% 11%;
 
-    --popover: 220 13% 10%;
-    --popover-foreground: 210 20% 92%;
+    /* Cards */
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
 
-    /* Light neutral primary */
-    --primary: 210 15% 88%;
-    --primary-foreground: 220 13% 8%;
+    /* Popovers */
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
 
-    /* Orange accent theme */
-    --secondary: 28 85% 65%;
-    --secondary-foreground: 220 13% 8%;
+    /* Primary */
+    --primary: 221 83% 53%;
+    --primary-foreground: 0 0% 100%;
 
-    /* Muted surfaces */
-    --muted: 220 12% 14%;
-    --muted-foreground: 215 12% 60%;
+    /* Secondary */
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 222 47% 11%;
 
-    /* Orange accent */
-    --accent: 28 85% 65%;
-    --accent-foreground: 220 13% 8%;
+    /* Muted */
+    --muted: 220 14% 96%;
+    --muted-foreground: 215 16% 47%;
 
-    --destructive: 0 62% 45%;
-    --destructive-foreground: 0 0% 98%;
+    /* Accent */
+    --accent: 220 14% 96%;
+    --accent-foreground: 222 47% 11%;
 
-    /*
-      Dark subtle border
-      This removes the bright white boundary appearance
-    */
-    --border: 220 10% 16%;
-    --input: 220 10% 16%;
+    /* Destructive */
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
 
-    /* Orange focus ring */
-    --ring: 28 85% 65%;
+    /* Borders */
+    --border: 214 20% 88%;
+    --input: 214 20% 88%;
+
+    /* Focus */
+    --ring: 221 83% 53%;
 
     --radius: 0.75rem;
   }
@@ -53,5 +56,340 @@
 
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* =========================================================
+   SIDEBAR DARK THEME
+   Scoped only to Sidebar.jsx
+   ========================================================= */
+
+.app-sidebar {
+  /* Sidebar surface */
+  --card: 220 13% 10%;
+  --card-foreground: 210 20% 92%;
+
+  /* Sidebar text */
+  --foreground: 210 20% 92%;
+
+  /* Muted navigation text */
+  --muted-foreground: 215 15% 62%;
+
+  /* Hover / navigation accent */
+  --accent: 220 12% 15%;
+  --accent-foreground: 210 20% 96%;
+
+  /* Borders */
+  --border: 220 10% 17%;
+
+  background-color: #171b22;
+  color: #e2e8f0;
+}
+
+
+/* Brand */
+
+.app-sidebar h1 {
+  color: #e5e7eb;
+}
+
+.app-sidebar p {
+  color: #94a3b8;
+}
+
+
+/* Navigation links */
+
+.app-sidebar a {
+  color: hsl(var(--muted-foreground));
+}
+
+
+/* Icons inherit navigation color */
+
+.app-sidebar a svg,
+.app-sidebar button svg {
+  color: currentColor;
+}
+
+
+/* Hover state */
+
+.app-sidebar a:hover {
+  background-color: #242b35;
+  color: #f1f5f9;
+}
+
+
+/* Active navigation item */
+
+.app-sidebar a.bg-accent {
+  background-color: #4a382b;
+  color: #f3c18f;
+}
+
+
+/* Active navigation icon and text */
+
+.app-sidebar a.bg-accent span,
+.app-sidebar a.bg-accent svg {
+  color: currentColor;
+}
+
+
+/* Collapse and close buttons */
+
+.app-sidebar button:not(.hover\:bg-destructive\/10) {
+  color: #94a3b8;
+}
+
+.app-sidebar button:not(.hover\:bg-destructive\/10):hover {
+  background-color: #242b35;
+  color: #f1f5f9;
+}
+
+
+/* Bottom separator */
+
+.app-sidebar.border-r,
+.app-sidebar .border-t {
+  border-color: #2a313c;
+}
+
+
+/* =========================================================
+   GLOBAL DARK DIALOG THEME
+   Dialogs are intentionally dark.
+   This does NOT affect normal page content.
+   ========================================================= */
+
+[role="dialog"] {
+  background-color: #141b25 !important;
+  color: #e5e7eb !important;
+  border-color: #2b3748 !important;
+}
+
+
+/* =========================================================
+   DIALOG TEXT
+   ========================================================= */
+
+[role="dialog"] h1,
+[role="dialog"] h2,
+[role="dialog"] h3,
+[role="dialog"] h4,
+[role="dialog"] [data-slot="dialog-title"] {
+  color: #f1f5f9 !important;
+}
+
+[role="dialog"] label {
+  color: #cbd5e1 !important;
+}
+
+[role="dialog"] p {
+  color: #94a3b8 !important;
+}
+
+
+/* =========================================================
+   DIALOG INPUTS
+   ========================================================= */
+
+[role="dialog"] input,
+[role="dialog"] textarea,
+[role="dialog"] select,
+[role="dialog"] button[role="combobox"] {
+  background-color: #182230 !important;
+  color: #e5e7eb !important;
+  border-color: #334155 !important;
+}
+
+[role="dialog"] input::placeholder,
+[role="dialog"] textarea::placeholder {
+  color: #64748b !important;
+}
+
+[role="dialog"] input:focus,
+[role="dialog"] textarea:focus,
+[role="dialog"] select:focus,
+[role="dialog"] button[role="combobox"]:focus {
+  border-color: #3b82f6 !important;
+  outline: none !important;
+  box-shadow: 0 0 0 1px #3b82f6 !important;
+}
+
+
+/* =========================================================
+   DIALOG INNER CARDS
+   ========================================================= */
+
+[role="dialog"] [class~="bg-white"] {
+  background-color: #1b2635 !important;
+}
+
+[role="dialog"] [class*="bg-muted"] {
+  background-color: #1b2635 !important;
+}
+
+[role="dialog"] [class*="bg-[#eef2f6]"],
+[role="dialog"] [class*="bg-[#fafbfc]"],
+[role="dialog"] [class*="bg-[#f8fafc]"],
+[role="dialog"] [class*="bg-[#f1f5f9]"] {
+  background-color: #1b2635 !important;
+}
+
+[role="dialog"] .border,
+[role="dialog"] .rounded-lg.border,
+[role="dialog"] .rounded-xl.border {
+  border-color: #334155 !important;
+}
+
+[role="dialog"] hr,
+[role="dialog"] .border-t,
+[role="dialog"] [class*="border-t"] {
+  border-color: #334155 !important;
+}
+
+
+/* =========================================================
+   DIALOG BUTTONS
+   ========================================================= */
+
+[role="dialog"] button[class*="bg-white"] {
+  background-color: #182230 !important;
+  color: #cbd5e1 !important;
+}
+
+[role="dialog"] button[class*="bg-white"]:hover {
+  background-color: #223044 !important;
+}
+
+
+/* =========================================================
+   DIALOG SCROLLBAR
+   ========================================================= */
+
+[role="dialog"]::-webkit-scrollbar {
+  width: 8px;
+}
+
+[role="dialog"]::-webkit-scrollbar-track {
+  background: #141b25;
+}
+
+[role="dialog"]::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 999px;
+}
+
+[role="dialog"]::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+
+/* =========================================================
+   PROJECT WORK PAGE
+   Only affects the Project Work page
+   ========================================================= */
+
+.project-work-page {
+  padding-bottom: 1rem;
+}
+
+
+/* =========================================================
+   COMPACT VERTICAL SPACING
+
+   Tailwind space-y utilities use margins, NOT gap.
+   So we must override the child margins.
+   ========================================================= */
+
+.project-work-page .space-y-8> :not([hidden])~ :not([hidden]) {
+  margin-top: 1.25rem !important;
+}
+
+.project-work-page .space-y-6> :not([hidden])~ :not([hidden]) {
+  margin-top: 1rem !important;
+}
+
+.project-work-page .space-y-5> :not([hidden])~ :not([hidden]) {
+  margin-top: 0.875rem !important;
+}
+
+.project-work-page .space-y-4> :not([hidden])~ :not([hidden]) {
+  margin-top: 0.75rem !important;
+}
+
+
+/* =========================================================
+   COMPACT MARGINS
+   ========================================================= */
+
+.project-work-page .mb-8 {
+  margin-bottom: 1.25rem !important;
+}
+
+.project-work-page .mb-6 {
+  margin-bottom: 1rem !important;
+}
+
+.project-work-page .mb-5 {
+  margin-bottom: 0.875rem !important;
+}
+
+
+/* =========================================================
+   COMPACT SECTION PADDING
+   ========================================================= */
+
+.project-work-page .py-8 {
+  padding-top: 1.25rem !important;
+  padding-bottom: 1.25rem !important;
+}
+
+.project-work-page .py-6 {
+  padding-top: 1rem !important;
+  padding-bottom: 1rem !important;
+}
+
+
+/* =========================================================
+   PROJECT WORK TABS
+   ========================================================= */
+
+.project-work-page [role="tablist"] {
+  min-height: auto !important;
+}
+
+
+/* =========================================================
+   PROJECT WORK STAT CARDS
+   ========================================================= */
+
+.project-work-page .project-work-stats {
+  row-gap: 0.75rem;
+}
+
+.project-work-page .project-work-stats>* {
+  min-height: auto;
+}
+
+
+/* =========================================================
+   EMPTY STATE
+   ========================================================= */
+
+.project-work-page .project-work-empty-state {
+  min-height: 280px;
+}
+
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
+@media (max-width: 768px) {
+  .project-work-page .project-work-empty-state {
+    min-height: 240px;
   }
 }

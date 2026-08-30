@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
-import { getEmployeeById } from "@/api/employeeAPI";
+import { getEmployeeById, resetEmployeePassword } from "@/api/employeeAPI";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 import {
   ArrowLeft,
@@ -14,9 +16,21 @@ import {
   Pencil,
   Briefcase,
   ChevronRight,
+  KeyRound,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 
 import EditEmployeeDialog from "@/components/dashboard/EditEmployeeDialog";
+
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export default function EmployeeDetails() {
   const { id } = useParams();
@@ -30,6 +44,19 @@ export default function EmployeeDetails() {
   const [error, setError] = useState("");
 
   const [editOpen, setEditOpen] = useState(false);
+
+  // RESET PASSWORD STATES
+  const [resetPasswordOpen, setResetPasswordOpen] = useState(false);
+
+  const [newPassword, setNewPassword] = useState("");
+
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  const [showPassword, setShowPassword] = useState(false);
+
+  const [resetLoading, setResetLoading] = useState(false);
+
+  const [resetError, setResetError] = useState("");
 
   const loadEmployee = async () => {
     try {
@@ -54,6 +81,61 @@ export default function EmployeeDetails() {
   useEffect(() => {
     loadEmployee();
   }, [id]);
+
+  // HANDLE PASSWORD RESET
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+
+    setResetError("");
+
+    if (!newPassword || !confirmPassword) {
+      setResetError("Please enter and confirm the new password.");
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setResetError("Password must be at least 6 characters long.");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setResetError("Passwords do not match.");
+      return;
+    }
+
+    try {
+      setResetLoading(true);
+
+      await resetEmployeePassword(employee._id, newPassword);
+
+      setNewPassword("");
+      setConfirmPassword("");
+
+      setResetPasswordOpen(false);
+
+      alert("Employee password has been reset successfully.");
+    } catch (err) {
+      console.error(err);
+
+      setResetError(
+        err.response?.data?.message || "Failed to reset employee password.",
+      );
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  // HANDLE RESET DIALOG CLOSE
+  const handleResetDialogChange = (open) => {
+    setResetPasswordOpen(open);
+
+    if (!open) {
+      setNewPassword("");
+      setConfirmPassword("");
+      setResetError("");
+      setShowPassword(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -131,15 +213,26 @@ export default function EmployeeDetails() {
             </div>
           </div>
 
-          {/* EDIT BUTTON */}
+          {/* ACTION BUTTONS */}
 
-          <Button
-            onClick={() => setEditOpen(true)}
-            className="w-full gap-2 sm:w-auto"
-          >
-            <Pencil size={16} />
-            Edit Employee
-          </Button>
+          <div className="flex flex-col w-full gap-2 sm:flex-row sm:w-auto">
+            <Button
+              variant="outline"
+              onClick={() => handleResetDialogChange(true)}
+              className="w-full gap-2 sm:w-auto"
+            >
+              <KeyRound size={16} />
+              Reset Password
+            </Button>
+
+            <Button
+              onClick={() => setEditOpen(true)}
+              className="w-full gap-2 sm:w-auto"
+            >
+              <Pencil size={16} />
+              Edit Employee
+            </Button>
+          </div>
         </div>
 
         {/* QUICK INFO */}
@@ -308,7 +401,7 @@ export default function EmployeeDetails() {
         </Card>
       </div>
 
-      {/* EDIT DIALOG */}
+      {/* EDIT EMPLOYEE DIALOG */}
 
       <EditEmployeeDialog
         employee={employee}
@@ -318,6 +411,91 @@ export default function EmployeeDetails() {
           setEmployee(updatedEmployee);
         }}
       />
+
+      {/* RESET PASSWORD DIALOG */}
+
+      <Dialog open={resetPasswordOpen} onOpenChange={handleResetDialogChange}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="flex items-center justify-center w-10 h-10 mb-2 border rounded-lg bg-muted">
+              <KeyRound size={19} />
+            </div>
+
+            <DialogTitle>Reset Employee Password</DialogTitle>
+
+            <DialogDescription>
+              Set a new password for{" "}
+              <span className="font-medium text-foreground">
+                {employee.username}
+              </span>
+              .
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleResetPassword} className="space-y-4">
+            {resetError && (
+              <div className="px-3 py-2 text-sm border rounded-md text-destructive border-destructive/30 bg-destructive/5">
+                {resetError}
+              </div>
+            )}
+
+            {/* NEW PASSWORD */}
+
+            <div className="space-y-2">
+              <Label htmlFor="newPassword">New Password</Label>
+
+              <div className="relative">
+                <Input
+                  id="newPassword"
+                  type={showPassword ? "text" : "password"}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Enter new password"
+                  disabled={resetLoading}
+                />
+
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute -translate-y-1/2 right-3 top-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                </button>
+              </div>
+            </div>
+
+            {/* CONFIRM PASSWORD */}
+
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirm Password</Label>
+
+              <Input
+                id="confirmPassword"
+                type={showPassword ? "text" : "password"}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Confirm new password"
+                disabled={resetLoading}
+              />
+            </div>
+
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => handleResetDialogChange(false)}
+                disabled={resetLoading}
+              >
+                Cancel
+              </Button>
+
+              <Button type="submit" disabled={resetLoading}>
+                {resetLoading ? "Resetting..." : "Reset Password"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

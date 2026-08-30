@@ -116,20 +116,25 @@ export default function CreateProjectDialog({ open, onClose, onSuccess }) {
                 const isSelected = selectedDomains.includes(domain._id);
 
                 return (
-                  <button
-                    key={domain._id}
-                    type="button"
+                  <div
+                    role="button"
+                    tabIndex={0}
                     onClick={() => toggleDomain(domain._id)}
-                    className={`flex items-center gap-3 rounded-lg border p-3 text-left transition-colors ${
-                      isSelected
-                        ? "border-primary bg-primary/10"
-                        : "border-border bg-muted/20 hover:bg-muted"
-                    }`}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        toggleDomain(domain._id);
+                      }
+                    }}
+                    className="flex items-center gap-3 p-3 text-left transition-colors border rounded-lg cursor-pointer"
                   >
-                    <Checkbox checked={isSelected} />
+                    <Checkbox
+                      checked={selectedDomains.includes(domain._id)}
+                      onCheckedChange={() => toggleDomain(domain._id)}
+                    />
 
-                    <span className="text-sm font-medium">{domain.name}</span>
-                  </button>
+                    <span>{domain.name}</span>
+                  </div>
                 );
               })}
             </div>

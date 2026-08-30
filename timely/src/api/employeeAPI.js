@@ -29,3 +29,10 @@ export const getEmployeeById = (id) => {
 export const updateEmployee = (id, employeeData) => {
   return api.put(`/employees/${id}`, employeeData);
 };
+
+// RESET EMPLOYEE PASSWORD
+export const resetEmployeePassword = (id, newPassword) => {
+  return api.put(`/auth/employees/${id}/reset-password`, {
+    newPassword,
+  });
+};

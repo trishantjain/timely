@@ -112,7 +112,7 @@ export const createAssignments = async (req, res) => {
 export const getMyProjects = async (req, res) => {
 
     try {
-        console.log("Logged in employee:", req.user.id);
+        // console.log("Logged in employee:", req.user.id);
 
         let assignments = await ProjectMember.find({
             employee: req.user.id
@@ -133,7 +133,7 @@ export const getMyProjects = async (req, res) => {
             assignment => assignment.project
         );
 
-        console.log(assignments);
+        // console.log(assignments);
 
         res.json(assignments);
     } catch (err) {

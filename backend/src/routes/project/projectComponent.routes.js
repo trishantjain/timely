@@ -8,6 +8,9 @@ import {
   getTaskDetails,
   getEmployeeProjectTasks,
   getProjectDomainTasks,
+  addManualTask,
+  updateTaskCompletion,
+  // updateProjectDomains,
 } from "../../controllers/project/projectComponent.controller.js";
 const router = express.Router();
 
@@ -39,5 +42,21 @@ router.get(
   adminOnly,
   getProjectDomainTasks,
 );
+
+// =========================================
+// MANUAL TASKS
+// =========================================
+
+// Admin manually creates a task inside a component
+router.post("/:componentId/tasks/manual", protect, adminOnly, addManualTask);
+
+// Employee marks assigned task as completed / pending
+router.patch(
+  "/:componentId/tasks/:taskId/completion",
+  protect,
+  updateTaskCompletion,
+);
+
+// router.patch("/:projectId/domains", protect, adminOnly, updateProjectDomains);
 
 export default router;

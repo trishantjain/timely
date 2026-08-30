@@ -1,6 +1,6 @@
 import { getMyTasks } from "@/api/taskAPI";
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,20 +17,33 @@ import { Badge } from "@/components/ui/badge";
 
 import { Card, CardContent } from "@/components/ui/card";
 
-import { Search, Calendar, FolderKanban, Layers } from "lucide-react";
+import {
+  Search,
+  Calendar,
+  FolderKanban,
+  Layers,
+  CheckSquare,
+  FileText,
+  ArrowLeft,
+} from "lucide-react";
 
 export default function MyTasks() {
   const navigate = useNavigate();
+
+  const { projectId } = useParams();
 
   const [loading, setLoading] = useState(true);
   const [tasks, setTasks] = useState([]);
   const [search, setSearch] = useState("");
 
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [supportingFiles, setSupportingFiles] = useState([]);
 
   const loadTasks = async () => {
     try {
-      const res = await getMyTasks();
+      setLoading(true);
+
+      const res = await getMyTasks(projectId);
 
       console.log(res.data);
 
@@ -60,6 +73,21 @@ export default function MyTasks() {
     REJECTED: "border-destructive/40 bg-destructive/10 text-destructive",
   };
 
+  const taskTypeConfig = {
+    CHECKBOX: {
+      label: "Checkbox Task",
+      icon: CheckSquare,
+      className:
+        "border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-400",
+    },
+
+    default: {
+      label: "Submission Task",
+      icon: FileText,
+      className: "border-border bg-muted text-muted-foreground",
+    },
+  };
+
   const filteredTasks = useMemo(() => {
     return tasks.filter((task) => {
       const matchesSearch =
@@ -84,10 +112,21 @@ export default function MyTasks() {
 
   return (
     <div className="p-6 mx-auto max-w-7xl lg:p-8">
-      <div className="flex flex-col gap-2 mb-6">
-        <p className="text-sm text-muted-foreground">Employee Workspace</p>
+      <div className="mb-6">
+        <Button
+          variant="ghost"
+          className="gap-2 mb-4 -ml-2 text-muted-foreground hover:text-foreground"
+          onClick={() => navigate(-1)}
+        >
+          <ArrowLeft size={18} />
+          Back
+        </Button>
 
-        <h1 className="text-2xl font-semibold tracking-tight">My Tasks</h1>
+        <div className="flex flex-col gap-2">
+          <p className="text-sm text-muted-foreground">Employee Workspace</p>
+
+          <h1 className="text-2xl font-semibold tracking-tight">My Tasks</h1>
+        </div>
       </div>
 
       <Card className="mb-5 border-border bg-card">
@@ -112,7 +151,7 @@ export default function MyTasks() {
             </SelectTrigger>
 
             <SelectContent>
-              <SelectItem value="ALL">All Statuses</SelectItem>
+              <SelectItem value="ALL">All Status</SelectItem>
               <SelectItem value="PENDING">Pending</SelectItem>
               <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
               <SelectItem value="SUBMITTED">Submitted</SelectItem>
@@ -136,63 +175,85 @@ export default function MyTasks() {
             </CardContent>
           </Card>
         ) : (
-          filteredTasks.map((task) => (
-            <Card
-              key={`${task.componentId}-${task.taskId}`}
-              className="transition-colors border-border bg-card hover:bg-muted/40"
-            >
-              <CardContent className="flex flex-col gap-4 p-4 md:flex-row md:items-center md:justify-between">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="font-semibold text-foreground">
-                      {task.taskTitle}
-                    </h3>
+          filteredTasks.map((task) => {
+            const submissionType =
+              task.submissionRule?.type || task.submissionRuleType || "TEXT";
 
-                    <Badge
-                      variant="outline"
-                      className={
-                        statusColors[task.status] || statusColors.PENDING
-                      }
-                    >
-                      {task.status}
-                    </Badge>
-                  </div>
+            const taskType =
+              taskTypeConfig[submissionType] || taskTypeConfig.default;
 
-                  <div className="flex flex-wrap gap-4 mt-2 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-2">
-                      <FolderKanban size={15} />
-                      {task.projectName}
+            const TaskTypeIcon = taskType.icon;
+
+            return (
+              <Card
+                key={`${task.componentId}-${task.taskId}`}
+                className="transition-colors border-border bg-card hover:bg-muted/40"
+              >
+                <CardContent className="flex flex-col gap-4 p-4 md:flex-row md:items-center md:justify-between">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="font-semibold text-foreground">
+                        {task.taskTitle}
+                      </h3>
+
+                      {/* TASK TYPE */}
+                      <Badge
+                        variant="outline"
+                        className={`flex items-center gap-1 ${taskType.className}`}
+                      >
+                        <TaskTypeIcon size={13} />
+                        {taskType.label}
+                      </Badge>
+
+                      {/* TASK STATUS */}
+                      <Badge
+                        variant="outline"
+                        className={
+                          statusColors[task.status] || statusColors.PENDING
+                        }
+                      >
+                        {task.status.replaceAll("_", " ")}
+                      </Badge>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <Layers size={15} />
-                      {task.moduleName}
-                    </div>
-
-                    {task.deadline && (
+                    <div className="flex flex-wrap gap-4 mt-2 text-sm text-muted-foreground">
                       <div className="flex items-center gap-2">
-                        <Calendar size={15} />
-
-                        {new Date(task.deadline).toLocaleDateString()}
+                        <FolderKanban size={15} />
+                        {task.projectName}
                       </div>
-                    )}
-                  </div>
-                </div>
 
-                <Button
-                  variant="outline"
-                  className="shrink-0"
-                  onClick={() =>
-                    navigate(
-                      `/employee/tasks/${task.componentId}/${task.taskId}`,
-                    )
-                  }
-                >
-                  Open Task
-                </Button>
-              </CardContent>
-            </Card>
-          ))
+                      <div className="flex items-center gap-2">
+                        <Layers size={15} />
+                        {task.moduleName}
+                      </div>
+
+                      {task.deadline && (
+                        <div className="flex items-center gap-2">
+                          <Calendar size={15} />
+
+                          {new Date(task.deadline).toLocaleDateString()}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    className="shrink-0"
+                    onClick={() =>
+                      navigate(
+                        `/employee/tasks/${task.componentId}/${task.taskId}`,
+                      )
+                    }
+                  >
+                    {submissionType === "CHECKBOX"
+                      ? "Open Checkbox Task"
+                      : "Open Task"}
+                  </Button>
+                </CardContent>
+              </Card>
+            );
+          })
         )}
       </div>
     </div>

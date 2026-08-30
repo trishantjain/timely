@@ -1,41 +1,46 @@
 import mongoose from "mongoose";
 
 const projectModuleSchema = new mongoose.Schema(
-    {
-        name: {
-            type: String,
-            required: true,
-            trim: true,
-            unique: true
-        },
-
-        description: {
-            type: String,
-            default: ""
-        },
-
-        color: {
-            type: String,
-            default: "#2563eb"
-        },
-
-        isActive: {
-            type: Boolean,
-            default: true
-        },
-
-        createdBy: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "User",
-            required: true
-        }
+  {
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+      unique: true,
     },
-    {
-        timestamps: true
-    }
 
+    description: {
+      type: String,
+      default: "",
+    },
+
+    color: {
+      type: String,
+      default: "#2563eb",
+    },
+
+    // ADD THIS
+    domain: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Domain",
+      default: null,
+    },
+
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
+
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+  },
+  {
+    timestamps: true,
+  },
 );
-
 
 // Prevent duplicate active modules
 // projectModuleSchema.index(

@@ -30,6 +30,7 @@ export default function TaskSubmission() {
 
   const [textSubmission, setTextSubmission] = useState("");
   const [selectedFiles, setSelectedFiles] = useState([]);
+  const [supportingPdfs, setSupportingPdfs] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [errors, setErrors] = useState([]);
@@ -97,15 +98,17 @@ export default function TaskSubmission() {
   };
 
   const handleFiles = (incomingFiles) => {
-    const files = Array.from(incomingFiles);
+    const newFiles = Array.from(incomingFiles);
 
-    const validation = validateFiles(files);
+    const combinedFiles = [...selectedFiles, ...newFiles];
+
+    const validation = validateFiles(combinedFiles);
 
     setErrors(validation);
 
     if (validation.length) return;
 
-    setSelectedFiles(files);
+    setSelectedFiles(combinedFiles);
   };
 
   const removeFile = (index) => {
@@ -113,6 +116,11 @@ export default function TaskSubmission() {
   };
 
   const handleSubmit = async () => {
+    if (isTextSubmission && !textSubmission.trim()) {
+      setErrors(["Please enter your task submission."]);
+      return;
+    }
+
     try {
       setUploading(true);
 
@@ -121,6 +129,7 @@ export default function TaskSubmission() {
         taskId,
         textSubmission,
         files: selectedFiles,
+        supportingPdfs,
       });
 
       alert("Task submitted successfully.");
@@ -198,12 +207,14 @@ export default function TaskSubmission() {
 
             <CardContent className="space-y-5">
               {isTextSubmission && (
-                <Textarea
-                  placeholder="Write your submission here..."
-                  value={textSubmission}
-                  onChange={(e) => setTextSubmission(e.target.value)}
-                  className="min-h-[220px] resize-y bg-background"
-                />
+                <>
+                  <Textarea
+                    placeholder="Write your submission here..."
+                    value={textSubmission}
+                    onChange={(e) => setTextSubmission(e.target.value)}
+                    className="min-h-[220px] resize-y bg-background"
+                  />
+                </>
               )}
 
               {!isTextSubmission && (
@@ -250,55 +261,169 @@ export default function TaskSubmission() {
                       />
                     </label>
                   </div>
-
-                  {errors.length > 0 && (
-                    <div className="space-y-2">
-                      {errors.map((error, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center gap-2 text-sm text-destructive"
-                        >
-                          <AlertCircle size={16} />
-                          {error}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {selectedFiles.length > 0 && (
-                    <div className="space-y-2">
-                      {selectedFiles.map((file, index) => (
-                        <div
-                          key={`${file.name}-${index}`}
-                          className="flex items-center justify-between gap-3 p-3 border rounded-lg border-border bg-muted/40"
-                        >
-                          <div className="flex items-center min-w-0 gap-3">
-                            <File
-                              size={18}
-                              className="shrink-0 text-muted-foreground"
-                            />
-
-                            <div className="min-w-0">
-                              <p className="text-sm truncate">{file.name}</p>
-
-                              <p className="text-xs text-muted-foreground">
-                                {(file.size / 1024 / 1024).toFixed(2)} MB
-                              </p>
-                            </div>
-                          </div>
-
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => removeFile(index)}
-                          >
-                            <Trash2 size={16} />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </>
+              )}
+
+              {/* OPTIONAL SUPPORTING PDF */}
+              <div className="pt-2">
+                <p className="mb-2 text-sm font-medium">Supporting Document</p>
+
+                <div className="flex flex-wrap items-center gap-3">
+                  <label>
+                    <Button type="button" variant="outline" asChild>
+                      <span>
+                        <Upload size={16} className="mr-2" />
+                        Upload PDF
+                      </span>
+                    </Button>
+
+                    <input
+                      type="file"
+                      accept="application/pdf"
+                      className="hidden"
+                      multiple
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files || []);
+
+                        if (!files.length) return;
+
+                        const invalidFiles = files.filter(
+                          (file) => file.type !== "application/pdf",
+                        );
+
+                        if (invalidFiles.length > 0) {
+                          setErrors(["Only PDF files are allowed."]);
+                          e.target.value = "";
+                          return;
+                        }
+
+                        setErrors([]);
+
+                        setSupportingPdfs((prev) => [...prev, ...files]);
+
+                        e.target.value = "";
+                      }}
+                    />
+                    <input
+                      type="file"
+                      accept="application/pdf"
+                      className="hidden"
+                      multiple
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files || []);
+
+                        if (!files.length) return;
+
+                        const invalidFiles = files.filter(
+                          (file) => file.type !== "application/pdf",
+                        );
+
+                        if (invalidFiles.length > 0) {
+                          setErrors(["Only PDF files are allowed."]);
+                          e.target.value = "";
+                          return;
+                        }
+
+                        setErrors([]);
+
+                        setSupportingPdfs((prev) => [...prev, ...files]);
+
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
+
+                  <span className="text-xs text-muted-foreground">
+                    Optional
+                  </span>
+                </div>
+              </div>
+
+              {errors.length > 0 && (
+                <div className="space-y-2">
+                  {errors.map((error, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center gap-2 text-sm text-destructive"
+                    >
+                      <AlertCircle size={16} />
+                      {error}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {selectedFiles.length > 0 && (
+                <div className="space-y-2">
+                  {selectedFiles.map((file, index) => (
+                    <div
+                      key={`${file.name}-${index}`}
+                      className="flex items-center justify-between gap-3 p-3 border rounded-lg border-border bg-muted/40"
+                    >
+                      <div className="flex items-center min-w-0 gap-3">
+                        <File
+                          size={18}
+                          className="shrink-0 text-muted-foreground"
+                        />
+
+                        <div className="min-w-0">
+                          <p className="text-sm truncate">{file.name}</p>
+
+                          <p className="text-xs text-muted-foreground">
+                            {(file.size / 1024 / 1024).toFixed(2)} MB
+                          </p>
+                        </div>
+                      </div>
+
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeFile(index)}
+                      >
+                        <Trash2 size={16} />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {supportingPdfs.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  {supportingPdfs.map((file, index) => (
+                    <div
+                      key={`${file.name}-${index}`}
+                      className="flex items-center justify-between gap-3 p-3 border rounded-lg border-border bg-muted/40"
+                    >
+                      <div className="flex items-center min-w-0 gap-3">
+                        <File
+                          size={18}
+                          className="shrink-0 text-muted-foreground"
+                        />
+
+                        <div className="min-w-0">
+                          <p className="text-sm truncate">{file.name}</p>
+
+                          <p className="text-xs text-muted-foreground">
+                            {(file.size / 1024 / 1024).toFixed(2)} MB
+                          </p>
+                        </div>
+                      </div>
+
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() =>
+                          setSupportingPdfs((prev) =>
+                            prev.filter((_, i) => i !== index),
+                          )
+                        }
+                      >
+                        <Trash2 size={16} />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
               )}
 
               <div className="flex justify-end pt-2">

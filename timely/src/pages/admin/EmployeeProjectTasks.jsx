@@ -92,6 +92,27 @@ export default function EmployeeProjectTasks() {
     navigate(`/admin/reviews/${submissionId}`);
   };
 
+  const formatDeadline = (task) => {
+    const deadline =
+      task.deadline || task.dueDate || task.due_date || task.taskDeadline;
+
+    if (!deadline) {
+      return "No deadline";
+    }
+
+    const date = new Date(deadline);
+
+    if (Number.isNaN(date.getTime())) {
+      return "No deadline";
+    }
+
+    return date.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
   const { project, employee, tasks } = data;
 
   return (
@@ -257,14 +278,18 @@ export default function EmployeeProjectTasks() {
                   {/* DEADLINE */}
 
                   <div className="flex items-center gap-5 text-sm shrink-0 text-muted-foreground">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/30">
                       <Calendar size={15} />
 
-                      <span className="text-xs sm:text-sm">
-                        {task.deadline
-                          ? new Date(task.deadline).toLocaleDateString()
-                          : "No deadline"}
-                      </span>
+                      <div className="flex flex-col">
+                        <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                          Deadline
+                        </span>
+
+                        <span className="text-xs font-medium text-foreground sm:text-sm">
+                          {formatDeadline(task)}
+                        </span>
+                      </div>
                     </div>
 
                     <ChevronRight size={18} className="shrink-0" />

@@ -103,13 +103,14 @@ export const submitTask = async (req, res) => {
   session.startTransaction();
 
   let uploadedCloudinaryFiles = [];
+  let uploadedSupportingPdf = null;
 
   try {
     const { projectComponentId, taskId, textSubmission } = req.body;
 
-    const uploadedFiles = req.files || [];
+    const uploadedFiles = req.files?.files || [];
 
-    // ==========================================
+    const supportingPdfs = req.files?.supportingPdf || []; // ==========================================
     // FIND COMPONENT
     // ==========================================
 
@@ -160,7 +161,13 @@ export const submitTask = async (req, res) => {
     // FILE VALIDATION
     // ==========================================
 
-    const fileValidationError = validateFilesAgainstRule(task, uploadedFiles);
+    let fileValidationError = null;
+
+    // Validate main submission files only for tasks
+    // that actually require file submission.
+    if (task.submissionRule?.type !== "CHECKBOX") {
+      fileValidationError = validateFilesAgainstRule(task, uploadedFiles);
+    }
 
     if (fileValidationError) {
       await session.abortTransaction();
@@ -169,6 +176,20 @@ export const submitTask = async (req, res) => {
         success: false,
         message: fileValidationError,
       });
+    }
+
+    // ==========================================
+    // SUPPORTING PDF VALIDATION
+    // ==========================================
+    for (const pdf of supportingPdfs) {
+      if (pdf.mimetype !== "application/pdf") {
+        await session.abortTransaction();
+
+        return res.status(400).json({
+          success: false,
+          message: "Supporting documents must be PDF files.",
+        });
+      }
     }
 
     // ==========================================
@@ -287,6 +308,40 @@ export const submitTask = async (req, res) => {
     }
 
     // ==========================================
+    // UPLOAD OPTIONAL SUPPORTING PDF
+    // ==========================================
+
+    const uploadedSupportingPdfs = [];
+
+    if (supportingPdfs.length > 0) {
+      for (const pdf of supportingPdfs) {
+        const result = await uploadFileToCloudinary(pdf, {
+          folder: `timely/submissions/${submission._id}/version-${versionNo}/supporting`,
+        });
+
+        const uploadedPdf = {
+          originalName: pdf.originalname,
+
+          publicId: result.public_id,
+
+          url: result.url,
+
+          secureUrl: result.secure_url,
+
+          resourceType: result.resource_type,
+
+          mimeType: pdf.mimetype,
+
+          size: pdf.size,
+        };
+
+        uploadedSupportingPdfs.push(uploadedPdf);
+
+        uploadedCloudinaryFiles.push(uploadedPdf);
+      }
+    }
+
+    // ==========================================
     // CREATE FILE METADATA
     // ==========================================
     const fileMetadata = uploadedCloudinaryFiles.map((file) => ({
@@ -319,6 +374,8 @@ export const submitTask = async (req, res) => {
           textSubmission,
 
           files: fileMetadata,
+
+          supportingPdfs: uploadedSupportingPdfs,
 
           submittedBy: req.user.id,
         },
@@ -398,6 +455,13 @@ export const submitTask = async (req, res) => {
 
           size: f.size,
         })),
+
+        supportingPdf: uploadedSupportingPdf
+          ? {
+              originalName: uploadedSupportingPdf.originalName,
+              size: uploadedSupportingPdf.size,
+            }
+          : null,
       },
     });
   } catch (err) {
@@ -408,7 +472,13 @@ export const submitTask = async (req, res) => {
     // Delete files that were uploaded to
     // Cloudinary if the database operation failed
 
-    await cleanupCloudinaryFiles(uploadedCloudinaryFiles);
+    const filesToCleanup = [...uploadedCloudinaryFiles];
+
+    if (uploadedSupportingPdf) {
+      filesToCleanup.push(uploadedSupportingPdf);
+    }
+
+    await cleanupCloudinaryFiles(filesToCleanup);
 
     return res.status(500).json({
       success: false,

@@ -1,8 +1,4 @@
-// WorkspaceManagement.jsx
-
 import { useEffect, useState } from "react";
-
-import PageHeader from "@/components/common/PageHeader";
 
 import {
   Boxes,
@@ -14,6 +10,8 @@ import {
   Plus,
   FolderPlus,
   Pencil,
+  ChevronsUpDown,
+  Package,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -40,7 +38,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import { getProjectModules } from "@/api/projectModuleAPI";
+import { getProjectModules, createProjectModule } from "@/api/projectModuleAPI";
 
 import {
   getComponentTemplates,
@@ -79,6 +77,17 @@ export default function WorkspaceManagement() {
 
   const [newComponentTasks, setNewComponentTasks] = useState([]);
 
+  const [showAddModule, setShowAddModule] = useState(false);
+
+  const [newModuleName, setNewModuleName] = useState("");
+
+  const [newModuleDescription, setNewModuleDescription] = useState("");
+
+  const [newModuleColor, setNewModuleColor] = useState("#64748b");
+
+  const [savingModule, setSavingModule] = useState(false);
+
+  // FETCH DATA
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -118,13 +127,16 @@ export default function WorkspaceManagement() {
     fetchData();
   }, []);
 
+  // TOGGLE MODULE
   const toggleModule = (moduleId) => {
     setExpandedModules((previous) => ({
       ...previous,
+
       [moduleId]: !previous[moduleId],
     }));
   };
 
+  // GET MODULE COMPONENTS
   const getModuleComponents = (moduleId) => {
     return components.filter((component) => {
       const componentModuleId =
@@ -134,6 +146,7 @@ export default function WorkspaceManagement() {
     });
   };
 
+  // EDIT COMPONENT
   const openEditComponent = (component) => {
     setEditingComponent(component);
 
@@ -212,8 +225,11 @@ export default function WorkspaceManagement() {
 
       await updateComponentTemplate(editingComponent._id, {
         name: editName.trim(),
+
         description: editDescription,
+
         projectModule: editModule,
+
         tasks: editTasks,
       });
 
@@ -229,6 +245,83 @@ export default function WorkspaceManagement() {
     }
   };
 
+  // ==========================================
+  // ADD MODULE
+  // ==========================================
+
+  const openAddModule = () => {
+    setNewModuleName("");
+
+    setNewModuleDescription("");
+
+    setNewModuleColor("#64748b");
+
+    setShowAddModule(true);
+  };
+
+  const saveNewModule = async () => {
+    if (!newModuleName.trim()) {
+      alert("Module name is required.");
+
+      return;
+    }
+
+    try {
+      setSavingModule(true);
+
+      const response = await createProjectModule({
+        name: newModuleName.trim(),
+
+        description: newModuleDescription.trim(),
+
+        color: newModuleColor,
+
+        // Keep backend behaviour unchanged
+        isActive: true,
+      });
+
+      const createdModule = response?.data?.data;
+
+      if (createdModule?._id) {
+        setModules((previous) =>
+          [...previous, createdModule].sort((a, b) =>
+            a.name.localeCompare(b.name),
+          ),
+        );
+
+        setExpandedModules((previous) => ({
+          ...previous,
+
+          [createdModule._id]: true,
+        }));
+      } else {
+        await fetchData();
+      }
+
+      setShowAddModule(false);
+
+      setNewModuleName("");
+
+      setNewModuleDescription("");
+
+      setNewModuleColor("#64748b");
+    } catch (error) {
+      console.error("Error creating module:", error);
+
+      alert(
+        error?.response?.data?.message ||
+          error?.message ||
+          "Failed to create module.",
+      );
+    } finally {
+      setSavingModule(false);
+    }
+  };
+
+  // ==========================================
+  // ADD COMPONENT
+  // ==========================================
+
   const openAddComponent = (moduleId) => {
     setSelectedModuleId(moduleId);
 
@@ -242,6 +335,7 @@ export default function WorkspaceManagement() {
         description: "",
         displayOrder: 1,
         required: true,
+
         submissionRule: {
           type: "TEXT",
           allowedExtensions: [],
@@ -275,6 +369,7 @@ export default function WorkspaceManagement() {
         description: "",
         displayOrder: previous.length + 1,
         required: true,
+
         submissionRule: {
           type: "TEXT",
           allowedExtensions: [],
@@ -289,9 +384,10 @@ export default function WorkspaceManagement() {
     setNewComponentTasks((previous) =>
       previous
         .filter((_, taskIndex) => taskIndex !== index)
-        .map((task, index) => ({
+        .map((task, taskIndex) => ({
           ...task,
-          displayOrder: index + 1,
+
+          displayOrder: taskIndex + 1,
         })),
     );
   };
@@ -320,8 +416,11 @@ export default function WorkspaceManagement() {
 
       await createComponentTemplate({
         projectModule: selectedModuleId,
+
         name: newComponentName.trim(),
+
         description: newComponentDescription,
+
         tasks: newComponentTasks,
       });
 
@@ -337,79 +436,287 @@ export default function WorkspaceManagement() {
     }
   };
 
-  return (
-    <div className="min-h-full p-4 sm:p-6 lg:p-8">
-      <PageHeader
-        title="Workspace"
-        description="Manage reusable modules, components and tasks."
-        actions={
-          <Button className="gap-2 shadow-sm">
-            <FolderPlus size={16} />
-            Add Module
-          </Button>
-        }
-      />
+  // COLLAPSE ALL MODULES
+  const toggleAllModules = () => {
+    const allExpanded = modules.every((module) => expandedModules[module._id]);
 
-      <div className="mt-6 overflow-hidden border shadow-sm rounded-2xl bg-card">
-        <div className="flex items-center justify-between gap-4 px-5 py-4 border-b sm:px-6">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-10 h-10 border rounded-xl bg-muted/60">
-              <Layers size={19} />
+    const updatedState = {};
+
+    modules.forEach((module) => {
+      updatedState[module._id] = !allExpanded;
+    });
+
+    setExpandedModules(updatedState);
+  };
+
+  return (
+    <div className="min-h-full bg-[#f6f7f9] p-3 sm:p-4 lg:p-5">
+      {/* ======================================
+                    PAGE HEADER
+          ====================================== */}
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-lg font-semibold text-[#1f2937]">Workspace</h1>
+
+          <p className="mt-0.5 text-xs text-[#64748b]">
+            Manage reusable modules, components and tasks.
+          </p>
+        </div>
+        <Button
+          type="button"
+          onClick={openAddModule}
+          className="
+    h-9
+    gap-2
+    rounded-lg
+    bg-[#2563eb]
+    px-3.5
+    text-xs
+    font-medium
+    text-white
+    shadow-sm
+    hover:bg-[#1d4ed8]
+  "
+        >
+          <FolderPlus size={15} />
+          Add Module
+        </Button>{" "}
+      </div>
+
+      {/* ======================================
+                WORKSPACE
+    ====================================== */}
+
+      <div
+        className="
+    mt-4
+    overflow-hidden
+    rounded-xl
+    border
+    border-[#d7dee8]
+    bg-[#f5f7fa]
+    shadow-sm
+  "
+      >
+        {/* ======================================
+                  MODULE HEADER
+      ====================================== */}
+
+        <div
+          className="
+      flex
+      items-center
+      justify-between
+      gap-3
+      border-b
+      border-[#dbe2ea]
+      bg-[#eef2f6]
+      px-4
+      py-3
+    "
+        >
+          {/* LEFT */}
+
+          <div className="flex min-w-0 items-center gap-2.5">
+            <div
+              className="
+          flex
+          h-9
+          w-9
+          shrink-0
+          items-center
+          justify-center
+          rounded-lg
+          border
+          border-[#d7dee8]
+          bg-[#e5ebf2]
+          text-[#475569]
+        "
+            >
+              <Layers size={17} />
             </div>
 
-            <div>
-              <h2 className="text-sm font-semibold sm:text-base">
-                Modules & Components
-              </h2>
+            <div className="min-w-0">
+              <h2 className="text-sm font-semibold text-[#1e293b]">Modules</h2>
 
-              <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
-                Organize reusable components inside project modules.
+              <p className="mt-0.5 text-[11px] text-[#64748b]">
+                Components organized by module
               </p>
             </div>
           </div>
 
-          <div className="hidden rounded-lg border bg-muted/30 px-3 py-1.5 text-xs text-muted-foreground sm:block">
-            {modules.length} {modules.length === 1 ? "module" : "modules"}
+          {/* RIGHT */}
+
+          <div className="flex items-center gap-2">
+            {/* MODULE COUNT */}
+
+            <div
+              className="
+          hidden
+          rounded-md
+          border
+          border-[#d7dee8]
+          bg-[#f8fafc]
+          px-2.5
+          py-1
+          text-[11px]
+          font-medium
+          text-[#64748b]
+          sm:block
+        "
+            >
+              {modules.length} {modules.length === 1 ? "module" : "modules"}
+            </div>
+
+            {/* COLLAPSE / EXPAND ALL */}
+
+            {modules.length > 0 && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={toggleAllModules}
+                title={
+                  modules.every((module) => expandedModules[module._id])
+                    ? "Collapse all modules"
+                    : "Expand all modules"
+                }
+                className="
+            h-8
+            gap-1.5
+            border-[#cfd8e3]
+            bg-[#f8fafc]
+            px-2.5
+            text-[11px]
+            text-[#475569]
+            shadow-none
+            hover:bg-[#e8eef5]
+            hover:text-[#1e293b]
+          "
+              >
+                <ChevronsUpDown size={14} />
+
+                <span className="hidden sm:inline">
+                  {modules.every((module) => expandedModules[module._id])
+                    ? "Collapse All"
+                    : "Expand All"}
+                </span>
+              </Button>
+            )}
           </div>
         </div>
 
+        {/* ======================================
+                  LOADING
+      ====================================== */}
+
         {loading && (
-          <div className="flex items-center justify-center gap-2 py-20 text-sm text-muted-foreground">
-            <Loader2 size={18} className="animate-spin" />
+          <div
+            className="
+        flex
+        items-center
+        justify-center
+        gap-2
+        py-16
+        text-sm
+        text-[#64748b]
+      "
+          >
+            <Loader2 size={17} className="animate-spin" />
             Loading workspace...
           </div>
         )}
 
+        {/* ======================================
+                  EMPTY STATE
+      ====================================== */}
+
         {!loading && modules.length === 0 && (
-          <div className="py-20 text-center">
-            <div className="flex items-center justify-center w-12 h-12 mx-auto border rounded-xl bg-muted/40">
-              <Layers size={22} className="text-muted-foreground" />
+          <div className="py-16 text-center">
+            <div
+              className="
+          mx-auto
+          flex
+          h-11
+          w-11
+          items-center
+          justify-center
+          rounded-lg
+          border
+          border-[#d7dee8]
+          bg-[#e9eef4]
+          text-[#64748b]
+        "
+            >
+              <Layers size={20} />
             </div>
 
-            <p className="mt-4 font-medium">No modules found</p>
+            <p className="mt-3 text-sm font-medium text-[#334155]">
+              No modules found
+            </p>
 
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="mt-1 text-xs text-[#64748b]">
               Create a module to start organizing your workspace.
             </p>
           </div>
         )}
 
+        {/* ======================================
+                          MODULE LIST
+            ====================================== */}
+
         {!loading && modules.length > 0 && (
-          <div className="divide-y">
+          <div className="divide-y divide-[#b9bdc2]">
             {modules.map((module) => {
               const moduleComponents = getModuleComponents(module._id);
 
               const isExpanded = expandedModules[module._id];
 
               return (
-                <div key={module._id} className="group">
-                  <div className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/30 sm:px-6">
+                <div key={module._id}>
+                  {/* ======================================
+                                MODULE ROW
+                      ====================================== */}
+
+                  <div
+                    className="
+                      flex
+                          items-center
+                          gap-3
+                          border-b
+                          border-[#e1e6ed]
+                          bg-[#eef2f6]
+                          px-4
+                          py-3
+                          transition-colors
+                          hover:bg-[#e8edf3]
+            "
+                  >
+                    {/* MODULE INFORMATION */}
+
                     <button
                       type="button"
                       onClick={() => toggleModule(module._id)}
                       className="flex items-center flex-1 min-w-0 gap-3 text-left"
                     >
-                      <div className="flex items-center justify-center w-8 h-8 border rounded-lg shrink-0 bg-muted/40">
+                      {/* EXPAND / COLLAPSE */}
+
+                      <div
+                        className="
+                  flex
+                  h-9
+                  w-9
+                  shrink-0
+                  items-center
+                  justify-center
+                  rounded-lg
+                  border
+                  border-[#94a3b8]
+                  bg-[#dbe3ec]
+                  text-[#334155]
+                "
+                      >
                         {isExpanded ? (
                           <ChevronDown size={16} />
                         ) : (
@@ -417,120 +724,224 @@ export default function WorkspaceManagement() {
                         )}
                       </div>
 
+                      {/* MODULE COLOR */}
+
                       <div
-                        className="w-1 rounded-full h-9 shrink-0"
+                        className="h-9 w-[3px] shrink-0 rounded-full"
                         style={{
-                          backgroundColor: module.color || "#64748b",
+                          backgroundColor: module.color || "#475569",
                         }}
                       />
 
-                      <div className="flex-1 min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="text-sm font-semibold truncate">
+                      {/* MODULE TEXT */}
+
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <h3 className="truncate text-sm font-semibold text-[#1e293b]">
                             {module.name}
                           </h3>
 
-                          {!module.isActive && (
-                            <span className="rounded-md border px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                              Inactive
-                            </span>
-                          )}
+                          <span className="text-[11px] text-[#475569]">
+                            · {moduleComponents.length}{" "}
+                            {moduleComponents.length === 1
+                              ? "component"
+                              : "components"}
+                          </span>
                         </div>
 
                         {module.description && (
-                          <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                          <p className="mt-0.5 truncate text-[11px] text-[#526171]">
                             {module.description}
                           </p>
                         )}
-
-                        <p className="mt-1 text-[11px] text-muted-foreground">
-                          {moduleComponents.length}{" "}
-                          {moduleComponents.length === 1
-                            ? "component"
-                            : "components"}
-                        </p>
                       </div>
                     </button>
 
+                    {/* ADD COMPONENT */}
+
                     <Button
                       type="button"
-                      variant="outline"
                       size="sm"
-                      className="h-8 shrink-0 gap-1.5 px-2.5 text-xs sm:px-3"
                       onClick={() => openAddComponent(module._id)}
+                      className="
+                h-9
+                shrink-0
+                gap-1.5
+                rounded-lg
+                bg-[#334155]
+                px-3
+                text-xs
+                font-medium
+                text-white
+                shadow-none
+                hover:bg-[#1e293b]
+              "
                     >
-                      <Plus size={14} />
+                      <Plus size={15} />
+
                       <span className="hidden sm:inline">Add Component</span>
+
                       <span className="sm:hidden">Add</span>
                     </Button>
                   </div>
 
+                  {/* ======================================
+                    COMPONENT SECTION
+          ====================================== */}
+
                   {isExpanded && (
-                    <div className="border-t bg-muted/[0.12] px-3 py-2 sm:px-6">
+                    <div
+                      className="
+                border-b
+                border-[#d8e0e8]
+                bg-[#eef2f6]
+                px-4
+                py-2
+                sm:px-6
+              "
+                    >
+                      {/* EMPTY COMPONENT STATE */}
+
                       {moduleComponents.length === 0 && (
-                        <div className="py-6 text-sm pl-11 text-muted-foreground">
-                          No components in this module.
+                        <div className="py-5 pl-16 text-xs text-[#64748b]">
+                          No components have been added to this module.
                         </div>
                       )}
 
+                      {/* COMPONENT LIST */}
+
                       {moduleComponents.length > 0 && (
-                        <div className="space-y-1">
+                        <div
+                          className="
+                    relative
+                    ml-5
+                    border-l
+                    border-[#b9c6d4]
+                    py-1
+                    pl-7
+                    sm:ml-8
+                    sm:pl-9
+                  "
+                        >
                           {moduleComponents.map((component) => (
                             <div
                               key={component._id}
-                              className="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-background/70"
+                              className="
+                        relative
+                        flex
+                        min-h-[58px]
+                        items-center
+                        gap-3
+                        border-b
+                        border-[#d8e0e8]
+                        bg-[#f8fafc]
+                        px-3
+                        py-2.5
+                        transition-colors
+                        last:border-b-0
+                        hover:bg-white
+                      "
                             >
-                              <div className="flex items-center justify-center w-8 h-8 border rounded-lg shrink-0 bg-background">
+                              {/* NESTED CONNECTOR */}
+
+                              <div
+                                className="
+                          absolute
+                          -left-7
+                          top-1/2
+                          h-px
+                          w-7
+                          bg-[#b9c6d4]
+                          sm:-left-9
+                          sm:w-9
+                        "
+                              />
+
+                              {/* COMPONENT ICON */}
+
+                              <div
+                                className="
+                          flex
+                          h-8
+                          w-8
+                          shrink-0
+                          items-center
+                          justify-center
+                          rounded-lg
+                          border
+                          border-[#eef2f6]
+                          bg-[#e8eef4]
+                          text-[#475569]
+                        "
+                              >
                                 <Boxes size={15} />
                               </div>
 
-                              <div className="flex-1 min-w-0">
+                              {/* COMPONENT INFORMATION */}
+
+                              <div className="flex-1 min-w-0 text-left">
                                 <div className="flex flex-wrap items-center gap-2">
-                                  <h4 className="text-sm font-medium truncate">
+                                  <h4 className="truncate text-sm font-medium text-[#334155]">
                                     {component.name}
                                   </h4>
 
-                                  {component.isActive === false && (
-                                    <span className="rounded-md border px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                                      Inactive
-                                    </span>
-                                  )}
-                                </div>
+                                  <span
+                                    className="
+                              inline-flex
+                              items-center
+                              gap-1
+                              rounded-md
+                              bg-[#e2e8f0]
+                              px-1.5
+                              py-0.5
+                              text-[10px]
+                              text-[#64748b]
+                            "
+                                  >
+                                    <ListTodo size={11} />
 
-                                <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1">
-                                  {component.description && (
-                                    <p className="max-w-lg text-xs truncate text-muted-foreground">
-                                      {component.description}
-                                    </p>
-                                  )}
-
-                                  <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                                    <ListTodo size={12} />
-                                    {component.tasks?.length || 0}{" "}
-                                    {(component.tasks?.length || 0) === 1
-                                      ? "task"
-                                      : "tasks"}
+                                    {component.tasks?.length || 0}
                                   </span>
                                 </div>
+
+                                {/* COMPONENT DESCRIPTION - LEFT ALIGNED */}
+
+                                {component.description && (
+                                  <p
+                                    className="
+                              mt-0.5
+                              max-w-3xl
+                              truncate
+                              text-left
+                              text-[11px]
+                              text-[#64748b]
+                            "
+                                  >
+                                    {component.description}
+                                  </p>
+                                )}
                               </div>
 
-                              <div className="flex items-center gap-1 shrink-0">
-                                <span className="hidden rounded-md border px-2 py-1 text-[10px] text-muted-foreground sm:inline-flex">
-                                  {component.isActive === false
-                                    ? "Inactive"
-                                    : "Active"}
-                                </span>
+                              {/* EDIT BUTTON */}
 
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="w-8 h-8"
-                                  onClick={() => openEditComponent(component)}
-                                  title="Edit component"
-                                >
-                                  <Pencil size={15} />
-                                </Button>
-                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => openEditComponent(component)}
+                                title="Edit component"
+                                className="
+                          h-8
+                          w-8
+                          shrink-0
+                          rounded-md
+                          text-[#64748b]
+                          hover:bg-[#e2e8f0]
+                          hover:text-[#2563eb]
+                        "
+                              >
+                                <Pencil size={15} />
+                              </Button>
                             </div>
                           ))}
                         </div>
@@ -544,43 +955,261 @@ export default function WorkspaceManagement() {
         )}
       </div>
 
-      <Dialog open={showAddComponent} onOpenChange={setShowAddComponent}>
-        <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto rounded-2xl">
+      {/* ======================================
+                    ADD MODULE
+          ====================================== */}
+
+      <Dialog
+        open={showAddModule}
+        onOpenChange={(open) => {
+          if (!open && !savingModule) {
+            setShowAddModule(false);
+          }
+        }}
+      >
+        <DialogContent
+          className="
+    w-[calc(100%-2rem)]
+    max-w-md
+    max-h-[85vh]
+    overflow-y-auto
+    rounded-xl
+    border
+    border-[#d7dee8]
+    bg-[#f6f8fb]
+    p-5
+    shadow-xl
+  "
+        >
           <DialogHeader>
-            <DialogTitle>Add Component</DialogTitle>
+            <DialogTitle className="text-base font-semibold text-[#1f2937]">
+              Add Module
+            </DialogTitle>
           </DialogHeader>
 
-          <div className="py-1 space-y-5">
-            <div className="grid gap-4 sm:grid-cols-[1fr_1.4fr]">
-              <div className="space-y-2">
-                <Label>Component Name</Label>
+          <div className="py-1 space-y-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-[#334155]">
+                Module Name
+              </Label>
+
+              <Input
+                placeholder="Enter module name"
+                value={newModuleName}
+                onChange={(e) => setNewModuleName(e.target.value)}
+                disabled={savingModule}
+                className="
+          h-9
+          border-[#cfd8e3]
+          bg-white
+          text-sm
+          text-[#1f2937]
+          placeholder:text-[#94a3b8]
+          focus-visible:ring-1
+          focus-visible:ring-[#2563eb]
+        "
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-[#334155]">
+                Description
+              </Label>
+
+              <Textarea
+                placeholder="Enter module description (optional)"
+                value={newModuleDescription}
+                onChange={(e) => setNewModuleDescription(e.target.value)}
+                disabled={savingModule}
+                className="
+          min-h-[80px]
+          border-[#cfd8e3]
+          bg-white
+          text-sm
+          text-[#1f2937]
+          placeholder:text-[#94a3b8]
+          focus-visible:ring-1
+          focus-visible:ring-[#2563eb]
+        "
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-[#334155]">
+                Module Color
+              </Label>
+
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={newModuleColor}
+                  onChange={(e) => setNewModuleColor(e.target.value)}
+                  disabled={savingModule}
+                  className="
+            h-9
+            w-12
+            cursor-pointer
+            rounded-md
+            border
+            border-[#cfd8e3]
+            bg-white
+            p-1
+          "
+                />
 
                 <Input
-                  value={newComponentName}
-                  onChange={(e) => setNewComponentName(e.target.value)}
-                  placeholder="Enter component name"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Description</Label>
-
-                <Textarea
-                  value={newComponentDescription}
-                  onChange={(e) => setNewComponentDescription(e.target.value)}
-                  placeholder="Enter component description"
-                  className="min-h-[88px]"
+                  value={newModuleColor}
+                  onChange={(e) => setNewModuleColor(e.target.value)}
+                  disabled={savingModule}
+                  placeholder="#64748b"
+                  className="
+            h-9
+            border-[#cfd8e3]
+            bg-white
+            text-sm
+            text-[#1f2937]
+          "
                 />
               </div>
             </div>
+          </div>
 
-            <div className="pt-5 border-t">
-              <div className="flex items-center justify-between gap-4 mb-4">
+          <DialogFooter className="gap-2 mt-2 sm:gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowAddModule(false)}
+              disabled={savingModule}
+              className="
+        h-9
+        border-[#cfd8e3]
+        bg-white
+        px-4
+        text-xs
+        text-[#475569]
+        hover:bg-[#eef2f6]
+      "
+            >
+              Cancel
+            </Button>
+
+            <Button
+              type="button"
+              onClick={saveNewModule}
+              disabled={savingModule}
+              className="
+        h-9
+        bg-[#2563eb]
+        px-4
+        text-xs
+        text-white
+        hover:bg-[#1d4ed8]
+      "
+            >
+              {savingModule ? "Creating..." : "Create Module"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ======================================
+              ADD COMPONENT
+    ====================================== */}
+
+      <Dialog
+        open={showAddComponent}
+        onOpenChange={(open) => {
+          if (!open && !savingComponent) {
+            setShowAddComponent(false);
+          }
+        }}
+      >
+        <DialogContent
+          className="
+    w-[calc(100%-2rem)]
+    max-w-3xl
+    max-h-[88vh]
+    overflow-y-auto
+    rounded-xl
+    border
+    border-[#d7dee8]
+    bg-[#f6f8fb]
+    p-5
+    shadow-xl
+  "
+        >
+          {/* HEADER */}
+
+          <DialogHeader>
+            <DialogTitle className="text-lg font-semibold text-[#e2e8f0]">
+              Add Component
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="py-1 space-y-5">
+            {/* ======================================
+                      COMPONENT DETAILS
+                ====================================== */}
+
+            <div className="py-1 space-y-4">
+              <div className="grid gap-4 sm:grid-cols-[1fr_1.3fr]">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-[#334155]">
+                    Component Name
+                  </Label>
+
+                  <Input
+                    value={newComponentName}
+                    onChange={(e) => setNewComponentName(e.target.value)}
+                    placeholder="Enter component name"
+                    className="
+          h-9
+          border-[#cfd8e3]
+          bg-white
+          text-sm
+          text-[#1f2937]
+          placeholder:text-[#94a3b8]
+        "
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-medium text-[#334155]">
+                    Description
+                  </Label>
+
+                  <Textarea
+                    value={newComponentDescription}
+                    onChange={(e) => setNewComponentDescription(e.target.value)}
+                    placeholder="Optional description"
+                    className="
+          min-h-[80px]
+          border-[#cfd8e3]
+          bg-white
+          text-sm
+          text-[#1f2937]
+          placeholder:text-[#94a3b8]
+        "
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* ======================================
+                          TASKS
+                ====================================== */}
+
+            <div className="border-t border-[#28313b] pt-5">
+              {/* TASK HEADER */}
+
+              <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h3 className="text-sm font-semibold">Tasks</h3>
+                  <h3 className="text-sm font-semibold text-[#e2e8f0]">
+                    Tasks
+                  </h3>
 
-                  <p className="mt-0.5 text-xs text-muted-foreground">
-                    Add the reusable tasks for this component.
+                  <p className="mt-1 text-xs text-[#94a3b8]">
+                    Add the predefined tasks for this component.
                   </p>
                 </div>
 
@@ -588,68 +1217,147 @@ export default function WorkspaceManagement() {
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="gap-1.5"
                   onClick={addNewTask}
+                  disabled={savingComponent}
+                  className="
+              h-8
+              shrink-0
+              gap-1.5
+              border-[#34404d]
+              bg-[#151c24]
+              px-3
+              text-xs
+              text-[#eef2f6]
+              hover:bg-[#202936]
+              hover:text-white
+            "
                 >
-                  <Plus size={15} />
+                  <Plus size={14} />
                   Add Task
                 </Button>
               </div>
 
-              <div className="space-y-3">
+              {/* TASK LIST */}
+
+              <div className="mt-4 space-y-3">
                 {newComponentTasks.map((task, index) => (
                   <div
                     key={index}
-                    className="rounded-xl border bg-muted/[0.12] p-4"
+                    className="
+                rounded-lg
+                border
+                border-[#2a3440]
+                bg-[#151b23]
+                p-4
+              "
                   >
-                    <div className="flex items-start gap-3">
-                      <div className="flex items-center justify-center text-xs font-medium border rounded-md h-7 w-7 shrink-0 bg-background text-muted-foreground">
-                        {index + 1}
-                      </div>
+                    {/* TASK TOP */}
 
-                      <div className="flex-1 min-w-0 space-y-3">
-                        <div className="flex gap-3">
-                          <div className="flex-1">
-                            <Label>Task Name</Label>
+                    <div className="flex items-center justify-between gap-3 mb-3">
+                      <div className="flex items-center gap-2">
+                        {/* TASK NUMBER */}
 
-                            <Input
-                              className="mt-2"
-                              value={task.title}
-                              onChange={(e) =>
-                                updateNewTask(index, "title", e.target.value)
-                              }
-                            />
-                          </div>
-
-                          {newComponentTasks.length > 1 && (
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              className="mt-6 text-destructive hover:text-destructive"
-                              onClick={() => removeNewTask(index)}
-                            >
-                              Remove
-                            </Button>
-                          )}
+                        <div
+                          className="
+                      flex
+                      h-7
+                      w-7
+                      items-center
+                      justify-center
+                      rounded-md
+                      border
+                      border-[#334155]
+                      bg-[#1d2733]
+                      text-xs
+                      font-medium
+                      text-[#93c5fd]
+                    "
+                        >
+                          {index + 1}
                         </div>
 
-                        <div>
-                          <Label>Description</Label>
-
-                          <Textarea
-                            className="mt-2 min-h-[80px]"
-                            value={task.description}
-                            onChange={(e) =>
-                              updateNewTask(
-                                index,
-                                "description",
-                                e.target.value,
-                              )
-                            }
-                          />
-                        </div>
+                        <span className="text-xs font-medium text-[#eef2f6]">
+                          Task {index + 1}
+                        </span>
                       </div>
+
+                      {/* REMOVE */}
+
+                      {newComponentTasks.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeNewTask(index)}
+                          disabled={savingComponent}
+                          className="
+                      h-7
+                      px-2
+                      text-xs
+                      text-[#94a3b8]
+                      hover:bg-red-500/10
+                      hover:text-red-400
+                    "
+                        >
+                          Remove
+                        </Button>
+                      )}
+                    </div>
+
+                    {/* TASK NAME */}
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-[#94a3b8]">
+                        Task Name
+                      </Label>
+
+                      <Input
+                        value={task.title}
+                        onChange={(e) =>
+                          updateNewTask(index, "title", e.target.value)
+                        }
+                        placeholder="Enter task name"
+                        disabled={savingComponent}
+                        className="
+                    h-9
+                    border-[#2f3a46]
+                    bg-[#0c1117]
+                    text-sm
+                    text-[#e2e8f0]
+                    placeholder:text-[#64748b]
+                    focus-visible:border-[#3b82f6]
+                    focus-visible:ring-[#3b82f6]/20
+                  "
+                      />
+                    </div>
+
+                    {/* TASK DESCRIPTION */}
+
+                    <div className="mt-3 space-y-1.5">
+                      <Label className="text-xs text-[#94a3b8]">
+                        Description
+                        <span className="ml-1 text-[#64748b]">Optional</span>
+                      </Label>
+
+                      <Textarea
+                        value={task.description}
+                        onChange={(e) =>
+                          updateNewTask(index, "description", e.target.value)
+                        }
+                        placeholder="Enter task description"
+                        disabled={savingComponent}
+                        className="
+                    min-h-[70px]
+                    resize-none
+                    border-[#2f3a46]
+                    bg-[#0c1117]
+                    text-sm
+                    text-[#e2e8f0]
+                    placeholder:text-[#64748b]
+                    focus-visible:border-[#3b82f6]
+                    focus-visible:ring-[#3b82f6]/20
+                  "
+                      />
                     </div>
                   </div>
                 ))}
@@ -657,12 +1365,25 @@ export default function WorkspaceManagement() {
             </div>
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0">
+          {/* ======================================
+                        FOOTER
+              ====================================== */}
+
+          <DialogFooter className="gap-2 mt-2 sm:gap-2">
             <Button
               type="button"
               variant="outline"
               onClick={() => setShowAddComponent(false)}
               disabled={savingComponent}
+              className="
+      h-9
+      border-[#cfd8e3]
+      bg-white
+      px-4
+      text-xs
+      text-[#475569]
+      hover:bg-[#eef2f6]
+    "
             >
               Cancel
             </Button>
@@ -671,12 +1392,24 @@ export default function WorkspaceManagement() {
               type="button"
               onClick={saveNewComponent}
               disabled={savingComponent}
+              className="
+      h-9
+      bg-[#2563eb]
+      px-4
+      text-xs
+      text-white
+      hover:bg-[#1d4ed8]
+    "
             >
               {savingComponent ? "Creating..." : "Create Component"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ======================================
+                    EDIT COMPONENT
+          ====================================== */}
 
       <Dialog
         open={!!editingComponent}
@@ -686,40 +1419,57 @@ export default function WorkspaceManagement() {
           }
         }}
       >
-        <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto rounded-2xl">
+        <DialogContent
+          className="
+    w-[calc(100%-2rem)]
+    max-w-4xl
+    max-h-[88vh]
+    overflow-y-auto
+    rounded-xl
+    border
+    border-[#d7dee8]
+    bg-[#f6f8fb]
+    p-5
+    shadow-xl
+  "
+        >
           <DialogHeader>
             <DialogTitle>Edit Component</DialogTitle>
           </DialogHeader>
 
-          <div className="py-1 space-y-5">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Component Name</Label>
+          <div className="space-y-4">
+            {/* NAME */}
 
-                <Input
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                />
-              </div>
+            <div className="space-y-2">
+              <Label>Component Name</Label>
 
-              <div className="space-y-2">
-                <Label>Module</Label>
-
-                <Select value={editModule} onValueChange={setEditModule}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select module" />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    {modules.map((module) => (
-                      <SelectItem key={module._id} value={module._id}>
-                        {module.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              <Input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+              />
             </div>
+
+            {/* MODULE */}
+
+            <div className="space-y-2">
+              <Label>Module</Label>
+
+              <Select value={editModule} onValueChange={setEditModule}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select module" />
+                </SelectTrigger>
+
+                <SelectContent>
+                  {modules.map((module) => (
+                    <SelectItem key={module._id} value={module._id}>
+                      {module.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* DESCRIPTION */}
 
             <div className="space-y-2">
               <Label>Description</Label>
@@ -727,16 +1477,19 @@ export default function WorkspaceManagement() {
               <Textarea
                 value={editDescription}
                 onChange={(e) => setEditDescription(e.target.value)}
-                className="min-h-[88px]"
               />
             </div>
 
-            <div className="pt-5 border-t">
-              <div className="flex items-center justify-between gap-4 mb-4">
-                <div>
-                  <h3 className="text-sm font-semibold">Tasks</h3>
+            {/* TASKS */}
 
-                  <p className="mt-0.5 text-xs text-muted-foreground">
+            <div className="border-t border-[#e2e8f0] pt-4">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-[#1f2937]">
+                    Tasks
+                  </h3>
+
+                  <p className="mt-0.5 text-xs text-[#64748b]">
                     Manage tasks inside this component.
                   </p>
                 </div>
@@ -746,9 +1499,9 @@ export default function WorkspaceManagement() {
                   variant="outline"
                   size="sm"
                   onClick={addTask}
-                  className="gap-1.5"
+                  className="h-8 gap-1.5 text-xs"
                 >
-                  <Plus size={15} />
+                  <Plus size={14} />
                   Add Task
                 </Button>
               </div>
@@ -757,50 +1510,71 @@ export default function WorkspaceManagement() {
                 {editTasks.map((task, index) => (
                   <div
                     key={task._id || index}
-                    className="rounded-xl border bg-muted/[0.12] p-4"
+                    className="
+    rounded-lg
+    border
+    border-[#d7dee8]
+    bg-[#eef2f6]
+    p-3
+  "
                   >
-                    <div className="flex items-start gap-3">
-                      <div className="flex items-center justify-center text-xs font-medium border rounded-md h-7 w-7 shrink-0 bg-background text-muted-foreground">
-                        {index + 1}
+                    <div className="flex gap-3">
+                      <div className="flex-1">
+                        <Label>Task Name</Label>
+
+                        <Input
+                          className="
+    mt-1.5
+    h-9
+    border-[#cfd8e3]
+    bg-white
+    text-sm
+    text-[#1f2937]
+  "
+                          value={task.title || ""}
+                          onChange={(e) =>
+                            updateTask(index, "title", e.target.value)
+                          }
+                        />
                       </div>
 
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-3">
-                          <div className="flex-1">
-                            <Label>Task Name</Label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="
+    mt-6
+    h-8
+    border-[#fecaca]
+    bg-white
+    px-3
+    text-xs
+    text-[#dc2626]
+    hover:bg-[#fef2f2]
+  "
+                        onClick={() => removeTask(index)}
+                      >
+                        Remove
+                      </Button>
+                    </div>
 
-                            <Input
-                              className="mt-2"
-                              value={task.title || ""}
-                              onChange={(e) =>
-                                updateTask(index, "title", e.target.value)
-                              }
-                            />
-                          </div>
+                    <div className="mt-3">
+                      <Label>Description</Label>
 
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="mt-6 text-destructive hover:text-destructive"
-                            onClick={() => removeTask(index)}
-                          >
-                            Remove
-                          </Button>
-                        </div>
-
-                        <div className="mt-3">
-                          <Label>Description</Label>
-
-                          <Textarea
-                            className="mt-2 min-h-[80px]"
-                            value={task.description || ""}
-                            onChange={(e) =>
-                              updateTask(index, "description", e.target.value)
-                            }
-                          />
-                        </div>
-                      </div>
+                      <Textarea
+                        className="
+    mt-1.5
+    min-h-[70px]
+    border-[#cfd8e3]
+    bg-white
+    text-sm
+    text-[#1f2937]
+  "
+                        value={task.description || ""}
+                        onChange={(e) =>
+                          updateTask(index, "description", e.target.value)
+                        }
+                      />
                     </div>
                   </div>
                 ))}
@@ -808,12 +1582,21 @@ export default function WorkspaceManagement() {
             </div>
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0">
+          <DialogFooter className="gap-2 mt-2 sm:gap-2">
             <Button
               type="button"
               variant="outline"
               onClick={closeEditComponent}
               disabled={savingComponent}
+              className="
+      h-9
+      border-[#cfd8e3]
+      bg-white
+      px-4
+      text-xs
+      text-[#475569]
+      hover:bg-[#eef2f6]
+    "
             >
               Cancel
             </Button>
@@ -822,6 +1605,14 @@ export default function WorkspaceManagement() {
               type="button"
               onClick={saveComponent}
               disabled={savingComponent}
+              className="
+      h-9
+      bg-[#2563eb]
+      px-4
+      text-xs
+      text-white
+      hover:bg-[#1d4ed8]
+    "
             >
               {savingComponent ? "Saving..." : "Save Changes"}
             </Button>

@@ -117,6 +117,15 @@ function App() {
           />
 
           <Route
+            path="/employee/tasks/:projectId"
+            element={
+              <ProtectedRoute role="employee">
+                <MyTasks />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
             path="/employee/tasks/:componentId/:taskId"
             element={
               <ProtectedRoute role="employee">
