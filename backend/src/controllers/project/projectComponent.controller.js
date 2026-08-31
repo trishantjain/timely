@@ -883,7 +883,7 @@ export const addManualTask = async (req, res) => {
       status: "PENDING",
 
       submissionRule: {
-        type: "CHECKBOX",
+        type: "TEXT",
       },
     });
 

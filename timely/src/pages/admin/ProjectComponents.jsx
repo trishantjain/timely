@@ -157,6 +157,7 @@ export default function ProjectComponents() {
 
   const [quickTask, setQuickTask] = useState({
     title: "",
+    description: "",
     assignedEmployee: "",
     deadline: "",
   });
@@ -718,11 +719,8 @@ export default function ProjectComponents() {
 
       const payload = {
         title: quickTask.title.trim(),
-
-        description: "",
-
+        description: quickTask.description.trim(),
         assignedEmployee: quickTask.assignedEmployee || null,
-
         deadline: quickTask.deadline || null,
       };
 
@@ -737,6 +735,7 @@ export default function ProjectComponents() {
 
       setQuickTask({
         title: "",
+        description: "",
         assignedEmployee: "",
         deadline: "",
       });
@@ -958,6 +957,36 @@ export default function ProjectComponents() {
 
       alert(error.response?.data?.message || "Failed to delete work item.");
     }
+  };
+
+  // ==========================================
+  // TASK SUBMISSION / REVIEW HELPERS
+  // ==========================================
+  const getSubmissionId = (task) => {
+    if (!task) return "";
+
+    if (typeof task.submissionId === "object") {
+      return task.submissionId?._id || task.submissionId?.id || "";
+    }
+
+    return (
+      task.submissionId ||
+      task.submission?._id ||
+      task.submission?.id ||
+      task.submission ||
+      ""
+    );
+  };
+
+  const handleOpenSubmission = (task) => {
+    const submissionId = getSubmissionId(task);
+
+    if (!submissionId) {
+      alert("Submission details are not available for this task.");
+      return;
+    }
+
+    navigate(`/admin/reviews/${submissionId}`);
   };
 
   return (
@@ -1422,14 +1451,14 @@ export default function ProjectComponents() {
                                           type="button"
                                           variant="outline"
                                           className="
-                              h-8
-                              shrink-0
-                              border-[#cbd5e1]
-                              bg-white
-                              px-4
-                              text-xs
-                              hover:bg-[#f1f5f9]
-                            "
+        h-8
+        shrink-0
+        border-[#cbd5e1]
+        bg-white
+        px-4
+        text-xs
+        hover:bg-[#f1f5f9]
+      "
                                           onClick={(event) => {
                                             event.stopPropagation();
 
@@ -1440,9 +1469,7 @@ export default function ProjectComponents() {
                                             });
 
                                             setSelectedProjectMember("");
-
                                             setDeadline("");
-
                                             setAssignDialogOpen(true);
                                           }}
                                         >
@@ -1455,17 +1482,47 @@ export default function ProjectComponents() {
                                         >
                                           Waiting for Submission
                                         </Badge>
-                                      ) : task.status === "UNDER_REVIEW" ? (
-                                        <Badge
+                                      ) : getSubmissionId(task) ? (
+                                        <Button
+                                          type="button"
                                           variant="outline"
-                                          className="flex items-center h-8 px-4 text-xs font-medium shrink-0 border-amber-200 bg-amber-50 text-amber-700"
+                                          className={`
+        h-8
+        shrink-0
+        px-4
+        text-xs
+        font-medium
+        ${getTaskStatusClass(task.status)}
+        hover:opacity-80
+      `}
+                                          onClick={(event) => {
+                                            event.stopPropagation();
+                                            handleOpenSubmission(task);
+                                          }}
                                         >
-                                          Under Review
-                                        </Badge>
+                                          {task.status === "UNDER_REVIEW"
+                                            ? "Under Review"
+                                            : task.status === "SUBMITTED"
+                                              ? "View Submission"
+                                              : task.status === "APPROVED"
+                                                ? "View Approved"
+                                                : task.status === "REJECTED"
+                                                  ? "View Rejected"
+                                                  : "View Submission"}
+                                        </Button>
                                       ) : (
                                         <Badge
                                           variant="outline"
-                                          className="flex items-center h-8 px-4 text-xs font-medium shrink-0"
+                                          className={`
+        flex
+        h-8
+        shrink-0
+        items-center
+        px-4
+        text-xs
+        font-medium
+        ${getTaskStatusClass(task.status)}
+      `}
                                         >
                                           {task.status || "Pending"}
                                         </Badge>
@@ -1778,6 +1835,24 @@ export default function ProjectComponents() {
                       />
                     </div>
 
+                    {/* TASK DESCRIPTION */}
+
+                    <div className="lg:col-span-12">
+                      <Label className="block mb-2">Task Description</Label>
+
+                      <Textarea
+                        value={quickTask.description}
+                        onChange={(event) =>
+                          setQuickTask((previous) => ({
+                            ...previous,
+                            description: event.target.value,
+                          }))
+                        }
+                        placeholder="Enter task details or completion notes"
+                        className="min-h-[90px] resize-none"
+                      />
+                    </div>
+
                     {/* ======================================
                                 EMPLOYEE
                         ====================================== */}
@@ -1807,13 +1882,23 @@ export default function ProjectComponents() {
                             filteredProjectMembers.map((member) => {
                               const employee = member.employee || member;
 
+                              const employeeId =
+                                employee._id || member.employee;
+
                               const employeeName =
                                 employee.username ||
                                 employee.name ||
                                 "Unknown Employee";
 
+                              if (!employeeId) {
+                                return null;
+                              }
+
                               return (
-                                <SelectItem key={member._id} value={member._id}>
+                                <SelectItem
+                                  key={employeeId}
+                                  value={employeeId.toString()}
+                                >
                                   {employeeName}
                                 </SelectItem>
                               );
@@ -1991,31 +2076,26 @@ export default function ProjectComponents() {
             </div>
 
             <DialogFooter>
-              <div className="flex justify-end gap-3 mt-6">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleCloseAssignDialog}
-                  className={`h-11 min-w-[100px] ${cancelButtonClass}`}
-                >
-                  Cancel
-                </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCloseAddWorkItemDialog}
+              >
+                Cancel
+              </Button>
 
-                <Button
-                  type="button"
-                  onClick={handleAssignTask}
-                  disabled={!selectedProjectMember}
-                  className="
-        h-11
-        min-w-[130px]
-        bg-blue-600
-        text-white
-        hover:bg-blue-700
-      "
-                >
-                  Assign Task
-                </Button>
-              </div>
+              <Button
+                type="button"
+                onClick={handleAddComponent}
+                disabled={!selectedTemplate}
+                className="
+      bg-[#2563eb]
+      text-white
+      hover:bg-[#1d4ed8]
+    "
+              >
+                Add Work Item
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -2102,7 +2182,7 @@ export default function ProjectComponents() {
                           "Unknown Employee";
 
                         return (
-                          <SelectItem key={member._id} value={member._id}>
+                          <SelectItem key={member._id} value={employee._id}>
                             {employeeName}
                           </SelectItem>
                         );
@@ -2212,8 +2292,8 @@ export default function ProjectComponents() {
               <DialogTitle>Add Manual Task</DialogTitle>
 
               <DialogDescription>
-                Add a task directly to this work item. The assigned employee can
-                mark it as completed using a checkbox.
+                Add a task directly to this work item. The assigned employee
+                will provide a text submission when completing the task.{" "}
               </DialogDescription>
             </DialogHeader>
 
