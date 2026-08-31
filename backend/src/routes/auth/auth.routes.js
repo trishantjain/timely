@@ -20,7 +20,7 @@ const router = express.Router();
 // Brute-force protection on login: 10 attempts / 15 min per IP.
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: 100,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
