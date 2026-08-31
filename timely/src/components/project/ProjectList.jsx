@@ -1,354 +1,241 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 
 import {
-    FolderKanban,
-    Search,
-    Users,
-    Layers,
-    ArrowRight,
-    MoreHorizontal
+  FolderKanban,
+  Search,
+  Users,
+  Layers,
+  ArrowUpRight,
 } from "lucide-react";
-
-import { useNavigate } from "react-router-dom";
-import { useState } from "react";
 
 import DeleteProjectDialog from "@/components/project/DeleteProjectDialog";
 
-export default function ProjectList({
-    projects = [],
-    refreshProjects
-}) {
+export default function ProjectList({ projects = [], refreshProjects }) {
+  const navigate = useNavigate();
 
-    const navigate = useNavigate();
+  const [search, setSearch] = useState("");
 
-    const [search, setSearch] = useState("");
+  const filteredProjects = projects.filter((project) =>
+    project.name?.toLowerCase().includes(search.toLowerCase()),
+  );
 
-    const filteredProjects = projects.filter((project) =>
-        project.name
-            ?.toLowerCase()
-            .includes(search.toLowerCase())
-    );
+  const getMemberCount = (project) => {
+    if (typeof project.memberCount === "number") {
+      return project.memberCount;
+    }
 
-    return (
+    return Array.isArray(project.members) ? project.members.length : 0;
+  };
 
-        <Card className="border shadow-sm">
+  const getDomainCount = (project) => {
+    if (typeof project.domainCount === "number") {
+      return project.domainCount;
+    }
 
-            {/* HEADER */}
+    return Array.isArray(project.domains) ? project.domains.length : 0;
+  };
 
-            <CardHeader className="pb-5">
+  const openProject = (projectId) => {
+    navigate(`/admin/project/${projectId}`);
+  };
 
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+  return (
+    <Card className="border shadow-sm">
+      {/* HEADER */}
 
-                    <div className="flex items-center gap-3">
+      <CardHeader className="px-6 py-4 border-b">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <CardTitle className="text-lg">Projects</CardTitle>
 
-                        <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-muted">
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              Manage and access your active projects
+            </p>
+          </div>
 
-                            <FolderKanban
-                                size={20}
-                            />
+          <div className="flex items-center gap-3">
+            {/* PROJECT COUNT */}
 
-                        </div>
+            <span className="hidden text-sm text-muted-foreground sm:inline">
+              <span className="font-semibold text-foreground">
+                {filteredProjects.length}
+              </span>{" "}
+              {filteredProjects.length === 1 ? "project" : "projects"}
+            </span>
 
-                        <div>
+            {/* SEARCH */}
 
-                            <CardTitle className="text-lg">
+            <div className="relative w-full sm:w-72">
+              <Search
+                size={16}
+                className="absolute -translate-y-1/2 left-3 top-1/2 text-muted-foreground"
+              />
 
-                                Projects
+              <Input
+                className="h-10 pl-9"
+                placeholder="Search projects..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+          </div>
+        </div>
+      </CardHeader>
 
-                            </CardTitle>
+      <CardContent className="pt-5">
+        <div className="mb-4 text-sm text-muted-foreground">
+          Showing{" "}
+          <span className="font-semibold text-foreground">
+            {filteredProjects.length}
+          </span>{" "}
+          {filteredProjects.length === 1 ? "project" : "projects"}
+        </div>
 
-                            <p className="mt-1 text-sm text-muted-foreground">
+        {filteredProjects.length === 0 ? (
+          <div className="flex flex-col items-center justify-center text-center border border-dashed rounded-xl py-14">
+            <FolderKanban size={22} className="mb-3 text-muted-foreground" />
 
-                                Manage and access your projects
+            <h3 className="font-semibold">No projects found</h3>
 
-                            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {search
+                ? "Try changing your search."
+                : "Create your first project to get started."}
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {filteredProjects.map((project) => {
+              const memberCount = getMemberCount(project);
+              const domainCount = getDomainCount(project);
 
-                        </div>
+              return (
+                <div
+                  key={project._id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => openProject(project._id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      openProject(project._id);
+                    }
+                  }}
+                  className="
+    group
+    relative
+    flex
+    min-h-[150px]
+    cursor-pointer
+    flex-col
+    rounded-xl
+    border
+    bg-card
+    px-5
+    py-4
+    transition-all
+    duration-200
+    hover:-translate-y-[1px]
+    hover:border-orange-400/70
+    hover:shadow-md
+    focus:outline-none
+    focus:ring-2
+    focus:ring-orange-400/50
+  "
+                >
+                  {/* HEADER */}
 
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center justify-center transition-colors border rounded-lg h-9 w-9 shrink-0 bg-muted/50 group-hover:border-orange-200 group-hover:bg-orange-50">
+                      <FolderKanban
+                        size={17}
+                        className="transition-colors text-muted-foreground group-hover:text-orange-600"
+                      />
                     </div>
 
+                    {/* PROJECT NAME - PRIMARY FOCUS */}
 
-                    {/* SEARCH */}
+                    <h3 className="flex-1 min-w-0 text-xl font-bold tracking-tight truncate transition-colors text-foreground group-hover:text-orange-600">
+                      {project.name}
+                    </h3>
 
-                    <div className="relative w-full sm:w-64">
+                    <div
+                      className="transition-opacity duration-200 opacity-0 shrink-0 group-hover:opacity-100 group-focus-within:opacity-100"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <DeleteProjectDialog
+                        project={project}
+                        refreshProjects={refreshProjects}
+                      />
+                    </div>
+                  </div>
 
-                        <Search
-                            className="absolute w-4 h-4 -translate-y-1/2  left-3 top-1/2 text-muted-foreground"
-                        />
+                  {/* DESCRIPTION - CENTER OF CARD */}
 
-                        <Input
-                            className="pl-9"
-                            placeholder="Search projects..."
-                            value={search}
-                            onChange={(e) =>
-                                setSearch(e.target.value)
-                            }
-                        />
+                  <div className="flex items-center justify-center flex-1 py-3">
+                    <p
+                      className="
+        line-clamp-2
+        max-w-[90%]
+        text-center
+        text-sm
+        leading-5
+        text-muted-foreground
+      "
+                    >
+                      {project.description ||
+                        "No project description available."}
+                    </p>
+                  </div>
 
+                  {/* COMPACT FOOTER */}
+
+                  <div className="flex items-center justify-between border-t pt-2.5">
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      {/* MEMBERS */}
+
+                      <div className="flex items-center gap-1.5">
+                        <Users size={15} />
+
+                        <span>
+                          <span className="font-medium text-foreground">
+                            {memberCount}
+                          </span>{" "}
+                          {memberCount === 1 ? "member" : "members"}
+                        </span>
+                      </div>
+
+                      {/* DOMAINS */}
+
+                      <div className="flex items-center gap-1.5">
+                        <Layers size={15} />
+
+                        <span>
+                          <span className="font-medium text-foreground">
+                            {domainCount}
+                          </span>{" "}
+                          {domainCount === 1 ? "domain" : "domains"}
+                        </span>
+                      </div>
                     </div>
 
+                    {/* OPEN INDICATOR */}
+
+                    <ArrowUpRight
+                      size={17}
+                      className="transition-colors text-muted-foreground group-hover:text-orange-600"
+                    />
+                  </div>
                 </div>
-
-            </CardHeader>
-
-
-            <CardContent>
-
-                {filteredProjects.length === 0 ? (
-
-                    <div className="flex flex-col items-center justify-center py-16 text-center border border-dashed rounded-xl">
-
-                        <div className="flex items-center justify-center w-12 h-12 mb-4 rounded-full bg-muted">
-
-                            <FolderKanban
-                                size={22}
-                                className="text-muted-foreground"
-                            />
-
-                        </div>
-
-                        <h3 className="font-semibold">
-
-                            No projects found
-
-                        </h3>
-
-                        <p className="max-w-sm mt-1 text-sm text-muted-foreground">
-
-                            {search
-                                ? "Try changing your search."
-                                : "Create your first project to get started."
-                            }
-
-                        </p>
-
-                    </div>
-
-                ) : (
-
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-
-                        {filteredProjects.map((project) => (
-
-                            <div
-                                key={project._id}
-                                className="
-                                    group
-                                    relative
-                                    flex
-                                    flex-col
-                                    min-h-[220px]
-                                    p-5
-                                    transition-all
-                                    duration-200
-                                    border
-                                    rounded-xl
-                                    cursor-pointer
-                                    hover:shadow-md
-                                    hover:border-foreground/20
-                                "
-                                onClick={() =>
-                                    navigate(
-                                        `/admin/project/${project._id}`
-                                    )
-                                }
-                            >
-
-                                {/* TOP ROW */}
-
-                                <div className="flex items-start justify-between gap-3">
-
-                                    <div className="flex items-center min-w-0 gap-3">
-
-                                        <div
-                                            className="flex items-center justify-center flex-shrink-0 w-10 h-10 rounded-lg  bg-muted"
-                                        >
-
-                                            <FolderKanban
-                                                size={19}
-                                            />
-
-                                        </div>
-
-                                        <div className="min-w-0">
-
-                                            <h3 className="font-semibold truncate">
-
-                                                {project.name}
-
-                                            </h3>
-
-                                            <p className="mt-0.5 text-xs text-muted-foreground">
-
-                                                Project
-
-                                            </p>
-
-                                        </div>
-
-                                    </div>
-
-
-                                    <div
-                                        onClick={(e) =>
-                                            e.stopPropagation()
-                                        }
-                                    >
-
-                                        <DeleteProjectDialog
-                                            project={project}
-                                            refreshProjects={
-                                                refreshProjects
-                                            }
-                                        />
-
-                                    </div>
-
-                                </div>
-
-
-                                {/* DESCRIPTION */}
-
-                                <p className="mt-4 text-sm leading-5 text-muted-foreground line-clamp-2">
-
-                                    {project.description ||
-                                        "No project description available."}
-
-                                </p>
-
-
-                                {/* DOMAINS */}
-
-                                <div className="mt-4">
-
-                                    <p className="mb-2 text-xs font-medium text-muted-foreground">
-
-                                        Required Domains
-
-                                    </p>
-
-                                    <div className="flex flex-wrap gap-1.5">
-
-                                        {project.domains?.length > 0 ? (
-
-                                            project.domains
-                                                .slice(0, 3)
-                                                .map((domain) => (
-
-                                                    <Badge
-                                                        key={domain._id}
-                                                        className="text-xs border-0"
-                                                        style={{
-                                                            backgroundColor:
-                                                                domain.color,
-                                                            color: "#fff"
-                                                        }}
-                                                    >
-
-                                                        {domain.name}
-
-                                                    </Badge>
-
-                                                ))
-
-                                        ) : (
-
-                                            <span className="text-xs text-muted-foreground">
-
-                                                No domains assigned
-
-                                            </span>
-
-                                        )}
-
-
-                                        {project.domains?.length > 3 && (
-
-                                            <Badge
-                                                variant="outline"
-                                                className="text-xs"
-                                            >
-
-                                                +{project.domains.length - 3}
-
-                                            </Badge>
-
-                                        )}
-
-                                    </div>
-
-                                </div>
-
-
-                                {/* BOTTOM */}
-
-                                <div className="flex items-center justify-between pt-4 mt-auto">
-
-                                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
-
-                                        <div className="flex items-center gap-1.5">
-
-                                            <Users
-                                                size={14}
-                                            />
-
-                                            <span>
-
-                                                {project.members?.length || 0}
-
-                                                {" "}
-                                                Members
-
-                                            </span>
-
-                                        </div>
-
-
-                                        <div className="flex items-center gap-1.5">
-
-                                            <Layers
-                                                size={14}
-                                            />
-
-                                            <span>
-
-                                                {project.domains?.length || 0}
-
-                                                {" "}
-                                                Domains
-
-                                            </span>
-
-                                        </div>
-
-                                    </div>
-
-
-                                    <div
-                                        className="flex items-center justify-center w-8 h-8 transition rounded-full opacity-0  group-hover:opacity-100 bg-muted"
-                                    >
-
-                                        <ArrowRight
-                                            size={16}
-                                        />
-
-                                    </div>
-
-                                </div>
-
-                            </div>
-
-                        ))}
-
-                    </div>
-
-                )}
-
-            </CardContent>
-
-        </Card>
-
-    );
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
 }

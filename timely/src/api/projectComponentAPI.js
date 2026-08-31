@@ -11,35 +11,23 @@ export const addProjectComponent = (data) =>
   api.post("/project-components", data);
 
 export const assignTask = (componentId, taskId, data) =>
-  api.patch(
-    `/project-components/${componentId}/tasks/${taskId}/assign`,
-    data,
-  );
+  api.patch(`/project-components/${componentId}/tasks/${taskId}/assign`, data);
 
 export const getTaskDetails = (componentId, taskId) =>
   api.get(`/project-components/${componentId}/tasks/${taskId}`);
 
-export const getMyTasks = () =>
-  api.get("/project-components/my-tasks");
+export const getMyTasks = () => api.get("/project-components/my-tasks");
 
 // ===================================
 // MANUAL TASKS
 // ===================================
-
 export const addManualTask = (componentId, data) =>
-  api.post(
-    `/project-components/${componentId}/tasks/manual`,
-    data,
-  );
+  api.post(`/project-components/${componentId}/tasks/manual`, data);
 
 // ===================================
 // ADMIN - EMPLOYEE PROJECT TASKS
 // ===================================
-
-export const getEmployeeProjectTasks = (
-  projectId,
-  employeeId,
-) =>
+export const getEmployeeProjectTasks = (projectId, employeeId) =>
   api.get(
     `/project-components/projects/${projectId}/employees/${employeeId}/tasks`,
   );
@@ -47,11 +35,15 @@ export const getEmployeeProjectTasks = (
 // ===================================
 // ADMIN - DOMAIN TASKS IN PROJECT
 // ===================================
-
-export const getProjectDomainTasks = (
-  projectId,
-  domainId,
-) =>
+export const getProjectDomainTasks = (projectId, domainId) =>
   api.get(
     `/project-components/projects/${projectId}/domains/${domainId}/tasks`,
   );
+
+export const updateProjectComponent = (componentId, payload) => {
+  return api.patch(`/project-components/${componentId}`, payload);
+};
+
+export const deleteProjectComponent = (componentId) => {
+  return api.delete(`/project-components/${componentId}`);
+};

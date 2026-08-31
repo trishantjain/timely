@@ -22,15 +22,12 @@ export default function ProjectDomainTasks() {
   const navigate = useNavigate();
 
   const { projectId, domainId } = useParams();
-
   const [loading, setLoading] = useState(true);
-
   const [data, setData] = useState(null);
 
   // ===================================
   // LOAD DOMAIN TASK DATA
   // ===================================
-
   const loadData = async () => {
     try {
       setLoading(true);
@@ -110,7 +107,7 @@ export default function ProjectDomainTasks() {
           variant="outline"
           onClick={() => navigate(`/admin/project/${projectId}`)}
         >
-          <ArrowLeft className="mr-2 h-4 w-4" />
+          <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Project
         </Button>
 
@@ -121,11 +118,22 @@ export default function ProjectDomainTasks() {
     );
   }
 
-  const { project, domain, summary, employees = [] } = data;
+  const handleTaskClick = (task) => {
+    navigate(`/admin/tasks/${task.componentId}/${task.taskId}`);
+  };
+
+  const {
+    project,
+    domain,
+    employees = [],
+    totalEmployees = 0,
+    totalTasks = 0,
+    activeTasks = 0,
+  } = data;
 
   return (
     <div className="min-h-screen bg-muted/30">
-      <div className="mx-auto w-full max-w-6xl p-6 lg:p-8">
+      <div className="w-full max-w-6xl p-6 mx-auto lg:p-8">
         {/* ===================================
                     BACK
                 =================================== */}
@@ -135,7 +143,7 @@ export default function ProjectDomainTasks() {
           className="mb-6 -ml-2"
           onClick={() => navigate(`/admin/project/${projectId}`)}
         >
-          <ArrowLeft className="mr-2 h-4 w-4" />
+          <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Project
         </Button>
 
@@ -168,18 +176,15 @@ export default function ProjectDomainTasks() {
                     SUMMARY
                 =================================== */}
 
-        <div className="mb-8 grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 mb-8 sm:grid-cols-3">
           <Card>
             <CardContent className="flex items-center gap-4 p-5">
-              <div className="rounded-lg bg-muted p-3">
-                <Users className="h-5 w-5" />
+              <div className="p-3 rounded-lg bg-muted">
+                <Users className="w-5 h-5" />
               </div>
 
               <div>
-                <p className="text-2xl font-semibold">
-                  {summary?.employees || 0}
-                </p>
-
+                <p className="text-2xl font-semibold">{totalEmployees}</p>
                 <p className="text-sm text-muted-foreground">Employees</p>
               </div>
             </CardContent>
@@ -187,14 +192,12 @@ export default function ProjectDomainTasks() {
 
           <Card>
             <CardContent className="flex items-center gap-4 p-5">
-              <div className="rounded-lg bg-muted p-3">
-                <ClipboardList className="h-5 w-5" />
+              <div className="p-3 rounded-lg bg-muted">
+                <ClipboardList className="w-5 h-5" />
               </div>
 
               <div>
-                <p className="text-2xl font-semibold">
-                  {summary?.totalTasks || 0}
-                </p>
+                <p className="text-2xl font-semibold">{totalTasks}</p>
 
                 <p className="text-sm text-muted-foreground">Assigned Tasks</p>
               </div>
@@ -203,14 +206,12 @@ export default function ProjectDomainTasks() {
 
           <Card>
             <CardContent className="flex items-center gap-4 p-5">
-              <div className="rounded-lg bg-muted p-3">
-                <Clock className="h-5 w-5" />
+              <div className="p-3 rounded-lg bg-muted">
+                <Clock className="w-5 h-5" />
               </div>
 
               <div>
-                <p className="text-2xl font-semibold">
-                  {summary?.pendingTasks || 0}
-                </p>
+                <p className="text-2xl font-semibold">{activeTasks}</p>
 
                 <p className="text-sm text-muted-foreground">Active Tasks</p>
               </div>
@@ -222,7 +223,7 @@ export default function ProjectDomainTasks() {
                     EMPLOYEE SECTION
                 =================================== */}
 
-        <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-xl font-semibold">Employee Work Overview</h2>
 
@@ -239,7 +240,7 @@ export default function ProjectDomainTasks() {
         {employees.length === 0 && (
           <Card>
             <CardContent className="py-16 text-center">
-              <Users className="mx-auto mb-4 h-10 w-10 text-muted-foreground" />
+              <Users className="w-10 h-10 mx-auto mb-4 text-muted-foreground" />
 
               <h3 className="font-medium">No employees assigned</h3>
 
@@ -266,10 +267,10 @@ export default function ProjectDomainTasks() {
                                     EMPLOYEE HEADER
                                 ========================= */}
 
-                <div className="flex flex-col gap-4 border-b bg-muted/20 p-5 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-4 p-5 border-b bg-muted/20 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-full border bg-background">
-                      <User className="h-5 w-5 text-muted-foreground" />
+                    <div className="flex items-center justify-center border rounded-full h-11 w-11 bg-background">
+                      <User className="w-5 h-5 text-muted-foreground" />
                     </div>
 
                     <div>
@@ -298,31 +299,34 @@ export default function ProjectDomainTasks() {
                       }
                     >
                       View Details
-                      <ChevronRight className="ml-1 h-4 w-4" />
+                      <ChevronRight className="w-4 h-4 ml-1" />
                     </Button>
                   </div>
                 </div>
 
                 {/* =========================
-                                    TASK LIST
-                                ========================= */}
+                        TASK LIST
+                    ========================= */}
 
-                <div>
+                <div className="divide-y">
                   {tasks.length === 0 ? (
                     <div className="p-6 text-sm text-muted-foreground">
                       No tasks assigned to this employee yet.
                     </div>
                   ) : (
                     tasks.map((task) => (
-                      <div
+                      <button
                         key={task.taskId}
-                        className="flex flex-col gap-3 border-b p-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between"
+                        type="button"
+                        onClick={() => handleTaskClick(task)}
+                        className="flex flex-col w-full gap-4 p-5 text-left transition-all duration-200 group hover:bg-muted/40 sm:flex-row sm:items-center sm:justify-between"
                       >
-                        {/* TASK INFO */}
-
-                        <div className="min-w-0">
+                        {/* TASK INFORMATION */}
+                        <div className="flex-1 min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
-                            <p className="font-medium">{task.taskTitle}</p>
+                            <p className="font-semibold transition-colors group-hover:underline">
+                              {task.taskTitle}
+                            </p>
 
                             <Badge
                               variant="outline"
@@ -332,21 +336,43 @@ export default function ProjectDomainTasks() {
                             </Badge>
                           </div>
 
-                          <p className="mt-1 text-sm text-muted-foreground">
-                            {task.componentName}
+                          <div className="mt-1.5 flex flex-wrap items-center gap-1 text-sm text-muted-foreground">
+                            <span>{task.componentName}</span>
 
-                            {task.moduleName && ` • ${task.moduleName}`}
-                          </p>
+                            {task.moduleName && (
+                              <>
+                                <span>•</span>
+                                <span>{task.moduleName}</span>
+                              </>
+                            )}
+                          </div>
+
+                          {task.taskDescription && (
+                            <p className="max-w-2xl mt-2 text-sm truncate text-muted-foreground">
+                              {task.taskDescription}
+                            </p>
+                          )}
                         </div>
 
-                        {/* DEADLINE */}
+                        {/* DEADLINE + ACTION */}
+                        <div className="flex items-center gap-4 shrink-0">
+                          <div className="flex min-w-[135px] items-center gap-2 rounded-lg border bg-muted/20 px-3 py-2">
+                            <CalendarDays className="w-4 h-4 text-muted-foreground" />
 
-                        <div className="flex shrink-0 items-center gap-2 text-sm text-muted-foreground">
-                          <CalendarDays className="h-4 w-4" />
+                            <div className="text-left">
+                              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                                Deadline
+                              </p>
 
-                          {formatDate(task.deadline)}
+                              <p className="text-sm font-medium">
+                                {formatDate(task.deadline)}
+                              </p>
+                            </div>
+                          </div>
+
+                          <ChevronRight className="w-5 h-5 transition-transform duration-200 text-muted-foreground group-hover:translate-x-1 group-hover:text-foreground" />
                         </div>
-                      </div>
+                      </button>
                     ))
                   )}
                 </div>

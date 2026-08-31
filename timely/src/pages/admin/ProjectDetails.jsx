@@ -49,7 +49,6 @@ export default function ProjectDetails() {
 
   const [openDomainDialog, setOpenDomainDialog] = useState(false);
 
-
   const [selectedManualTaskDomain, setSelectedManualTaskDomain] = useState("");
 
   // const [isDomainDialogOpen, setIsDomainDialogOpen] = useState(false);
@@ -72,23 +71,61 @@ export default function ProjectDetails() {
       const res = await getProjectById(id);
       const employeeRes = await getEmployees();
 
-      setEmployees(employeeRes.data?.data || []);
-      setProject(res.data);
+      const projectData = res.data;
+      const employeeList = employeeRes.data?.data || [];
 
-      const autoSelections = {};
+      setEmployees(employeeList);
+      setProject(projectData);
 
-      res.data?.domains?.forEach((domain) => {
-        const matchingEmployees = (employeeRes.data?.data || []).filter(
-          (employee) =>
-            employee.expertise?.some((exp) => exp._id === domain._id),
-        );
+      const employeeSelections = {};
 
-        if (matchingEmployees.length === 1) {
-          autoSelections[domain._id] = matchingEmployees[0]._id;
+      // ==========================================
+      // FIRST: LOAD ALREADY SAVED ASSIGNMENTS
+      // ==========================================
+
+      (projectData.assignments || []).forEach((assignment) => {
+        const domainId =
+          typeof assignment.domain === "object"
+            ? assignment.domain?._id
+            : assignment.domain;
+
+        const employeeId =
+          typeof assignment.employee === "object"
+            ? assignment.employee?._id
+            : assignment.employee;
+
+        if (domainId && employeeId) {
+          employeeSelections[domainId.toString()] = employeeId.toString();
         }
       });
 
-      setSelectedEmployees(autoSelections);
+      // ==========================================
+      // SECOND: AUTO SELECT EMPLOYEE ONLY
+      // WHEN DOMAIN IS NOT ALREADY ASSIGNED
+      // ==========================================
+
+      projectData.domains?.forEach((domain) => {
+        const domainId = domain._id.toString();
+
+        // Do not overwrite an existing assignment
+        if (employeeSelections[domainId]) {
+          return;
+        }
+
+        const matchingEmployees = employeeList.filter((employee) =>
+          employee.expertise?.some((exp) => {
+            const expertiseId = typeof exp === "object" ? exp._id : exp;
+
+            return expertiseId?.toString() === domainId;
+          }),
+        );
+
+        if (matchingEmployees.length === 1) {
+          employeeSelections[domainId] = matchingEmployees[0]._id.toString();
+        }
+      });
+
+      setSelectedEmployees(employeeSelections);
     } catch (err) {
       console.error("Failed to load project:", err);
     } finally {
@@ -466,9 +503,16 @@ export default function ProjectDetails() {
 
               <div className="divide-y divide-[#e5eaf0]">
                 {project.domains?.map((domain) => {
-                  const assignment = assignments.find(
-                    (item) => item.domain?._id === domain._id,
-                  );
+                  const assignment = assignments.find((item) => {
+                    const assignmentDomainId =
+                      typeof item.domain === "object"
+                        ? item.domain?._id
+                        : item.domain;
+
+                    return (
+                      assignmentDomainId?.toString() === domain._id?.toString()
+                    );
+                  });
 
                   const matchingEmployees = employees.filter((employee) =>
                     employee.expertise?.some((exp) => exp._id === domain._id),

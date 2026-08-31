@@ -10,13 +10,24 @@ import {
   getProjectDomainTasks,
   addManualTask,
   updateTaskCompletion,
-  // updateProjectDomains,
+  updateProjectComponent,
+  deleteProjectComponent,
 } from "../../controllers/project/projectComponent.controller.js";
 const router = express.Router();
 
 router.post("/", protect, adminOnly, addProjectComponent);
 
 router.get("/project/:projectId", protect, getProjectComponents);
+
+// =========================================
+// UPDATE PROJECT WORK ITEM
+// =========================================
+router.patch("/:componentId", protect, adminOnly, updateProjectComponent);
+
+// =========================================
+// DELETE PROJECT WORK ITEM
+// =========================================
+router.delete("/:componentId", protect, adminOnly, deleteProjectComponent);
 
 router.patch(
   "/:componentId/tasks/:taskId/assign",

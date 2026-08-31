@@ -24,6 +24,7 @@ import EmployeeDetails from "./pages/admin/EmployeeDetails";
 import DomainDetails from "./pages/admin/DomainDetails";
 import EmployeeProjectTasks from "./pages/admin/EmployeeProjectTasks";
 import ProjectDomainTasks from "./pages/admin/ProjectDomainTasks";
+import AdminTaskDetails from "./pages/admin/AdminTaskDetails";
 
 function App() {
   // const [count, setCount] = useState(0)
@@ -61,6 +62,11 @@ function App() {
             <Route
               path="reviews/:submissionId"
               element={<ReviewSubmission />}
+            />
+
+            <Route
+              path="tasks/:componentId/:taskId"
+              element={<AdminTaskDetails />}
             />
 
             <Route path="reviews" element={<PendingReviews />} />

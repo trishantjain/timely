@@ -79,17 +79,7 @@ export default function EmployeeProjectTasks() {
   }
 
   const handleTaskClick = (task) => {
-    console.log("Clicked task:", task);
-
-    const submissionId =
-      task.submissionId || task.submission?._id || task.submission;
-
-    if (!submissionId) {
-      alert("No submission is available for this task yet.");
-      return;
-    }
-
-    navigate(`/admin/reviews/${submissionId}`);
+    navigate(`/admin/tasks/${task.componentId}/${task.taskId}`);
   };
 
   const formatDeadline = (task) => {
@@ -236,12 +226,7 @@ export default function EmployeeProjectTasks() {
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
 
-                      if (!task.submissionId) {
-                        alert("No submission is available for this task yet.");
-                        return;
-                      }
-
-                      navigate(`/admin/reviews/${task.submissionId}`);
+                      handleTaskClick(task);
                     }
                   }}
                   className="flex flex-col w-full gap-4 px-5 py-4 text-left transition-colors hover:bg-muted/30 sm:px-6 md:flex-row md:items-center md:justify-between"

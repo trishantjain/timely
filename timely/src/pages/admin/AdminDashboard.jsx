@@ -1,16 +1,15 @@
+import { useEffect, useState } from "react";
+import { Plus, UserPlus, FolderKanban } from "lucide-react";
+
 import StatsCards from "@/components/dashboard/StatsCards";
 import ProjectList from "@/components/project/ProjectList";
-import { getProjects } from "@/api/projectAPI";
-import { useState, useEffect } from "react";
 import CreateProjectDialog from "@/components/project/CreateProjectDialog";
 
+import { getProjects } from "@/api/projectAPI";
 import { Button } from "@/components/ui/button";
-
-import { Plus, UserPlus, FolderKanban } from "lucide-react";
 
 export default function AdminDashboard() {
   const [projects, setProjects] = useState([]);
-
   const [openCreateProject, setOpenCreateProject] = useState(false);
 
   const fetchProjects = async () => {
@@ -28,13 +27,13 @@ export default function AdminDashboard() {
   }, []);
 
   return (
-    <div className="min-h-full p-4 sm:p-6 lg:p-8">
+    <div className="min-h-full p-4 sm:p-5 lg:p-6">
       {/* PAGE HEADER */}
 
-      <div className="flex flex-col gap-5 pb-6 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex items-start gap-4">
-          <div className="flex items-center justify-center border h-11 w-11 shrink-0 rounded-xl bg-muted/40">
-            <FolderKanban size={21} />
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center justify-center w-10 h-10 border rounded-xl shrink-0 bg-muted/40">
+            <FolderKanban size={19} />
           </div>
 
           <div>
@@ -42,25 +41,23 @@ export default function AdminDashboard() {
               Dashboard
             </h1>
 
-            <p className="mt-1 text-sm text-muted-foreground sm:text-base">
+            <p className="mt-0.5 text-sm text-muted-foreground">
               Overview of your projects, employees and workspace activity.
             </p>
           </div>
         </div>
 
-        {/* ACTION BUTTONS */}
+        {/* ACTIONS */}
 
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" className="gap-2">
-            <UserPlus size={17} />
+            <UserPlus size={16} />
             Invite Employee
           </Button>
 
           <Button
             className="gap-2 shadow-sm"
-            onClick={() => {
-              setOpenCreateProject(true);
-            }}
+            onClick={() => setOpenCreateProject(true)}
           >
             <Plus size={17} />
             New Project
@@ -70,7 +67,7 @@ export default function AdminDashboard() {
 
       {/* STATS */}
 
-      <div className="mt-2">
+      <div className="mt-5">
         <StatsCards
           stats={{
             projects: projects.length,
@@ -81,38 +78,38 @@ export default function AdminDashboard() {
         />
       </div>
 
-      {/* PROJECT SECTION */}
+      {/* PROJECTS */}
 
-      <div className="mt-8">
-        <div className="flex flex-col gap-3 mb-4 sm:flex-row sm:items-end sm:justify-between">
+      <section className="mt-6">
+        <div className="flex items-center justify-between gap-4 mb-3">
           <div>
-            <h2 className="text-lg font-semibold sm:text-xl">
-              Recent Projects
-            </h2>
+            <h2 className="text-lg font-semibold">Recent Projects</h2>
 
-            <p className="mt-1 text-sm text-muted-foreground">
+            <p className="mt-0.5 text-sm text-muted-foreground">
               View and manage your active projects.
             </p>
           </div>
 
-          <div className="flex w-fit items-center rounded-lg border bg-muted/30 px-3 py-1.5 text-xs text-muted-foreground sm:text-sm">
-            {projects.length} {projects.length === 1 ? "project" : "projects"}
+          <div className="shrink-0 rounded-lg border bg-muted/30 px-3 py-1.5 text-sm text-muted-foreground">
+            <span className="font-medium text-foreground">
+              {projects.length}
+            </span>{" "}
+            {projects.length === 1 ? "project" : "projects"}
           </div>
         </div>
 
-        <div className="overflow-hidden border shadow-sm rounded-2xl bg-card">
-          <ProjectList projects={projects} refreshProjects={fetchProjects} />
-        </div>
-      </div>
+        {/* PROJECT LIST ALREADY CONTAINS ITS OWN CARD */}
 
-      {/* CREATE PROJECT DIALOG */}
+        <ProjectList projects={projects} refreshProjects={fetchProjects} />
+      </section>
+
+      {/* CREATE PROJECT */}
 
       <CreateProjectDialog
         open={openCreateProject}
         onClose={() => setOpenCreateProject(false)}
         onSuccess={() => {
           fetchProjects();
-
           setOpenCreateProject(false);
         }}
       />

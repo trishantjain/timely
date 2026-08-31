@@ -103,6 +103,7 @@ export const getProjectComponents = async (req, res) => {
     const components = await ProjectComponent.find({
       project: projectId,
     })
+      // Primary module relation
       .populate({
         path: "projectModule",
         select: "name description color domain",
@@ -111,15 +112,55 @@ export const getProjectComponents = async (req, res) => {
           select: "name color description isActive",
         },
       })
+
+      // Fallback for old/existing component snapshots
+      .populate({
+        path: "componentTemplate",
+        select: "projectModule",
+        populate: {
+          path: "projectModule",
+          select: "name description color domain",
+          populate: {
+            path: "domain",
+            select: "name color description isActive",
+          },
+        },
+      })
+
       .populate("tasks.assignedEmployee", "username email")
       .sort({
         createdAt: 1,
       })
       .lean();
 
+    const formattedComponents = components.map((component) => {
+      // First use the project's stored module
+      let projectModule = component.projectModule;
+
+      // Fallback to component template module
+      if (!projectModule && component.componentTemplate?.projectModule) {
+        projectModule = component.componentTemplate.projectModule;
+      }
+
+      const domain = projectModule?.domain || null;
+
+      return {
+        ...component,
+
+        // Explicit values for frontend filtering
+        resolvedProjectModuleId: projectModule?._id?.toString() || null,
+
+        resolvedDomainId:
+          domain?._id?.toString() ||
+          (typeof domain === "string" ? domain : null),
+
+        resolvedDomain: domain || null,
+      };
+    });
+
     return res.status(200).json({
       success: true,
-      data: components,
+      data: formattedComponents,
     });
   } catch (err) {
     console.error("getProjectComponents error:", err);
@@ -391,17 +432,13 @@ export const getMyTasks = async (req, res) => {
 };
 
 export const getTaskDetails = async (req, res) => {
-  console.log("\n========================================");
-  console.log("[ProjectComponent] Get Task Details");
-  console.log(req.params);
-  console.log("========================================");
-
   try {
     const { componentId, taskId } = req.params;
 
     const component = await ProjectComponent.findById(componentId)
       .populate("project", "name")
-      .populate("projectModule", "name");
+      .populate("projectModule", "name")
+      .populate("tasks.assignedEmployee", "username email");
 
     if (!component) {
       return res.status(404).json({
@@ -419,19 +456,24 @@ export const getTaskDetails = async (req, res) => {
       });
     }
 
-    return res.json({
+    return res.status(200).json({
       success: true,
 
       data: {
+        projectId: component.project?._id || component.project,
+        projectName: component.project?.name || "Project",
+
         componentId: component._id,
         componentName: component.name,
-        projectName: component.project.name,
-        moduleName: component.projectModule.name,
+
+        moduleId: component.projectModule?._id || component.projectModule,
+        moduleName: component.projectModule?.name || "No module",
+
         task,
       },
     });
   } catch (err) {
-    console.error(err);
+    console.error("getTaskDetails error:", err);
 
     return res.status(500).json({
       success: false,
@@ -923,6 +965,171 @@ export const updateTaskCompletion = async (req, res) => {
     });
   } catch (err) {
     console.error("updateTaskCompletion error:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+// =========================================
+// UPDATE PROJECT COMPONENT / WORK ITEM
+// =========================================
+
+export const updateProjectComponent = async (req, res) => {
+  try {
+    const { componentId } = req.params;
+
+    const { name, description, tasks } = req.body;
+
+    // =========================================
+    // FIND COMPONENT
+    // =========================================
+
+    const component = await ProjectComponent.findById(componentId);
+
+    if (!component) {
+      return res.status(404).json({
+        success: false,
+        message: "Project work item not found.",
+      });
+    }
+
+    // =========================================
+    // VALIDATE NAME
+    // =========================================
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Work item name is required.",
+      });
+    }
+
+    // =========================================
+    // UPDATE BASIC DETAILS
+    // =========================================
+
+    component.name = name.trim();
+
+    component.description = description?.trim() || "";
+
+    // =========================================
+    // UPDATE TASKS
+    // =========================================
+
+    if (Array.isArray(tasks)) {
+      const existingTasks = new Map(
+        component.tasks.map((task) => [task._id.toString(), task]),
+      );
+
+      const updatedTasks = [];
+
+      for (let index = 0; index < tasks.length; index++) {
+        const incomingTask = tasks[index];
+
+        if (!incomingTask.title || !incomingTask.title.trim()) {
+          return res.status(400).json({
+            success: false,
+            message: `Task ${index + 1} title is required.`,
+          });
+        }
+
+        const existingTask =
+          incomingTask._id && existingTasks.get(incomingTask._id.toString());
+
+        // =====================================
+        // EXISTING TASK
+        // Preserve assignment/progress/status
+        // =====================================
+
+        if (existingTask) {
+          existingTask.title = incomingTask.title.trim();
+
+          existingTask.description = incomingTask.description?.trim() || "";
+
+          existingTask.displayOrder = incomingTask.displayOrder ?? index + 1;
+
+          existingTask.required = incomingTask.required ?? true;
+
+          if (incomingTask.submissionRule) {
+            existingTask.submissionRule = incomingTask.submissionRule;
+          }
+
+          updatedTasks.push(existingTask);
+        } else {
+          // ===================================
+          // NEW PROJECT-SPECIFIC TASK
+          // ===================================
+
+          updatedTasks.push({
+            templateTaskId: incomingTask.templateTaskId || null,
+
+            title: incomingTask.title.trim(),
+
+            description: incomingTask.description?.trim() || "",
+
+            displayOrder: incomingTask.displayOrder ?? index + 1,
+
+            required: incomingTask.required ?? false,
+
+            submissionRule: incomingTask.submissionRule || {
+              type: "TEXT",
+            },
+
+            assignedEmployee: incomingTask.assignedEmployee || null,
+
+            deadline: incomingTask.deadline || null,
+
+            status: incomingTask.status || "PENDING",
+          });
+        }
+      }
+
+      component.tasks = updatedTasks;
+    }
+
+    await component.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Work item updated successfully.",
+      data: component,
+    });
+  } catch (err) {
+    console.error("updateProjectComponent error:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+// =========================================
+// DELETE PROJECT COMPONENT / WORK ITEM
+// =========================================
+
+export const deleteProjectComponent = async (req, res) => {
+  try {
+    const { componentId } = req.params;
+
+    const component = await ProjectComponent.findByIdAndDelete(componentId);
+
+    if (!component) {
+      return res.status(404).json({
+        success: false,
+        message: "Project work item not found.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Work item deleted successfully.",
+    });
+  } catch (err) {
+    console.error("deleteProjectComponent error:", err);
 
     return res.status(500).json({
       success: false,
