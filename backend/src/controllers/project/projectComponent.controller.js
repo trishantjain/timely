@@ -305,10 +305,20 @@ export const getMyTasks = async (req, res) => {
 
     // =========================================
     // BUILD QUERY
+    //
+    // A task should show up in an employee's task list if they are
+    // EITHER the primary assignee OR they have been tagged on the
+    // task by someone else. Previously this only matched
+    // "tasks.assignedEmployee", so a tagged employee's component
+    // never even got fetched from the database — the fix has to
+    // happen at both the query level and the per-task filter below.
     // =========================================
 
     const query = {
-      "tasks.assignedEmployee": req.user.id,
+      $or: [
+        { "tasks.assignedEmployee": req.user.id },
+        { "tasks.tags.employee": req.user.id },
+      ],
     };
 
     // If projectId is provided, restrict tasks
@@ -330,7 +340,8 @@ export const getMyTasks = async (req, res) => {
 
     const components = await ProjectComponent.find(query)
       .populate("project", "name")
-      .populate("projectModule", "name");
+      .populate("projectModule", "name")
+      .populate("tasks.assignedEmployee", "username email");
 
     console.log(`[ProjectComponent] Components found: ${components.length}`);
 
@@ -362,11 +373,21 @@ export const getMyTasks = async (req, res) => {
       for (const task of component.tasks) {
         // =========================================
         // EMPLOYEE CHECK
+        //
+        // A task belongs in this employee's list if they are the
+        // primary assignee OR if they appear in the task's `tags`
+        // array (i.e. someone tagged/looped them in on it).
         // =========================================
 
         const isAssignedToEmployee =
           task.assignedEmployee &&
-          task.assignedEmployee.toString() === req.user.id.toString();
+          task.assignedEmployee._id.toString() === req.user.id.toString();
+
+        const myTag = (task.tags || []).find(
+          (tag) => tag.employee && tag.employee.toString() === req.user.id.toString(),
+        );
+
+        const isTaggedToEmployee = Boolean(myTag);
 
         // =========================================
         // PROJECT CHECK
@@ -377,7 +398,10 @@ export const getMyTasks = async (req, res) => {
           !projectId ||
           component.project._id.toString() === projectId.toString();
 
-        if (isAssignedToEmployee && belongsToRequestedProject) {
+        if (
+          (isAssignedToEmployee || isTaggedToEmployee) &&
+          belongsToRequestedProject
+        ) {
           myTasks.push({
             projectId: component.project._id,
 
@@ -404,6 +428,23 @@ export const getMyTasks = async (req, res) => {
             submissionRule: {
               type: task.submissionRule?.type || "TEXT",
             },
+
+            // Lets the frontend tell the two situations apart: a
+            // task the employee owns vs. one they were only tagged
+            // on (and therefore can view but not submit).
+            isAssignee: isAssignedToEmployee,
+
+            isTagged: isTaggedToEmployee,
+
+            assignedEmployee: task.assignedEmployee
+              ? {
+                  _id: task.assignedEmployee._id,
+                  username: task.assignedEmployee.username,
+                  email: task.assignedEmployee.email,
+                }
+              : null,
+
+            tagMessage: isTaggedToEmployee ? myTag.message || "" : undefined,
           });
         }
       }
@@ -438,7 +479,9 @@ export const getTaskDetails = async (req, res) => {
     const component = await ProjectComponent.findById(componentId)
       .populate("project", "name")
       .populate("projectModule", "name")
-      .populate("tasks.assignedEmployee", "username email");
+      .populate("tasks.assignedEmployee", "username email")
+      .populate("tasks.tags.employee", "username email")
+      .populate("tasks.tags.taggedBy", "username email");
 
     if (!component) {
       return res.status(404).json({
@@ -907,6 +950,138 @@ export const addManualTask = async (req, res) => {
 };
 
 // =========================================
+// ADD MANUAL TASK DIRECTLY TO A PROJECT
+// (no existing work item / component required)
+//
+// Used when a project has no tasks assigned to
+// any employee yet, so the admin has no work
+// item to attach a manual task to. This finds
+// (or lazily creates) a single lightweight
+// "Manual Tasks" container component for the
+// project and adds the task there — reusing the
+// exact same task shape/rules as addManualTask,
+// so everything downstream (assignment, employee
+// task lists, submissions) works unchanged.
+// =========================================
+export const addManualTaskToProject = async (req, res) => {
+  try {
+    const { projectId } = req.body;
+
+    const {
+      title,
+      description = "",
+      assignedEmployee = null,
+      deadline = null,
+    } = req.body;
+
+    if (!projectId) {
+      return res.status(400).json({
+        success: false,
+        message: "Project is required.",
+      });
+    }
+
+    if (!title || !title.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Task title is required.",
+      });
+    }
+
+    const project = await Project.findById(projectId);
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: "Project not found.",
+      });
+    }
+
+    // Validate employee belongs to project
+    if (assignedEmployee) {
+      const member = await ProjectMember.findOne({
+        project: projectId,
+        employee: assignedEmployee,
+      });
+
+      if (!member) {
+        return res.status(400).json({
+          success: false,
+          message: "Employee is not assigned to this project.",
+        });
+      }
+    }
+
+    // =========================================
+    // FIND OR CREATE THE MANUAL TASKS CONTAINER
+    // =========================================
+
+    let container = await ProjectComponent.findOne({
+      project: projectId,
+      isManualContainer: true,
+    });
+
+    if (!container) {
+      container = await ProjectComponent.create({
+        project: projectId,
+        projectModule: null,
+        componentTemplate: null,
+        name: "Manual Tasks",
+        description:
+          "Ad-hoc tasks created directly by an admin, without a predefined work item.",
+        tasks: [],
+        isManualContainer: true,
+        createdBy: req.user.id,
+      });
+    }
+
+    const nextDisplayOrder =
+      container.tasks.length > 0
+        ? Math.max(
+            ...container.tasks.map((task) => Number(task.displayOrder) || 0),
+          ) + 1
+        : 1;
+
+    container.tasks.push({
+      title: title.trim(),
+      description: description?.trim() || "",
+      displayOrder: nextDisplayOrder,
+
+      required: false,
+
+      assignedEmployee: assignedEmployee || null,
+      deadline: deadline || null,
+
+      status: "PENDING",
+
+      submissionRule: {
+        type: "TEXT",
+      },
+    });
+
+    await container.save();
+
+    const newTask = container.tasks[container.tasks.length - 1];
+
+    return res.status(201).json({
+      success: true,
+      message: "Manual task added successfully.",
+      data: {
+        componentId: container._id,
+        task: newTask,
+      },
+    });
+  } catch (err) {
+    console.error("addManualTaskToProject error:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+// =========================================
 // UPDATE MANUAL TASK COMPLETION STATUS
 // =========================================
 export const updateTaskCompletion = async (req, res) => {
@@ -965,6 +1140,153 @@ export const updateTaskCompletion = async (req, res) => {
     });
   } catch (err) {
     console.error("updateTaskCompletion error:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+// =========================================
+// TAG AN EMPLOYEE ON A TASK
+//
+// Lets anyone already involved with the task (the admin, the
+// assignee, or someone previously tagged on it) loop in another
+// employee so they can be handed context / information about it.
+// =========================================
+
+export const tagEmployeeOnTask = async (req, res) => {
+  try {
+    const { componentId, taskId } = req.params;
+
+    const { employeeId, message } = req.body;
+
+    if (!employeeId) {
+      return res.status(400).json({
+        success: false,
+        message: "employeeId is required.",
+      });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(employeeId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid employee ID.",
+      });
+    }
+
+    const component = await ProjectComponent.findById(componentId);
+
+    if (!component) {
+      return res.status(404).json({
+        success: false,
+        message: "Project component not found.",
+      });
+    }
+
+    const task = component.tasks.id(taskId);
+
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        message: "Task not found.",
+      });
+    }
+
+    // =========================================
+    // PERMISSION CHECK
+    //
+    // Allowed: admins, the employee currently assigned to the task,
+    // or an employee who has already been tagged on it (so the tag
+    // can be passed along further).
+    // =========================================
+
+    const isAdmin = req.user.role === "admin";
+
+    const isAssignee =
+      task.assignedEmployee &&
+      task.assignedEmployee.toString() === req.user.id.toString();
+
+    const isAlreadyTagged = task.tags.some(
+      (tag) => tag.employee.toString() === req.user.id.toString(),
+    );
+
+    if (!isAdmin && !isAssignee && !isAlreadyTagged) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not allowed to tag employees on this task.",
+      });
+    }
+
+    // =========================================
+    // VALIDATE TARGET EMPLOYEE
+    // =========================================
+
+    if (employeeId === req.user.id.toString()) {
+      return res.status(400).json({
+        success: false,
+        message: "You cannot tag yourself.",
+      });
+    }
+
+    const employee = await User.findById(employeeId);
+
+    if (!employee || employee.role !== "employee") {
+      return res.status(404).json({
+        success: false,
+        message: "Employee not found.",
+      });
+    }
+
+    const isProjectMember = await ProjectMember.findOne({
+      project: component.project,
+      employee: employeeId,
+    });
+
+    const isEmbeddedProjectMember = await Project.exists({
+      _id: component.project,
+      "members.user_id": employeeId,
+    });
+
+    if (!isProjectMember && !isEmbeddedProjectMember) {
+      return res.status(400).json({
+        success: false,
+        message: "That employee is not a member of this project.",
+      });
+    }
+
+    const alreadyTagged = task.tags.some(
+      (tag) => tag.employee.toString() === employeeId,
+    );
+
+    if (alreadyTagged) {
+      return res.status(400).json({
+        success: false,
+        message: "This employee is already tagged on the task.",
+      });
+    }
+
+    task.tags.push({
+      employee: employeeId,
+      message: message || "",
+      taggedBy: req.user.id,
+    });
+
+    await component.save();
+
+    await component.populate("tasks.tags.employee", "username email");
+    await component.populate("tasks.tags.taggedBy", "username email");
+
+    const updatedTask = component.tasks.id(taskId);
+
+    return res.status(200).json({
+      success: true,
+      message: `${employee.username} has been tagged on this task.`,
+      data: updatedTask.tags,
+    });
+  } catch (err) {
+    console.error("tagEmployeeOnTask error:", err);
 
     return res.status(500).json({
       success: false,

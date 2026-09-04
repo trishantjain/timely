@@ -387,7 +387,18 @@ export const getProjectMembers = async (req, res) => {
   console.log("================================");
 
   try {
-    const members = await ProjectMember.find({
+    const project = await Project.findById(req.params.id)
+      .select("members")
+      .populate("members.user_id", "username email");
+
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        message: "Project not found.",
+      });
+    }
+
+    const assignments = await ProjectMember.find({
       project: req.params.id,
     })
       .populate("employee", "username email")
@@ -395,6 +406,29 @@ export const getProjectMembers = async (req, res) => {
       .sort({
         createdAt: 1,
       });
+
+    const membersByEmployeeId = new Map();
+
+    assignments.forEach((assignment) => {
+      if (assignment.employee?._id) {
+        membersByEmployeeId.set(assignment.employee._id.toString(), assignment);
+      }
+    });
+
+    project.members.forEach((member) => {
+      const employee = member.user_id;
+
+      if (employee?._id && !membersByEmployeeId.has(employee._id.toString())) {
+        membersByEmployeeId.set(employee._id.toString(), {
+          _id: member._id,
+          project: project._id,
+          employee,
+          domain: null,
+        });
+      }
+    });
+
+    const members = Array.from(membersByEmployeeId.values());
 
     return res.status(200).json({
       success: true,

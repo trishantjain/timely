@@ -91,6 +91,38 @@ const projectTaskSchema = new mongoose.Schema(
       ],
       default: "PENDING",
     },
+
+    // Employees tagged on this task so they can be looped in / handed
+    // information about it (e.g. "@mention" a colleague on a task).
+    tags: {
+      type: [
+        {
+          employee: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            required: true,
+          },
+
+          message: {
+            type: String,
+            default: "",
+            trim: true,
+          },
+
+          taggedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            required: true,
+          },
+
+          createdAt: {
+            type: Date,
+            default: Date.now,
+          },
+        },
+      ],
+      default: [],
+    },
   },
   {
     _id: true,
@@ -108,13 +140,30 @@ const projectComponentSchema = new mongoose.Schema(
     projectModule: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "ProjectModule",
-      required: true,
+      // Optional so a project can hold a lightweight, template-less
+      // container (e.g. the auto-created "Manual Tasks" work item)
+      // for ad-hoc admin tasks that aren't tied to a module.
+      // All existing components already have this set, so this
+      // relaxation is fully backward compatible.
+      required: false,
+      default: null,
     },
 
     componentTemplate: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "ComponentTemplate",
-      required: true,
+      // Optional for the same reason as `projectModule` above —
+      // manually created work items are not snapshotted from a
+      // template. Existing template-based components are unaffected.
+      required: false,
+      default: null,
+    },
+
+    // True only for the auto-created container that holds tasks an
+    // admin adds directly to a project with no existing work items.
+    isManualContainer: {
+      type: Boolean,
+      default: false,
     },
 
     name: {

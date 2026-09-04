@@ -9,7 +9,9 @@ import {
   getEmployeeProjectTasks,
   getProjectDomainTasks,
   addManualTask,
+  addManualTaskToProject,
   updateTaskCompletion,
+  tagEmployeeOnTask,
   updateProjectComponent,
   deleteProjectComponent,
 } from "../../controllers/project/projectComponent.controller.js";
@@ -61,11 +63,24 @@ router.get(
 // Admin manually creates a task inside a component
 router.post("/:componentId/tasks/manual", protect, adminOnly, addManualTask);
 
+// Admin manually creates a task directly on a project that has no
+// work items / tasks yet (auto-creates a "Manual Tasks" container).
+router.post("/manual-task", protect, adminOnly, addManualTaskToProject);
+
 // Employee marks assigned task as completed / pending
 router.patch(
   "/:componentId/tasks/:taskId/completion",
   protect,
   updateTaskCompletion,
+);
+
+// Tag another employee on a task so they can be handed context /
+// information about it (admin, the task's assignee, or an already
+// tagged employee can tag further employees).
+router.patch(
+  "/:componentId/tasks/:taskId/tag",
+  protect,
+  tagEmployeeOnTask,
 );
 
 // router.patch("/:projectId/domains", protect, adminOnly, updateProjectDomains);

@@ -25,6 +25,8 @@ import {
   CheckSquare,
   FileText,
   ArrowLeft,
+  Tag,
+  UserCircle2,
 } from "lucide-react";
 
 export default function MyTasks() {
@@ -39,11 +41,11 @@ export default function MyTasks() {
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [supportingFiles, setSupportingFiles] = useState([]);
 
-  const loadTasks = async () => {
+  const loadTasks = async (currentProjectId) => {
     try {
       setLoading(true);
 
-      const res = await getMyTasks(projectId);
+      const res = await getMyTasks(currentProjectId);
 
       console.log(res.data);
 
@@ -55,9 +57,12 @@ export default function MyTasks() {
     }
   };
 
+  // Re-fetch whenever the :projectId route param changes (e.g. navigating
+  // from one project's tasks straight to another's) so the list never shows
+  // stale, previously-loaded tasks for the wrong project.
   useEffect(() => {
-    loadTasks();
-  }, []);
+    loadTasks(projectId);
+  }, [projectId]);
 
   const statusColors = {
     PENDING: "border-border bg-muted text-muted-foreground",
@@ -214,6 +219,17 @@ export default function MyTasks() {
                       >
                         {task.status.replaceAll("_", " ")}
                       </Badge>
+
+                      {/* TAGGED (not the primary owner) */}
+                      {task.isTagged && !task.isAssignee && (
+                        <Badge
+                          variant="outline"
+                          className="flex items-center gap-1 border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                        >
+                          <Tag size={12} />
+                          Tagged on this task
+                        </Badge>
+                      )}
                     </div>
 
                     <div className="flex flex-wrap gap-4 mt-2 text-sm text-muted-foreground">
@@ -234,6 +250,14 @@ export default function MyTasks() {
                           {new Date(task.deadline).toLocaleDateString()}
                         </div>
                       )}
+
+                      {task.isTagged && !task.isAssignee && (
+                        <div className="flex items-center gap-2">
+                          <UserCircle2 size={15} />
+                          Owner:{" "}
+                          {task.assignedEmployee?.username || "Unassigned"}
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -246,9 +270,11 @@ export default function MyTasks() {
                       )
                     }
                   >
-                    {submissionType === "CHECKBOX"
-                      ? "Open Checkbox Task"
-                      : "Open Task"}
+                    {task.isTagged && !task.isAssignee
+                      ? "View Task"
+                      : submissionType === "CHECKBOX"
+                        ? "Open Checkbox Task"
+                        : "Open Task"}
                   </Button>
                 </CardContent>
               </Card>

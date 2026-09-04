@@ -16,6 +16,14 @@ export const assignTask = (componentId, taskId, data) =>
 export const getTaskDetails = (componentId, taskId) =>
   api.get(`/project-components/${componentId}/tasks/${taskId}`);
 
+// Tag another employee on a task so they can be looped in / handed
+// information about it.
+export const tagEmployeeOnTask = (componentId, taskId, data) =>
+  api.patch(
+    `/project-components/${componentId}/tasks/${taskId}/tag`,
+    data,
+  );
+
 export const getMyTasks = () => api.get("/project-components/my-tasks");
 
 // ===================================
@@ -23,6 +31,12 @@ export const getMyTasks = () => api.get("/project-components/my-tasks");
 // ===================================
 export const addManualTask = (componentId, data) =>
   api.post(`/project-components/${componentId}/tasks/manual`, data);
+
+// Create a manual task directly on a project that has no work items
+// yet (i.e. no task assigned to any employee in the project). The
+// backend auto-creates a "Manual Tasks" container the first time.
+export const addManualTaskToProject = (projectId, data) =>
+  api.post(`/project-components/manual-task`, { projectId, ...data });
 
 // ===================================
 // ADMIN - EMPLOYEE PROJECT TASKS

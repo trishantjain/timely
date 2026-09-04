@@ -330,7 +330,7 @@ export default function ReviewSubmission() {
               className="gap-2 shrink-0"
             >
               <History size={16} />
-              Previous Versions
+              Previous Versions ({previousVersions.length})
               {showHistory ? (
                 <ChevronUp size={16} />
               ) : (
@@ -393,7 +393,14 @@ export default function ReviewSubmission() {
             Version
           </div>
 
-          <p className="font-medium">Version {currentSubmission.version}</p>
+          <p className="flex items-center gap-2 font-medium">
+            Version {currentSubmission.version}
+            {currentSubmission._id === latest._id && (
+              <span className="inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                Latest
+              </span>
+            )}
+          </p>
         </div>
       </div>
 
@@ -765,9 +772,9 @@ export default function ReviewSubmission() {
 
             {/* PREVIEW AREA */}
             <div className="relative flex-1 overflow-auto bg-muted/30">
-              <div className="flex items-center justify-center min-w-full min-h-full p-6">
-                {/* IMAGE */}
-                {previewMimeType?.startsWith("image/") ? (
+              {/* IMAGE */}
+              {previewMimeType?.startsWith("image/") ? (
+                <div className="flex items-center justify-center min-w-full min-h-full p-6">
                   <img
                     src={previewUrl}
                     alt={previewFileName}
@@ -777,15 +784,15 @@ export default function ReviewSubmission() {
                     }}
                     className="object-contain max-w-full max-h-full transition-transform duration-200"
                   />
-                ) : (
-                  /* PDF */
-                  <iframe
-                    src={previewUrl}
-                    title={previewFileName}
-                    className="w-full h-full border-0"
-                  />
-                )}
-              </div>
+                </div>
+              ) : (
+                /* PDF */
+                <iframe
+                  src={previewUrl}
+                  title={previewFileName}
+                  className="absolute inset-0 w-full h-full border-0"
+                />
+              )}
             </div>
 
             {/* FOOTER */}

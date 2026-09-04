@@ -3,9 +3,18 @@ import { useNavigate, useParams } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 
-import { getTaskDetails } from "@/api/projectComponentAPI";
+import { getTaskDetails, tagEmployeeOnTask } from "@/api/projectComponentAPI";
 import { submitTask } from "@/api/submissionAPI";
+import { getProjectMembers } from "@/api/projectMemberAPI";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -18,6 +27,8 @@ import {
   CheckCircle2,
   AlertCircle,
   Trash2,
+  Users,
+  Tag,
 } from "lucide-react";
 
 export default function TaskSubmission() {
@@ -35,6 +46,20 @@ export default function TaskSubmission() {
   const [dragging, setDragging] = useState(false);
   const [errors, setErrors] = useState([]);
 
+  const [projectMembers, setProjectMembers] = useState([]);
+  const [tagEmployeeId, setTagEmployeeId] = useState("");
+  const [tagMessage, setTagMessage] = useState("");
+  const [tagging, setTagging] = useState(false);
+  const [tagError, setTagError] = useState("");
+
+  const currentUser = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem("user") || "null");
+    } catch {
+      return null;
+    }
+  }, []);
+
   const loadTask = async () => {
     try {
       const res = await getTaskDetails(componentId, taskId);
@@ -50,6 +75,60 @@ export default function TaskSubmission() {
   useEffect(() => {
     loadTask();
   }, []);
+
+  useEffect(() => {
+    const projectId = taskData?.projectId || taskData?.project?._id;
+
+    if (!projectId) return;
+
+    getProjectMembers(projectId)
+      .then((res) => setProjectMembers(res.data?.data || []))
+      .catch((err) => console.error(err));
+  }, [taskData?.projectId]);
+
+  const taggedIds = useMemo(
+    () => (taskData?.task?.tags || []).map((t) => t.employee?._id),
+    [taskData],
+  );
+
+  const taggableMembers = useMemo(
+    () =>
+      projectMembers.filter(
+        (m) =>
+          m.employee &&
+          m.employee._id !== currentUser?._id &&
+          !taggedIds.includes(m.employee._id),
+      ),
+    [projectMembers, currentUser, taggedIds],
+  );
+
+  const handleTagEmployee = async () => {
+    if (!tagEmployeeId) {
+      setTagError("Choose an employee to tag.");
+      return;
+    }
+
+    try {
+      setTagging(true);
+      setTagError("");
+
+      await tagEmployeeOnTask(componentId, taskId, {
+        employeeId: tagEmployeeId,
+        message: tagMessage,
+      });
+
+      setTagEmployeeId("");
+      setTagMessage("");
+
+      await loadTask();
+    } catch (err) {
+      console.error(err);
+
+      setTagError(err.response?.data?.message || "Unable to tag employee.");
+    } finally {
+      setTagging(false);
+    }
+  };
 
   const submissionRule = taskData?.task?.submissionRule;
 
@@ -134,7 +213,10 @@ export default function TaskSubmission() {
 
       alert("Task submitted successfully.");
 
-      navigate("/employee/tasks");
+      // Return to wherever the employee opened this task from (their
+      // project's task list, the global My Tasks list, or the dashboard)
+      // instead of always forcing them back to the unfiltered task list.
+      navigate(-1);
     } catch (err) {
       console.error(err);
 
@@ -500,6 +582,98 @@ export default function TaskSubmission() {
                   )}
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border bg-card">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Users size={16} className="text-muted-foreground" />
+                Tag a Colleague
+              </CardTitle>
+            </CardHeader>
+
+            <CardContent className="space-y-3">
+              <p className="text-xs leading-5 text-muted-foreground">
+                Loop in another employee on this task so you can hand off
+                context or information about it.
+              </p>
+
+              {(task.tags || []).length > 0 && (
+                <div className="space-y-2">
+                  {task.tags.map((tag) => (
+                    <div
+                      key={tag._id}
+                      className="p-3 text-sm border rounded-lg border-border bg-muted/40"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Tag size={14} className="text-muted-foreground" />
+
+                        <span className="font-medium">
+                          {tag.employee?.username || "Unknown"}
+                        </span>
+
+                        <span className="text-xs text-muted-foreground">
+                          tagged by {tag.taggedBy?.username || "someone"}
+                        </span>
+                      </div>
+
+                      {tag.message && (
+                        <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                          {tag.message}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <Select value={tagEmployeeId} onValueChange={setTagEmployeeId}>
+                <SelectTrigger className="bg-background">
+                  <SelectValue placeholder="Select an employee" />
+                </SelectTrigger>
+
+                <SelectContent>
+                  {taggableMembers.length === 0 && (
+                    <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                      No other project members to tag.
+                    </div>
+                  )}
+
+                  {taggableMembers.map((member) => (
+                    <SelectItem
+                      key={member.employee._id}
+                      value={member.employee._id}
+                    >
+                      {member.employee.username}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <Input
+                placeholder="Optional note for them..."
+                value={tagMessage}
+                onChange={(e) => setTagMessage(e.target.value)}
+                className="bg-background"
+              />
+
+              {tagError && (
+                <div className="flex items-center gap-2 text-sm text-destructive">
+                  <AlertCircle size={16} />
+                  {tagError}
+                </div>
+              )}
+
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={handleTagEmployee}
+                disabled={tagging || !tagEmployeeId}
+              >
+                {tagging ? "Tagging..." : "Tag Employee"}
+              </Button>
             </CardContent>
           </Card>
         </div>
