@@ -13,18 +13,20 @@ import Employees from "./pages/admin/Employees";
 import Domain from "./pages/admin/Domains";
 import Assignments from "./pages/admin/DocumentAssignments";
 import AdminLayout from "./components/layout/AdminLayout";
+import EmployeeLayout from "./components/layout/EmployeeLayout";
 import EmployeeProjectDetails from "./pages/employee/ProjectDetails";
 import ProjectComponents from "./pages/admin/ProjectComponents";
 import MyTasks from "./pages/employee/MyTasks";
 import TaskSubmission from "./pages/employee/TaskSubmission";
+import EmployeeUpdates from "./pages/employee/Updates";
 import PendingReviews from "./pages/admin/PendingReviews";
-import ReviewSubmission from "./pages/admin/ReviewSubmission";
 import WorkspaceManagement from "./pages/admin/WorkspaceManagement";
 import EmployeeDetails from "./pages/admin/EmployeeDetails";
 import DomainDetails from "./pages/admin/DomainDetails";
 import EmployeeProjectTasks from "./pages/admin/EmployeeProjectTasks";
 import ProjectDomainTasks from "./pages/admin/ProjectDomainTasks";
 import AdminTaskDetails from "./pages/admin/AdminTaskDetails";
+import AdminEmployeeUpdates from "./pages/admin/EmployeeUpdates";
 
 function App() {
   // const [count, setCount] = useState(0)
@@ -59,9 +61,10 @@ function App() {
               element={<ProjectComponents />}
             />
 
+            {/* Both routes resolve to the same unified Task Details page */}
             <Route
               path="reviews/:submissionId"
-              element={<ReviewSubmission />}
+              element={<AdminTaskDetails />}
             />
 
             <Route
@@ -74,6 +77,8 @@ function App() {
             <Route path="projects" element={<AdminDashboard />} />
 
             <Route path="workspace" element={<WorkspaceManagement />} />
+
+            <Route path="updates" element={<AdminEmployeeUpdates />} />
 
             <Route path="employees/:id" element={<EmployeeDetails />} />
 
@@ -96,49 +101,30 @@ function App() {
           </Route>
 
           <Route
-            path="/dashboard"
             element={
               <ProtectedRoute role="employee">
-                <UserDashboard />
+                <EmployeeLayout />
               </ProtectedRoute>
             }
-          />
+          >
+            <Route path="/dashboard" element={<UserDashboard />} />
 
-          <Route
-            path="/dashboard/project/:id"
-            element={
-              <ProtectedRoute role="employee">
-                <EmployeeProjectDetails />
-              </ProtectedRoute>
-            }
-          />
+            <Route
+              path="/dashboard/project/:id"
+              element={<EmployeeProjectDetails />}
+            />
 
-          <Route
-            path="/employee/tasks"
-            element={
-              <ProtectedRoute role="employee">
-                <MyTasks />
-              </ProtectedRoute>
-            }
-          />
+            <Route path="/employee/tasks" element={<MyTasks />} />
 
-          <Route
-            path="/employee/tasks/:projectId"
-            element={
-              <ProtectedRoute role="employee">
-                <MyTasks />
-              </ProtectedRoute>
-            }
-          />
+            <Route path="/employee/tasks/:projectId" element={<MyTasks />} />
 
-          <Route
-            path="/employee/tasks/:componentId/:taskId"
-            element={
-              <ProtectedRoute role="employee">
-                <TaskSubmission />
-              </ProtectedRoute>
-            }
-          />
+            <Route
+              path="/employee/tasks/:componentId/:taskId"
+              element={<TaskSubmission />}
+            />
+
+            <Route path="/employee/updates" element={<EmployeeUpdates />} />
+          </Route>
         </Routes>
       </BrowserRouter>
     </>

@@ -21,10 +21,24 @@ export default function CreateProjectDialog({ open, onClose, onSuccess }) {
   const [domains, setDomains] = useState([]);
   const [selectedDomains, setSelectedDomains] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleCreate = async () => {
+  const handleCreate = async (e) => {
+    e?.preventDefault?.();
+
+    if (!name.trim()) {
+      setError("Project name is required.");
+      return;
+    }
+
+    if (selectedDomains.length === 0) {
+      setError("Select at least one required domain.");
+      return;
+    }
+
     try {
       setLoading(true);
+      setError("");
 
       await createProject({
         name,
@@ -41,6 +55,7 @@ export default function CreateProjectDialog({ open, onClose, onSuccess }) {
       onClose();
     } catch (err) {
       console.error(err);
+      setError(err.response?.data?.message || "Failed to create project.");
     } finally {
       setLoading(false);
     }
@@ -78,6 +93,7 @@ export default function CreateProjectDialog({ open, onClose, onSuccess }) {
           setName("");
           setDescription("");
           setSelectedDomains([]);
+          setError("");
 
           onClose();
         }
@@ -88,7 +104,7 @@ export default function CreateProjectDialog({ open, onClose, onSuccess }) {
           <DialogTitle className="text-xl">Create Project</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <form className="space-y-4" onSubmit={handleCreate}>
           <Input
             placeholder="Project Name"
             value={name}
@@ -140,6 +156,12 @@ export default function CreateProjectDialog({ open, onClose, onSuccess }) {
             </div>
           </div>
 
+          {error && (
+            <div className="px-3 py-2 text-sm border rounded-md border-destructive/40 bg-destructive/10 text-destructive">
+              {error}
+            </div>
+          )}
+
           <div className="flex justify-end gap-3 pt-2">
             <Button
               type="button"
@@ -151,14 +173,13 @@ export default function CreateProjectDialog({ open, onClose, onSuccess }) {
             </Button>
 
             <Button
-              type="button"
+              type="submit"
               disabled={loading || !name.trim() || selectedDomains.length === 0}
-              onClick={handleCreate}
             >
               {loading ? "Creating..." : "Create Project"}
             </Button>
           </div>
-        </div>
+        </form>
       </DialogContent>
     </Dialog>
   );

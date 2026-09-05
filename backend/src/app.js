@@ -17,6 +17,7 @@ import projectModuleRoutes from "./routes/project/projectModule.routes.js";
 import projectComponentRoutes from "./routes/project/projectComponent.routes.js";
 import submissionRoutes from "./routes/submission/submission.routes.js";
 import componentTemplateRoutes from "./routes/template/componentTemplate.routes.js";
+import dailyUpdateRoutes from "./routes/update/dailyUpdate.routes.js";
 
 import { notFound, errorHandler } from "./middleware/errorMiddleware.js";
 
@@ -118,6 +119,7 @@ app.use("/api/project-modules", projectModuleRoutes);
 app.use("/api/project-components", projectComponentRoutes);
 app.use("/api/submissions", submissionRoutes);
 app.use("/api/component-template", componentTemplateRoutes);
+app.use("/api/daily-updates", dailyUpdateRoutes);
 
 // Must be last: catches unmatched routes, then any error passed to next(err)
 // or thrown inside an asyncHandler-wrapped controller.

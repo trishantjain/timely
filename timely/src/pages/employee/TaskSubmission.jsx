@@ -12,13 +12,19 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 
-import { getTaskDetails, tagEmployeeOnTask } from "@/api/projectComponentAPI";
+import {
+  getTaskDetails,
+  tagEmployeeOnTask,
+} from "@/api/projectComponentAPI";
 import { submitTask } from "@/api/submissionAPI";
+import { useAlertDialog } from "@/components/common/ConfirmDialogContext";
 import { getProjectMembers } from "@/api/projectMemberAPI";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 import { Badge } from "@/components/ui/badge";
+
+import DailyUpdatesTimeline from "@/components/task/DailyUpdatesTimeline";
 
 import {
   Upload,
@@ -51,6 +57,9 @@ export default function TaskSubmission() {
   const [tagMessage, setTagMessage] = useState("");
   const [tagging, setTagging] = useState(false);
   const [tagError, setTagError] = useState("");
+  const [removingTagId, setRemovingTagId] = useState(null);
+
+  const alertDialog = useAlertDialog();
 
   const currentUser = useMemo(() => {
     try {
@@ -127,6 +136,27 @@ export default function TaskSubmission() {
       setTagError(err.response?.data?.message || "Unable to tag employee.");
     } finally {
       setTagging(false);
+    }
+  };
+
+  const handleRemoveTag = async (tag) => {
+    try {
+      setRemovingTagId(tag._id);
+      setTagError("");
+
+      await untagEmployeeFromTask(componentId, taskId, {
+        employeeId: tag.employee?._id,
+      });
+
+      await loadTask();
+    } catch (err) {
+      console.error(err);
+
+      setTagError(
+        err.response?.data?.message || "Unable to remove tagged employee.",
+      );
+    } finally {
+      setRemovingTagId(null);
     }
   };
 
@@ -211,7 +241,10 @@ export default function TaskSubmission() {
         supportingPdfs,
       });
 
-      alert("Task submitted successfully.");
+      await alertDialog({
+        description: "Task submitted successfully.",
+        variant: "success",
+      });
 
       // Return to wherever the employee opened this task from (their
       // project's task list, the global My Tasks list, or the dashboard)
@@ -220,7 +253,7 @@ export default function TaskSubmission() {
     } catch (err) {
       console.error(err);
 
-      alert(err.response?.data?.message || "Unable to submit task.");
+      setErrors([err.response?.data?.message || "Unable to submit task."]);
     } finally {
       setUploading(false);
     }
@@ -515,10 +548,17 @@ export default function TaskSubmission() {
               </div>
             </CardContent>
           </Card>
+
+          {/* DAILY UPDATES — separate from submission/review workflow */}
+          <DailyUpdatesTimeline
+            componentId={componentId}
+            taskId={taskId}
+            canPost
+          />
         </div>
 
         <div className="space-y-4">
-          <Card className="border-border bg-card">
+          {/* <Card className="border-border bg-card">
             <CardContent className="p-4">
               <p className="text-xs uppercase text-muted-foreground">
                 Component
@@ -534,7 +574,7 @@ export default function TaskSubmission() {
 
               <p className="mt-1 text-sm font-medium">{module?.name}</p>
             </CardContent>
-          </Card>
+          </Card> */}
 
           {task.deadline && (
             <Card className="border-border bg-card">
@@ -606,35 +646,71 @@ export default function TaskSubmission() {
                       key={tag._id}
                       className="p-3 text-sm border rounded-lg border-border bg-muted/40"
                     >
-                      <div className="flex items-center gap-2">
-                        <Tag size={14} className="text-muted-foreground" />
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <Tag
+                              size={14}
+                              className="shrink-0 text-muted-foreground"
+                            />
 
-                        <span className="font-medium">
-                          {tag.employee?.username || "Unknown"}
-                        </span>
+                            <span className="font-medium">
+                              {tag.employee?.username || "Unknown"}
+                            </span>
+                          </div>
 
-                        <span className="text-xs text-muted-foreground">
-                          tagged by {tag.taggedBy?.username || "someone"}
-                        </span>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Tagged by {tag.taggedBy?.username || "someone"}
+                          </p>
+
+                          {tag.message && (
+                            <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                              {tag.message}
+                            </p>
+                          )}
+                        </div>
+
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="shrink-0 text-destructive hover:text-destructive"
+                          onClick={() => handleRemoveTag(tag)}
+                          disabled={removingTagId === tag._id}
+                        >
+                          {removingTagId === tag._id ? "Removing..." : "Remove"}
+                        </Button>
                       </div>
-
-                      {tag.message && (
-                        <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                          {tag.message}
-                        </p>
-                      )}
                     </div>
                   ))}
                 </div>
               )}
 
-              <Select value={tagEmployeeId} onValueChange={setTagEmployeeId}>
+              <Select
+                value={tagEmployeeId}
+                onValueChange={(value) => {
+                  if (value === "__DESELECT__") {
+                    setTagEmployeeId("");
+                    setTagMessage("");
+                    setTagError("");
+                    return;
+                  }
+
+                  setTagEmployeeId(value);
+                }}
+              >
                 <SelectTrigger className="bg-background">
                   <SelectValue placeholder="Select an employee" />
                 </SelectTrigger>
 
                 <SelectContent>
-                  {taggableMembers.length === 0 && (
+                  {tagEmployeeId && (
+                    <SelectItem value="__DESELECT__">
+                      Deselect employee
+                    </SelectItem>
+                  )}
+
+                  {taggableMembers.length === 0 && !tagEmployeeId && (
                     <div className="px-2 py-1.5 text-xs text-muted-foreground">
                       No other project members to tag.
                     </div>

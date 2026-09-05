@@ -8,6 +8,7 @@ import {
   Loader2,
   LogOut,
   Menu,
+  NotebookPen,
   PanelLeftClose,
   PanelLeftOpen,
   X,
@@ -310,6 +311,17 @@ export default function EmployeeSidebar() {
             <ClipboardList className="h-[18px] w-[18px] flex-shrink-0" />
 
             {!isCollapsed && <span>My Tasks</span>}
+          </Link>
+
+          <Link
+            to="/employee/updates"
+            onClick={closeMobileSidebar}
+            className={getNavClass("/employee/updates")}
+            title={isCollapsed ? "Updates" : undefined}
+          >
+            <NotebookPen className="h-[18px] w-[18px] flex-shrink-0" />
+
+            {!isCollapsed && <span>Updates</span>}
           </Link>
 
           {/* ================= ASSIGNED PROJECTS ================= */}

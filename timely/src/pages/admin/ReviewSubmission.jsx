@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import api from "@/services/api";
+import { useAlertDialog } from "@/components/common/ConfirmDialogContext";
 
 import {
   ArrowLeft,
@@ -94,6 +95,8 @@ export default function ReviewSubmission() {
 
   const navigate = useNavigate();
 
+  const alertDialog = useAlertDialog();
+
   // ==========================================
   // STATE
   // ==========================================
@@ -116,21 +119,25 @@ export default function ReviewSubmission() {
 
   const [previewMimeType, setPreviewMimeType] = useState("");
 
+  const [loadError, setLoadError] = useState("");
+
   // ==========================================
   // LOAD SUBMISSION
   // ==========================================
 
   const loadSubmission = async () => {
     try {
-      const res = await getSubmissionHistory(submissionId);
+      setLoadError("");
 
-      console.log("Submission:", res.data);
+      const res = await getSubmissionHistory(submissionId);
 
       setSubmission(res.data);
     } catch (err) {
       console.error(err);
 
-      alert("Unable to load submission.");
+      setLoadError(
+        err.response?.data?.message || "Unable to load submission.",
+      );
     } finally {
       setLoading(false);
     }
@@ -164,7 +171,7 @@ export default function ReviewSubmission() {
       setZoom(1);
     } catch (err) {
       console.error(err);
-      alert("Unable to open file.");
+      alertDialog("Unable to open file.");
     }
   };
 
@@ -206,13 +213,16 @@ export default function ReviewSubmission() {
         reviewRemark: reviewComment,
       });
 
-      alert("Review submitted successfully.");
+      await alertDialog({
+        description: "Review submitted successfully.",
+        variant: "success",
+      });
 
       navigate(-1);
     } catch (err) {
       console.error(err);
 
-      alert(err.response?.data?.message || "Review failed.");
+      alertDialog(err.response?.data?.message || "Review failed.");
     }
   };
 
@@ -233,6 +243,14 @@ export default function ReviewSubmission() {
   // ==========================================
   // NOT FOUND
   // ==========================================
+
+  if (loadError) {
+    return (
+      <div className="p-8">
+        <p className="text-sm text-destructive">{loadError}</p>
+      </div>
+    );
+  }
 
   if (!submission || !submission.history || submission.history.length === 0) {
     return <div className="p-8">Submission not found.</div>;

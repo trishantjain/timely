@@ -30,11 +30,18 @@ import { getProjectById, updateProjectDomains } from "@/api/projectAPI";
 import { getDomains } from "@/api/domainAPI";
 import { getEmployees } from "@/api/employeeAPI";
 import { createAssignments } from "@/api/assignmentAPI";
+import { useAlertDialog } from "@/components/common/ConfirmDialogContext";
 
 export default function ProjectDetails() {
   const { id } = useParams();
 
   const navigate = useNavigate();
+
+  const alertDialog = useAlertDialog();
+
+  const [assignmentError, setAssignmentError] = useState("");
+
+  const [domainDialogError, setDomainDialogError] = useState("");
 
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -135,6 +142,8 @@ export default function ProjectDetails() {
 
   const handleApproveAssignments = async () => {
     try {
+      setAssignmentError("");
+
       const assignments = project.domains.map((domain) => ({
         domainId: domain._id,
         employeeId: selectedEmployees[domain._id],
@@ -143,7 +152,7 @@ export default function ProjectDetails() {
       const hasEmpty = assignments.some((item) => !item.employeeId);
 
       if (hasEmpty) {
-        alert("Please assign employees for all domains.");
+        setAssignmentError("Please assign employees for all domains.");
         return;
       }
 
@@ -152,12 +161,17 @@ export default function ProjectDetails() {
         assignments,
       });
 
-      alert("Assignments created successfully.");
+      await alertDialog({
+        description: "Assignments created successfully.",
+        variant: "success",
+      });
 
       loadProject();
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.message || "Failed to create assignments.");
+      setAssignmentError(
+        err.response?.data?.message || "Failed to create assignments.",
+      );
     }
   };
 
@@ -209,6 +223,8 @@ export default function ProjectDetails() {
     try {
       setOpenDomainDialog(true);
 
+      setDomainDialogError("");
+
       setSelectedDomains(project?.domains?.map((domain) => domain._id) || []);
 
       setLoadingDomains(true);
@@ -219,7 +235,9 @@ export default function ProjectDetails() {
     } catch (error) {
       console.error("Failed to load domains:", error);
 
-      alert(error.response?.data?.message || "Failed to load domains.");
+      setDomainDialogError(
+        error.response?.data?.message || "Failed to load domains.",
+      );
     } finally {
       setLoadingDomains(false);
     }
@@ -245,25 +263,23 @@ export default function ProjectDetails() {
     if (!Array.isArray(selectedDomains)) {
       console.error("selectedDomains is not an array:", selectedDomains);
 
-      alert("Invalid domain selection.");
+      setDomainDialogError("Invalid domain selection.");
       return;
     }
 
     if (selectedDomains.length === 0) {
-      alert("Please select at least one project domain.");
+      setDomainDialogError("Please select at least one project domain.");
       return;
     }
 
     try {
       setSavingDomains(true);
 
+      setDomainDialogError("");
+
       const payload = {
         domains: selectedDomains,
       };
-
-      console.log("Updating project:", project._id);
-      console.log("Domains payload:", payload);
-      console.log("Is domains array:", Array.isArray(payload.domains));
 
       await updateProjectDomains(project._id, payload);
 
@@ -271,12 +287,14 @@ export default function ProjectDetails() {
 
       setOpenDomainDialog(false);
 
-      alert("Project domains updated successfully.");
+      await alertDialog({
+        description: "Project domains updated successfully.",
+        variant: "success",
+      });
     } catch (error) {
       console.error("Failed to update project domains:", error);
-      console.error("Server response:", error.response?.data);
 
-      alert(
+      setDomainDialogError(
         error.response?.data?.message || "Failed to update project domains.",
       );
     } finally {
@@ -739,6 +757,14 @@ export default function ProjectDetails() {
 
               {/* Footer */}
 
+              {assignmentError && (
+                <div className="px-4 pt-3">
+                  <div className="px-3 py-2 text-sm border rounded-md border-destructive/40 bg-destructive/10 text-destructive">
+                    {assignmentError}
+                  </div>
+                </div>
+              )}
+
               <div className="flex justify-end px-4 py-3 border-t border-[#e2e8f0] bg-[#fafbfc]">
                 {!assignmentsCreated && (
                   <Button
@@ -1008,6 +1034,10 @@ export default function ProjectDetails() {
         open={openDomainDialog}
         onOpenChange={(open) => {
           setOpenDomainDialog(open);
+
+          if (!open) {
+            setDomainDialogError("");
+          }
         }}
       >
         <DialogContent
@@ -1147,6 +1177,14 @@ export default function ProjectDetails() {
           </div>
 
           {/* FOOTER */}
+
+          {domainDialogError && (
+            <div className="px-7 pt-4">
+              <div className="px-3 py-2 text-sm border rounded-md border-red-500/40 bg-red-500/10 text-red-400">
+                {domainDialogError}
+              </div>
+            </div>
+          )}
 
           <DialogFooter className="flex items-center justify-end gap-3 border-t border-slate-700 bg-[#111820] px-7 py-5">
             <Button

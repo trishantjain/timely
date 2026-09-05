@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  NotebookPen,
   PanelLeftClose,
   PanelLeftOpen,
   Settings,
@@ -272,6 +273,17 @@ export default function Sidebar() {
             <Boxes className="h-[18px] w-[18px] flex-shrink-0" />
 
             {!isCollapsed && <span>Workspace</span>}
+          </Link>
+
+          <Link
+            to="/admin/updates"
+            onClick={closeMobileSidebar}
+            className={getNavClass("/admin/updates")}
+            title={isCollapsed ? "Updates" : undefined}
+          >
+            <NotebookPen className="h-[18px] w-[18px] flex-shrink-0" />
+
+            {!isCollapsed && <span>Updates</span>}
           </Link>
         </nav>
 

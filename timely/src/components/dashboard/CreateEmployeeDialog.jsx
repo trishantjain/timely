@@ -28,7 +28,7 @@ export default function CreateEmployeeDialog({
     const [selectedDomains, setSelectedDomains] = useState([]);
 
     const [loading, setLoading] = useState(false);
-
+    const [error, setError] = useState("");
 
     const loadDomains = async () => {
         try {
@@ -56,13 +56,29 @@ export default function CreateEmployeeDialog({
         );
     };
 
-    const handleCreate = async () => {
+    const handleCreate = async (e) => {
+        e?.preventDefault?.();
+
+        if (!username.trim()) {
+            setError("Username is required.");
+            return;
+        }
+
+        if (!email.trim() || !/^\S+@\S+\.\S+$/.test(email.trim())) {
+            setError("A valid email is required.");
+            return;
+        }
+
+        if (!password || password.length < 6) {
+            setError("Password must be at least 6 characters.");
+            return;
+        }
 
         try {
 
             setLoading(true);
+            setError("");
 
-            
             await createEmployee({
                 username,
                 email,
@@ -70,14 +86,7 @@ export default function CreateEmployeeDialog({
                 role: "employee",
                 expertise: selectedDomains
             });
-            
-            console.log({
-                username,
-                email,
-                password,
-                selectedDomains
-            });
-            
+
             refreshEmployees();
 
             setUsername("");
@@ -90,16 +99,25 @@ export default function CreateEmployeeDialog({
 
         } catch (err) {
             console.error(err);
+            setError(err.response?.data?.message || "Failed to create employee.");
         } finally {
             setLoading(false);
         }
 
     };
 
+    const handleOpenChange = (value) => {
+        setOpen(value);
+
+        if (!value) {
+            setError("");
+        }
+    };
+
     return (
         <Dialog
             open={open}
-            onOpenChange={setOpen}
+            onOpenChange={handleOpenChange}
         >
 
             <DialogTrigger asChild>
@@ -124,7 +142,7 @@ export default function CreateEmployeeDialog({
 
                 </DialogHeader>
 
-                <div className="space-y-4">
+                <form className="space-y-4" onSubmit={handleCreate}>
 
                     <Input
                         placeholder="Username"
@@ -191,14 +209,20 @@ export default function CreateEmployeeDialog({
 
                     </div>
 
+                    {error && (
+                        <div className="px-3 py-2 text-sm border rounded-md border-destructive/40 bg-destructive/10 text-destructive">
+                            {error}
+                        </div>
+                    )}
+
                     <Button
+                        type="submit"
                         disabled={
                             loading ||
                             !username ||
                             !email ||
                             !password
                         }
-                        onClick={handleCreate}
                         className="w-full"
                     >
 
@@ -208,7 +232,7 @@ export default function CreateEmployeeDialog({
 
                     </Button>
 
-                </div>
+                </form>
 
             </DialogContent>
 

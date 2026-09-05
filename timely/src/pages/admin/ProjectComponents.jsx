@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 
 import { getProjectById } from "@/api/projectAPI";
 
+import { useAlertDialog } from "@/components/common/ConfirmDialogContext";
 import {
   addProjectComponent,
   addManualTask,
@@ -66,6 +67,8 @@ import {
 import { useConfirmDialog } from "@/components/common/ConfirmDialogContext";
 
 export default function ProjectComponents() {
+  const alertDialog = useAlertDialog();
+
   const { id } = useParams();
 
   const { confirm } = useConfirmDialog();
@@ -246,7 +249,7 @@ export default function ProjectComponents() {
 
   const handleAddComponent = async () => {
     if (!selectedTemplate) {
-      alert("Please select a work item.");
+      alertDialog("Please select a work item.");
 
       return;
     }
@@ -264,7 +267,7 @@ export default function ProjectComponents() {
     } catch (err) {
       console.error(err);
 
-      alert(err.response?.data?.message || "Failed to add work item.");
+      alertDialog(err.response?.data?.message || "Failed to add work item.");
     }
   };
 
@@ -353,7 +356,7 @@ export default function ProjectComponents() {
     }
 
     if (!selectedProjectMember) {
-      alert("Please select an employee.");
+      alertDialog("Please select an employee.");
 
       return;
     }
@@ -370,7 +373,7 @@ export default function ProjectComponents() {
     } catch (err) {
       console.error(err);
 
-      alert(err.response?.data?.message || "Assignment failed.");
+      alertDialog(err.response?.data?.message || "Assignment failed.");
     }
   };
 
@@ -587,13 +590,13 @@ export default function ProjectComponents() {
   // ==========================================
   const handleCreateComponent = async () => {
     if (!newComponent.projectModule) {
-      alert("Please select a project module.");
+      alertDialog("Please select a project module.");
 
       return;
     }
 
     if (!newComponent.name.trim()) {
-      alert("Please enter a component name.");
+      alertDialog("Please enter a component name.");
 
       return;
     }
@@ -603,7 +606,7 @@ export default function ProjectComponents() {
     );
 
     if (validTasks.length === 0) {
-      alert("Please add at least one task.");
+      alertDialog("Please add at least one task.");
 
       return;
     }
@@ -645,7 +648,9 @@ export default function ProjectComponents() {
     } catch (error) {
       console.error("Error creating component:", error);
 
-      alert(error.response?.data?.message || "Failed to create component.");
+      alertDialog(
+        error.response?.data?.message || "Failed to create component.",
+      );
     } finally {
       setCreatingComponent(false);
     }
@@ -661,7 +666,7 @@ export default function ProjectComponents() {
     }
 
     if (!manualTask.title.trim()) {
-      alert("Please enter a task title.");
+      alertDialog("Please enter a task title.");
 
       return;
     }
@@ -685,7 +690,7 @@ export default function ProjectComponents() {
     } catch (error) {
       console.error("Error adding manual task:", error);
 
-      alert(error.response?.data?.message || "Failed to add task.");
+      alertDialog(error.response?.data?.message || "Failed to add task.");
     } finally {
       setAddingManualTask(false);
     }
@@ -697,19 +702,19 @@ export default function ProjectComponents() {
     }
 
     if (!quickTaskDomainId) {
-      alert("Please select a domain.");
+      alertDialog("Please select a domain.");
 
       return;
     }
 
     if (!quickTaskComponentId) {
-      alert("Please select a work item.");
+      alertDialog("Please select a work item.");
 
       return;
     }
 
     if (!quickTask.title.trim()) {
-      alert("Please enter a task name.");
+      alertDialog("Please enter a task name.");
 
       return;
     }
@@ -744,7 +749,9 @@ export default function ProjectComponents() {
     } catch (error) {
       console.error("Error adding manual task:", error.response?.data || error);
 
-      alert(error.response?.data?.message || "Failed to add manual task.");
+      alertDialog(
+        error.response?.data?.message || "Failed to add manual task.",
+      );
     } finally {
       setAddingManualTask(false);
     }
@@ -884,7 +891,7 @@ export default function ProjectComponents() {
     }
 
     if (!editingComponent.name.trim()) {
-      alert("Please enter a work item name.");
+      alertDialog("Please enter a work item name.");
 
       return;
     }
@@ -894,7 +901,7 @@ export default function ProjectComponents() {
     );
 
     if (invalidTask) {
-      alert("Please enter a title for every task.");
+      alertDialog("Please enter a title for every task.");
 
       return;
     }
@@ -926,7 +933,9 @@ export default function ProjectComponents() {
     } catch (error) {
       console.error("Error updating work item:", error);
 
-      alert(error.response?.data?.message || "Failed to update work item.");
+      alertDialog(
+        error.response?.data?.message || "Failed to update work item.",
+      );
     } finally {
       setSavingWorkItem(false);
     }
@@ -955,7 +964,9 @@ export default function ProjectComponents() {
     } catch (error) {
       console.error("Error deleting work item:", error);
 
-      alert(error.response?.data?.message || "Failed to delete work item.");
+      alertDialog(
+        error.response?.data?.message || "Failed to delete work item.",
+      );
     }
   };
 
@@ -982,7 +993,7 @@ export default function ProjectComponents() {
     const submissionId = getSubmissionId(task);
 
     if (!submissionId) {
-      alert("Submission details are not available for this task.");
+      alertDialog("Submission details are not available for this task.");
       return;
     }
 

@@ -28,7 +28,9 @@ export default function CreateDomainDialog({ refreshDomains }) {
 
   const [error, setError] = useState("");
 
-  const handleCreate = async () => {
+  const handleCreate = async (e) => {
+    e?.preventDefault?.();
+
     if (!name.trim()) {
       setError("Domain name is required.");
 
@@ -89,7 +91,7 @@ export default function CreateDomainDialog({ refreshDomains }) {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-5">
+        <form className="space-y-5" onSubmit={handleCreate}>
           <div className="space-y-2">
             <label className="text-sm font-medium text-foreground">
               Domain Name
@@ -155,11 +157,11 @@ export default function CreateDomainDialog({ refreshDomains }) {
               Cancel
             </Button>
 
-            <Button onClick={handleCreate} disabled={loading}>
+            <Button type="submit" disabled={loading}>
               {loading ? "Creating..." : "Create Domain"}
             </Button>
           </div>
-        </div>
+        </form>
       </DialogContent>
     </Dialog>
   );

@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 
 import EditEmployeeDialog from "@/components/dashboard/EditEmployeeDialog";
+import { useAlertDialog } from "@/components/common/ConfirmDialogContext";
 
 import {
   Dialog,
@@ -36,6 +37,8 @@ export default function EmployeeDetails() {
   const { id } = useParams();
 
   const navigate = useNavigate();
+
+  const alertDialog = useAlertDialog();
 
   const [employee, setEmployee] = useState(null);
 
@@ -113,7 +116,10 @@ export default function EmployeeDetails() {
 
       setResetPasswordOpen(false);
 
-      alert("Employee password has been reset successfully.");
+      alertDialog({
+        description: "Employee password has been reset successfully.",
+        variant: "success",
+      });
     } catch (err) {
       console.error(err);
 

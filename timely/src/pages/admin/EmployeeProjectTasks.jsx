@@ -40,9 +40,13 @@ export default function EmployeeProjectTasks() {
 
   const [data, setData] = useState(null);
 
+  const [error, setError] = useState("");
+
   const loadTasks = async () => {
     try {
       setLoading(true);
+
+      setError("");
 
       const res = await getEmployeeProjectTasks(projectId, employeeId);
 
@@ -50,7 +54,9 @@ export default function EmployeeProjectTasks() {
     } catch (err) {
       console.error(err);
 
-      alert(err.response?.data?.message || "Unable to load employee tasks.");
+      setError(
+        err.response?.data?.message || "Unable to load employee tasks.",
+      );
     } finally {
       setLoading(false);
     }
@@ -66,6 +72,14 @@ export default function EmployeeProjectTasks() {
         <p className="text-sm text-muted-foreground">
           Loading employee tasks...
         </p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6">
+        <p className="text-sm text-destructive">{error}</p>
       </div>
     );
   }

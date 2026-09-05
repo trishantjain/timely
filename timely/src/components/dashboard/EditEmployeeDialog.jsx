@@ -29,6 +29,7 @@ export default function EditEmployeeDialog({
   const [selectedDomains, setSelectedDomains] = useState([]);
 
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const loadDomains = async () => {
     try {
@@ -49,6 +50,8 @@ export default function EditEmployeeDialog({
 
     setSelectedDomains(employee.expertise?.map((domain) => domain._id) || []);
 
+    setError("");
+
     loadDomains();
   }, [open, employee]);
 
@@ -60,9 +63,22 @@ export default function EditEmployeeDialog({
     );
   };
 
-  const handleUpdate = async () => {
+  const handleUpdate = async (e) => {
+    e?.preventDefault?.();
+
+    if (!username.trim()) {
+      setError("Username is required.");
+      return;
+    }
+
+    if (!email.trim() || !/^\S+@\S+\.\S+$/.test(email.trim())) {
+      setError("A valid email is required.");
+      return;
+    }
+
     try {
       setLoading(true);
+      setError("");
 
       const res = await updateEmployee(employee._id, {
         username,
@@ -76,14 +92,22 @@ export default function EditEmployeeDialog({
     } catch (err) {
       console.error("Failed to update employee:", err);
 
-      alert(err.response?.data?.message || "Failed to update employee.");
+      setError(err.response?.data?.message || "Failed to update employee.");
     } finally {
       setLoading(false);
     }
   };
 
+  const handleOpenChange = (value) => {
+    onOpenChange(value);
+
+    if (!value) {
+      setError("");
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Edit Employee</DialogTitle>
@@ -93,7 +117,7 @@ export default function EditEmployeeDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-5">
+        <form className="space-y-5" onSubmit={handleUpdate}>
           {/* USERNAME */}
 
           <div className="space-y-2">
@@ -152,6 +176,13 @@ export default function EditEmployeeDialog({
               ))}
             </div>
           </div>
+
+          {error && (
+            <div className="px-3 py-2 text-sm border rounded-md border-destructive/40 bg-destructive/10 text-destructive">
+              {error}
+            </div>
+          )}
+
           {/* ACTIONS */}
 
           <div className="flex justify-end gap-3 pt-2">
@@ -159,19 +190,19 @@ export default function EditEmployeeDialog({
               type="button"
               variant="outline"
               disabled={loading}
-              onClick={() => onOpenChange(false)}
+              onClick={() => handleOpenChange(false)}
             >
               Cancel
             </Button>
 
             <Button
+              type="submit"
               disabled={loading || !username.trim() || !email.trim()}
-              onClick={handleUpdate}
             >
               {loading ? "Saving..." : "Save Changes"}
             </Button>
           </div>
-        </div>
+        </form>
       </DialogContent>
     </Dialog>
   );

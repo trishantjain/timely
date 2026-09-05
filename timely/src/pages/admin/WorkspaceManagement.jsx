@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 
+import { useAlertDialog } from "@/components/common/ConfirmDialogContext";
 import {
   Boxes,
   Layers,
@@ -47,6 +48,8 @@ import {
 } from "@/api/componentTemplateAPI";
 
 export default function WorkspaceManagement() {
+  const alertDialog = useAlertDialog();
+
   const [modules, setModules] = useState([]);
 
   const [components, setComponents] = useState([]);
@@ -209,13 +212,13 @@ export default function WorkspaceManagement() {
     if (!editingComponent) return;
 
     if (!editName.trim()) {
-      alert("Component name is required.");
+      alertDialog("Component name is required.");
 
       return;
     }
 
     if (editTasks.length === 0) {
-      alert("At least one task is required.");
+      alertDialog("At least one task is required.");
 
       return;
     }
@@ -239,7 +242,7 @@ export default function WorkspaceManagement() {
     } catch (error) {
       console.error("Error updating component:", error);
 
-      alert(error?.response?.data?.message || "Failed to update component.");
+      alertDialog(error?.response?.data?.message || "Failed to update component.");
     } finally {
       setSavingComponent(false);
     }
@@ -261,7 +264,7 @@ export default function WorkspaceManagement() {
 
   const saveNewModule = async () => {
     if (!newModuleName.trim()) {
-      alert("Module name is required.");
+      alertDialog("Module name is required.");
 
       return;
     }
@@ -308,7 +311,7 @@ export default function WorkspaceManagement() {
     } catch (error) {
       console.error("Error creating module:", error);
 
-      alert(
+      alertDialog(
         error?.response?.data?.message ||
           error?.message ||
           "Failed to create module.",
@@ -394,19 +397,19 @@ export default function WorkspaceManagement() {
 
   const saveNewComponent = async () => {
     if (!newComponentName.trim()) {
-      alert("Component name is required.");
+      alertDialog("Component name is required.");
 
       return;
     }
 
     if (newComponentTasks.length === 0) {
-      alert("At least one task is required.");
+      alertDialog("At least one task is required.");
 
       return;
     }
 
     if (newComponentTasks.some((task) => !task.title.trim())) {
-      alert("All tasks must have a name.");
+      alertDialog("All tasks must have a name.");
 
       return;
     }
@@ -430,7 +433,7 @@ export default function WorkspaceManagement() {
     } catch (error) {
       console.error("Error creating component:", error);
 
-      alert(error?.response?.data?.message || "Failed to create component.");
+      alertDialog(error?.response?.data?.message || "Failed to create component.");
     } finally {
       setSavingComponent(false);
     }
