@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
 
 import {
   Dialog,
@@ -41,18 +40,19 @@ export default function CreateProjectDialog({ open, onClose, onSuccess }) {
       setError("");
 
       await createProject({
-        name,
-        description,
+        name: name.trim(),
+        description: description.trim(),
         domains: selectedDomains,
       });
 
-      onSuccess();
-
+      // Reset form
       setName("");
       setDescription("");
       setSelectedDomains([]);
+      setError("");
 
-      onClose();
+      // Parent will close the dialog
+      onSuccess();
     } catch (err) {
       console.error(err);
       setError(err.response?.data?.message || "Failed to create project.");
@@ -65,7 +65,7 @@ export default function CreateProjectDialog({ open, onClose, onSuccess }) {
     try {
       const res = await getDomains();
 
-      setDomains(res.data.data);
+      setDomains(Array.isArray(res.data?.data) ? res.data.data : []);
     } catch (err) {
       console.error(err);
     }
@@ -77,12 +77,14 @@ export default function CreateProjectDialog({ open, onClose, onSuccess }) {
     loadDomains();
   }, [open]);
 
-  const toggleDomain = (id) => {
-    setSelectedDomains((prev) =>
-      prev.includes(id)
-        ? prev.filter((domainId) => domainId !== id)
-        : [...prev, id],
-    );
+  const handleDomainChange = (id, checked) => {
+    setSelectedDomains((prev) => {
+      if (checked === true) {
+        return prev.includes(id) ? prev : [...prev, id];
+      }
+
+      return prev.filter((domainId) => domainId !== id);
+    });
   };
 
   return (
@@ -132,25 +134,21 @@ export default function CreateProjectDialog({ open, onClose, onSuccess }) {
                 const isSelected = selectedDomains.includes(domain._id);
 
                 return (
-                  <div
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => toggleDomain(domain._id)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        toggleDomain(domain._id);
-                      }
-                    }}
+                  <label
+                    key={domain._id}
                     className="flex items-center gap-3 p-3 text-left transition-colors border rounded-lg cursor-pointer"
                   >
-                    <Checkbox
-                      checked={selectedDomains.includes(domain._id)}
-                      onCheckedChange={() => toggleDomain(domain._id)}
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={(e) =>
+                        handleDomainChange(domain._id, e.target.checked)
+                      }
+                      className="h-4 w-4 shrink-0 accent-primary"
                     />
 
                     <span>{domain.name}</span>
-                  </div>
+                  </label>
                 );
               })}
             </div>
