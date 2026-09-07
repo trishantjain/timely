@@ -100,6 +100,35 @@ const submissionRuleSchema = new mongoose.Schema(
     }
 );
 
+// Default/predefined subtask that lives on a template task. When a
+// project selects the Work Package (ComponentTemplate), these are
+// snapshotted onto the resulting ProjectComponent task's own
+// `subtasks` array (see addProjectComponent), the same way template
+// tasks are already snapshotted onto ProjectComponent.tasks. This is
+// an embedded subdocument, not a new top-level model/collection.
+const templateSubtaskSchema = new mongoose.Schema(
+    {
+        title: {
+            type: String,
+            required: true,
+            trim: true
+        },
+
+        description: {
+            type: String,
+            default: ""
+        },
+
+        displayOrder: {
+            type: Number,
+            default: 1
+        }
+    },
+    {
+        _id: true
+    }
+);
+
 const taskSchema = new mongoose.Schema(
 
     {
@@ -127,6 +156,14 @@ const taskSchema = new mongoose.Schema(
         submissionRule: {
             type: submissionRuleSchema,
             default: () => ({})
+        },
+
+        // Default subtasks generated automatically for every project
+        // that adds this Work Package. Optional — most tasks will
+        // have none, which is fine.
+        subtasks: {
+            type: [templateSubtaskSchema],
+            default: []
         }
 
     },

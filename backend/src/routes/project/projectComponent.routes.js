@@ -14,6 +14,9 @@ import {
   tagEmployeeOnTask,
   updateProjectComponent,
   deleteProjectComponent,
+  addSubtask,
+  toggleSubtaskCompletion,
+  deleteSubtask,
 } from "../../controllers/project/projectComponent.controller.js";
 const router = express.Router();
 
@@ -81,6 +84,33 @@ router.patch(
   "/:componentId/tasks/:taskId/tag",
   protect,
   tagEmployeeOnTask,
+);
+
+// =========================================
+// SUBTASKS
+// =========================================
+
+// Admin adds a project-specific subtask under a task
+router.post(
+  "/:componentId/tasks/:taskId/subtasks",
+  protect,
+  adminOnly,
+  addSubtask,
+);
+
+// Assigned employee (or admin) toggles a subtask's completion
+router.patch(
+  "/:componentId/tasks/:taskId/subtasks/:subtaskId/completion",
+  protect,
+  toggleSubtaskCompletion,
+);
+
+// Admin deletes a project-specific subtask
+router.delete(
+  "/:componentId/tasks/:taskId/subtasks/:subtaskId",
+  protect,
+  adminOnly,
+  deleteSubtask,
 );
 
 // router.patch("/:projectId/domains", protect, adminOnly, updateProjectDomains);

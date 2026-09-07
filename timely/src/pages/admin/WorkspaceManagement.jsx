@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { useAlertDialog } from "@/components/common/ConfirmDialogContext";
+import { useAlertDialog, useConfirmDialog } from "@/components/common/ConfirmDialogContext";
 import {
   Boxes,
   Layers,
@@ -13,6 +13,9 @@ import {
   Pencil,
   ChevronsUpDown,
   Package,
+  Trash2,
+  Link2,
+  Unlink,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -39,7 +42,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import { getProjectModules, createProjectModule } from "@/api/projectModuleAPI";
+import { getProjectModules, createProjectModule, updateProjectModule, deactivateProjectModule } from "@/api/projectModuleAPI";
+
+import { getDomains } from "@/api/domainAPI";
 
 import {
   getComponentTemplates,
@@ -50,7 +55,11 @@ import {
 export default function WorkspaceManagement() {
   const alertDialog = useAlertDialog();
 
+  const { confirm } = useConfirmDialog();
+
   const [modules, setModules] = useState([]);
+
+  const [domains, setDomains] = useState([]);
 
   const [components, setComponents] = useState([]);
 
@@ -88,6 +97,10 @@ export default function WorkspaceManagement() {
 
   const [newModuleColor, setNewModuleColor] = useState("#64748b");
 
+  const [newModuleDomain, setNewModuleDomain] = useState("");
+
+  const [editingModuleId, setEditingModuleId] = useState(null);
+
   const [savingModule, setSavingModule] = useState(false);
 
   // FETCH DATA
@@ -95,18 +108,25 @@ export default function WorkspaceManagement() {
     try {
       setLoading(true);
 
-      const [modulesRes, componentsRes] = await Promise.all([
+      const [modulesRes, componentsRes, domainsRes] = await Promise.all([
         getProjectModules(),
         getComponentTemplates(),
+        getDomains(),
       ]);
 
-      const modulesData = modulesRes?.data?.data || [];
+      const modulesData = (modulesRes?.data?.data || []).filter(
+        (module) => module.isActive !== false,
+      );
 
       const componentsData = componentsRes?.data?.data || [];
+
+      const domainsData = domainsRes?.data?.data || [];
 
       setModules(modulesData);
 
       setComponents(componentsData);
+
+      setDomains(domainsData);
 
       const initialExpanded = {};
 
@@ -253,11 +273,29 @@ export default function WorkspaceManagement() {
   // ==========================================
 
   const openAddModule = () => {
+    setEditingModuleId(null);
+
     setNewModuleName("");
 
     setNewModuleDescription("");
 
     setNewModuleColor("#64748b");
+
+    setNewModuleDomain("");
+
+    setShowAddModule(true);
+  };
+
+  const openEditModule = (module) => {
+    setEditingModuleId(module._id);
+
+    setNewModuleName(module.name || "");
+
+    setNewModuleDescription(module.description || "");
+
+    setNewModuleColor(module.color || "#64748b");
+
+    setNewModuleDomain(module.domain?._id || module.domain || "");
 
     setShowAddModule(true);
   };
@@ -272,30 +310,39 @@ export default function WorkspaceManagement() {
     try {
       setSavingModule(true);
 
-      const response = await createProjectModule({
+      const payload = {
         name: newModuleName.trim(),
 
         description: newModuleDescription.trim(),
 
         color: newModuleColor,
 
-        // Keep backend behaviour unchanged
-        isActive: true,
-      });
+        // Matching a Domain here is what lets this module's Work
+        // Package templates auto-load under that Domain's tab in
+        // Project Work. Leaving it unset marks the module as
+        // "Unmatched" so an admin can find and clean it up later.
+        domain: newModuleDomain || null,
+      };
 
-      const createdModule = response?.data?.data;
+      const response = editingModuleId
+        ? await updateProjectModule(editingModuleId, payload)
+        : await createProjectModule({ ...payload, isActive: true });
 
-      if (createdModule?._id) {
-        setModules((previous) =>
-          [...previous, createdModule].sort((a, b) =>
+      const savedModule = response?.data?.data;
+
+      if (savedModule?._id) {
+        setModules((previous) => {
+          const withoutSaved = previous.filter((m) => m._id !== savedModule._id);
+
+          return [...withoutSaved, savedModule].sort((a, b) =>
             a.name.localeCompare(b.name),
-          ),
-        );
+          );
+        });
 
         setExpandedModules((previous) => ({
           ...previous,
 
-          [createdModule._id]: true,
+          [savedModule._id]: true,
         }));
       } else {
         await fetchData();
@@ -303,21 +350,60 @@ export default function WorkspaceManagement() {
 
       setShowAddModule(false);
 
+      setEditingModuleId(null);
+
       setNewModuleName("");
 
       setNewModuleDescription("");
 
       setNewModuleColor("#64748b");
+
+      setNewModuleDomain("");
     } catch (error) {
-      console.error("Error creating module:", error);
+      console.error("Error saving module:", error);
 
       alertDialog(
         error?.response?.data?.message ||
           error?.message ||
-          "Failed to create module.",
+          "Failed to save module.",
       );
     } finally {
       setSavingModule(false);
+    }
+  };
+
+  // Removes a module from the project. This is a soft delete on the
+  // backend (isActive: false) so any Work Package template still
+  // pointing at it is never orphaned — see deactivateProjectModule.
+  // Intended primarily for modules that ended up with no matching
+  // Domain and aren't actually needed.
+  const deleteModule = async (module) => {
+    const moduleComponentCount = getModuleComponents(module._id).length;
+
+    const confirmed = await confirm({
+      title: "Delete module?",
+      description: module.domain
+        ? `"${module.name}" is matched to the "${module.domain.name}" domain. Deleting it will not affect its ${moduleComponentCount} existing Work Package ${moduleComponentCount === 1 ? "template" : "templates"}, but it will no longer be available to pick a domain for.`
+        : `"${module.name}" isn't matched to any domain. Deleting it will remove it from this list; its ${moduleComponentCount} existing Work Package ${moduleComponentCount === 1 ? "template" : "templates"} (if any) will be preserved.`,
+      confirmText: "Delete",
+      cancelText: "Cancel",
+      variant: "destructive",
+    });
+
+    if (!confirmed) return;
+
+    try {
+      await deactivateProjectModule(module._id);
+
+      setModules((previous) => previous.filter((m) => m._id !== module._id));
+    } catch (error) {
+      console.error("Error deleting module:", error);
+
+      alertDialog(
+        error?.response?.data?.message ||
+          error?.message ||
+          "Failed to delete module.",
+      );
     }
   };
 
@@ -750,6 +836,24 @@ export default function WorkspaceManagement() {
                               ? "component"
                               : "components"}
                           </span>
+
+                          {module.domain ? (
+                            <span
+                              className="inline-flex items-center gap-1 rounded-md border border-[#cfd8e3] bg-white px-1.5 py-0.5 text-[10px] font-medium text-[#334155]"
+                              title="Matched domain — Work Packages under this module auto-load in this domain's tab"
+                            >
+                              <Link2 size={10} style={{ color: module.domain.color || "#2563eb" }} />
+                              {module.domain.name}
+                            </span>
+                          ) : (
+                            <span
+                              className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700"
+                              title="Not matched to any domain — won't auto-load anywhere in Project Work"
+                            >
+                              <Unlink size={10} />
+                              Unmatched
+                            </span>
+                          )}
                         </div>
 
                         {module.description && (
@@ -759,6 +863,32 @@ export default function WorkspaceManagement() {
                         )}
                       </div>
                     </button>
+
+                    {/* EDIT MODULE */}
+
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => openEditModule(module)}
+                      title="Edit module"
+                      className="h-9 w-9 shrink-0 rounded-lg text-[#64748b] hover:bg-[#e2e8f0] hover:text-[#2563eb]"
+                    >
+                      <Pencil size={15} />
+                    </Button>
+
+                    {/* DELETE MODULE */}
+
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => deleteModule(module)}
+                      title="Delete module"
+                      className="h-9 w-9 shrink-0 rounded-lg text-red-500 hover:bg-red-50 hover:text-red-600"
+                    >
+                      <Trash2 size={15} />
+                    </Button>
 
                     {/* ADD COMPONENT */}
 
@@ -967,6 +1097,7 @@ export default function WorkspaceManagement() {
         onOpenChange={(open) => {
           if (!open && !savingModule) {
             setShowAddModule(false);
+            setEditingModuleId(null);
           }
         }}
       >
@@ -986,7 +1117,7 @@ export default function WorkspaceManagement() {
         >
           <DialogHeader>
             <DialogTitle className="text-base font-semibold text-[#1f2937]">
-              Add Module
+              {editingModuleId ? "Edit Module" : "Add Module"}
             </DialogTitle>
           </DialogHeader>
 
@@ -1075,13 +1206,42 @@ export default function WorkspaceManagement() {
                 />
               </div>
             </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium text-[#334155]">
+                Domain
+              </Label>
+
+              <select
+                value={newModuleDomain}
+                onChange={(e) => setNewModuleDomain(e.target.value)}
+                disabled={savingModule}
+                className="flex h-9 w-full rounded-md border border-[#cfd8e3] bg-white px-3 text-sm text-[#1f2937] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#2563eb]"
+              >
+                <option value="">No domain (unmatched)</option>
+                {domains.map((domain) => (
+                  <option key={domain._id} value={domain._id}>
+                    {domain.name}
+                  </option>
+                ))}
+              </select>
+
+              <p className="text-[11px] text-[#64748b]">
+                Matching a domain lets this module's Work Packages auto-load
+                under that domain's tab in Project Work. Leave unmatched
+                modules to review or delete later.
+              </p>
+            </div>
           </div>
 
           <DialogFooter className="gap-2 mt-2 sm:gap-2">
             <Button
               type="button"
               variant="outline"
-              onClick={() => setShowAddModule(false)}
+              onClick={() => {
+                setShowAddModule(false);
+                setEditingModuleId(null);
+              }}
               disabled={savingModule}
               className="
         h-9
@@ -1109,7 +1269,13 @@ export default function WorkspaceManagement() {
         hover:bg-[#1d4ed8]
       "
             >
-              {savingModule ? "Creating..." : "Create Module"}
+              {savingModule
+                ? editingModuleId
+                  ? "Saving..."
+                  : "Creating..."
+                : editingModuleId
+                  ? "Save Changes"
+                  : "Create Module"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -485,7 +485,7 @@ export default function EmployeeDetails() {
               />
             </div>
 
-            <DialogFooter className="gap-2 sm:gap-0">
+            <DialogFooter className="gap-2 text-black sm:gap-0">
               <Button
                 type="button"
                 variant="outline"

@@ -1,38 +1,14 @@
-import {
-  FolderKanban,
-  ClipboardList,
-  CircleCheck,
-  TriangleAlert,
-  ArrowUpRight,
-} from "lucide-react";
+import { FolderKanban, ArrowUpRight } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
 
-export default function StatsCards({ stats = {} }) {
+export default function StatsCards({ stats = {}, onProjectClick }) {
   const cards = [
     {
       label: "Active Projects",
       value: stats.projects ?? 0,
       description: "Projects currently available",
       icon: FolderKanban,
-    },
-    {
-      label: "Pending Tasks",
-      value: stats.pending ?? 0,
-      description: "Tasks waiting for completion",
-      icon: ClipboardList,
-    },
-    {
-      label: "Completed Tasks",
-      value: stats.completed ?? 0,
-      description: "Tasks completed successfully",
-      icon: CircleCheck,
-    },
-    {
-      label: "Alerts",
-      value: stats.alerts ?? 0,
-      description: "No items require attention",
-      icon: TriangleAlert,
     },
   ];
 
@@ -44,6 +20,7 @@ export default function StatsCards({ stats = {} }) {
         return (
           <Card
             key={card.label}
+            onClick={onProjectClick}
             className="
               group
               min-h-[122px]
@@ -51,6 +28,7 @@ export default function StatsCards({ stats = {} }) {
               px-4
               py-3
               shadow-sm
+              cursor-pointer
               transition-all
               duration-200
               hover:border-orange-400/60

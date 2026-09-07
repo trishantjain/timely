@@ -13,7 +13,11 @@ export const createProjectModuleRules = [
 
     body("color")
         .optional({ nullable: true })
-        .matches(/^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/).withMessage("Color must be a valid hex code")
+        .matches(/^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/).withMessage("Color must be a valid hex code"),
+
+    body("domain")
+        .optional({ nullable: true, checkFalsy: true })
+        .isMongoId().withMessage("Invalid domain id")
 ];
 
 export const updateProjectModuleRules = [
@@ -35,7 +39,11 @@ export const updateProjectModuleRules = [
 
     body("isActive")
         .optional()
-        .isBoolean().withMessage("isActive must be true or false")
+        .isBoolean().withMessage("isActive must be true or false"),
+
+    body("domain")
+        .optional({ nullable: true, checkFalsy: true })
+        .isMongoId().withMessage("Invalid domain id")
 ];
 
 export const idParamRule = [

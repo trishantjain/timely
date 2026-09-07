@@ -144,7 +144,7 @@ export default function CreateProjectDialog({ open, onClose, onSuccess }) {
                       onChange={(e) =>
                         handleDomainChange(domain._id, e.target.checked)
                       }
-                      className="h-4 w-4 shrink-0 accent-primary"
+                      className="w-4 h-4 shrink-0 accent-primary"
                     />
 
                     <span>{domain.name}</span>
@@ -160,7 +160,7 @@ export default function CreateProjectDialog({ open, onClose, onSuccess }) {
             </div>
           )}
 
-          <div className="flex justify-end gap-3 pt-2">
+          <div className="flex justify-end gap-3 pt-2 text-black">
             <Button
               type="button"
               variant="outline"

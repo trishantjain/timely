@@ -62,6 +62,15 @@ export const addProjectComponent = async (req, res) => {
       assignedEmployee: null,
       deadline: null,
       status: "PENDING",
+      // Snapshot the template task's default subtasks the same way
+      // the task itself is snapshotted from the template.
+      subtasks: (task.subtasks || []).map((subtask) => ({
+        templateSubtaskId: subtask._id,
+        title: subtask.title,
+        description: subtask.description || "",
+        displayOrder: subtask.displayOrder || 1,
+        completed: false,
+      })),
     }));
 
     // Create Snapshot
@@ -1082,6 +1091,208 @@ export const addManualTaskToProject = async (req, res) => {
 };
 
 // =========================================
+// ADD SUBTASK TO A PROJECT TASK
+//
+// Mirrors addManualTask: admin adds a project-specific subtask under
+// an existing task. This never touches the predefined/template task
+// definition — only this project's snapshot of it.
+// =========================================
+export const addSubtask = async (req, res) => {
+  try {
+    const { componentId, taskId } = req.params;
+
+    const { title, description = "" } = req.body;
+
+    if (!title || !title.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Subtask title is required.",
+      });
+    }
+
+    const component = await ProjectComponent.findById(componentId);
+
+    if (!component) {
+      return res.status(404).json({
+        success: false,
+        message: "Project component not found.",
+      });
+    }
+
+    const task = component.tasks.id(taskId);
+
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        message: "Task not found.",
+      });
+    }
+
+    const nextDisplayOrder =
+      task.subtasks.length > 0
+        ? Math.max(
+            ...task.subtasks.map((subtask) => Number(subtask.displayOrder) || 0),
+          ) + 1
+        : 1;
+
+    task.subtasks.push({
+      title: title.trim(),
+      description: description?.trim() || "",
+      displayOrder: nextDisplayOrder,
+      completed: false,
+    });
+
+    await component.save();
+
+    const newSubtask = task.subtasks[task.subtasks.length - 1];
+
+    return res.status(201).json({
+      success: true,
+      message: "Subtask added successfully.",
+      data: newSubtask,
+    });
+  } catch (err) {
+    console.error("addSubtask error:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+// =========================================
+// TOGGLE SUBTASK COMPLETION
+// =========================================
+export const toggleSubtaskCompletion = async (req, res) => {
+  try {
+    const { componentId, taskId, subtaskId } = req.params;
+
+    const { completed } = req.body;
+
+    if (typeof completed !== "boolean") {
+      return res.status(400).json({
+        success: false,
+        message: "Completed status must be true or false.",
+      });
+    }
+
+    const component = await ProjectComponent.findById(componentId);
+
+    if (!component) {
+      return res.status(404).json({
+        success: false,
+        message: "Project component not found.",
+      });
+    }
+
+    const task = component.tasks.id(taskId);
+
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        message: "Task not found.",
+      });
+    }
+
+    const subtask = task.subtasks.id(subtaskId);
+
+    if (!subtask) {
+      return res.status(404).json({
+        success: false,
+        message: "Subtask not found.",
+      });
+    }
+
+    // Employees may only toggle subtasks of a task assigned to them.
+    if (
+      req.user.role === "employee" &&
+      (!task.assignedEmployee ||
+        task.assignedEmployee.toString() !== req.user.id.toString())
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not allowed to update this subtask.",
+      });
+    }
+
+    subtask.completed = completed;
+
+    await component.save();
+
+    return res.status(200).json({
+      success: true,
+      message: completed
+        ? "Subtask marked as completed."
+        : "Subtask marked as pending.",
+      data: subtask,
+    });
+  } catch (err) {
+    console.error("toggleSubtaskCompletion error:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+// =========================================
+// DELETE SUBTASK
+//
+// Only removes the project-specific subtask snapshot. The predefined
+// template task's default subtasks are never touched.
+// =========================================
+export const deleteSubtask = async (req, res) => {
+  try {
+    const { componentId, taskId, subtaskId } = req.params;
+
+    const component = await ProjectComponent.findById(componentId);
+
+    if (!component) {
+      return res.status(404).json({
+        success: false,
+        message: "Project component not found.",
+      });
+    }
+
+    const task = component.tasks.id(taskId);
+
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        message: "Task not found.",
+      });
+    }
+
+    const subtask = task.subtasks.id(subtaskId);
+
+    if (!subtask) {
+      return res.status(404).json({
+        success: false,
+        message: "Subtask not found.",
+      });
+    }
+
+    subtask.deleteOne();
+
+    await component.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Subtask deleted successfully.",
+    });
+  } catch (err) {
+    console.error("deleteSubtask error:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+// =========================================
 // UPDATE MANUAL TASK COMPLETION STATUS
 // =========================================
 export const updateTaskCompletion = async (req, res) => {
@@ -1405,6 +1616,10 @@ export const updateProjectComponent = async (req, res) => {
             deadline: incomingTask.deadline || null,
 
             status: incomingTask.status || "PENDING",
+
+            subtasks: Array.isArray(incomingTask.subtasks)
+              ? incomingTask.subtasks
+              : [],
           });
         }
       }

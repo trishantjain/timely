@@ -15,7 +15,6 @@ export default function AdminDashboard() {
   const fetchProjects = async () => {
     try {
       const res = await getProjects();
-
       setProjects(res.data);
     } catch (error) {
       console.error("Error fetching projects:", error);
@@ -25,6 +24,12 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetchProjects();
   }, []);
+
+  const scrollToProjects = () => {
+    document.getElementById("projects-section")?.scrollIntoView({
+      behavior: "smooth",
+    });
+  };
 
   return (
     <div className="min-h-full p-4 sm:p-5 lg:p-6">
@@ -50,10 +55,10 @@ export default function AdminDashboard() {
         {/* ACTIONS */}
 
         <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" className="gap-2">
+          {/* <Button variant="outline" className="gap-2">
             <UserPlus size={16} />
             Invite Employee
-          </Button>
+          </Button> */}
 
           <Button
             className="gap-2 shadow-sm"
@@ -65,28 +70,26 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* STATS */}
+      {/* ACTIVE PROJECTS */}
 
       <div className="mt-5">
         <StatsCards
           stats={{
             projects: projects.length,
-            domains: 0,
-            employees: 0,
-            documents: 0,
           }}
+          onProjectClick={scrollToProjects}
         />
       </div>
 
-      {/* PROJECTS */}
+      {/* ALL PROJECTS */}
 
-      <section className="mt-6">
+      <section id="projects-section" className="mt-6">
         <div className="flex items-center justify-between gap-4 mb-3">
           <div>
-            <h2 className="text-lg font-semibold">Recent Projects</h2>
+            <h2 className="text-lg font-semibold">All Projects</h2>
 
             <p className="mt-0.5 text-sm text-muted-foreground">
-              View and manage your active projects.
+              View and manage all your projects.
             </p>
           </div>
 
@@ -97,8 +100,6 @@ export default function AdminDashboard() {
             {projects.length === 1 ? "project" : "projects"}
           </div>
         </div>
-
-        {/* PROJECT LIST ALREADY CONTAINS ITS OWN CARD */}
 
         <ProjectList projects={projects} refreshProjects={fetchProjects} />
       </section>

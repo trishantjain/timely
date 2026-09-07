@@ -1,5 +1,44 @@
 import mongoose from "mongoose";
 
+// Project-specific subtask. Lightweight embedded subdocument (not a
+// separate collection/model) so it reuses the existing ProjectComponent
+// snapshot architecture instead of introducing a new top-level model.
+const projectSubtaskSchema = new mongoose.Schema(
+  {
+    // Reference to the originating template subtask, if this subtask
+    // was generated from a ComponentTemplate task's default subtasks.
+    templateSubtaskId: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: false,
+      default: null,
+    },
+
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    description: {
+      type: String,
+      default: "",
+    },
+
+    displayOrder: {
+      type: Number,
+      default: 1,
+    },
+
+    completed: {
+      type: Boolean,
+      default: false,
+    },
+  },
+  {
+    _id: true,
+  },
+);
+
 const projectTaskSchema = new mongoose.Schema(
   {
     // Reference to original template task
@@ -7,6 +46,16 @@ const projectTaskSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       required: false,
       default: null,
+    },
+
+    // Project-specific subtasks belonging to this task. Populated
+    // automatically from the ComponentTemplate task's default subtasks
+    // when a Work Package is added to the project, and can also be
+    // added manually by an admin (see addSubtask/deleteSubtask/
+    // toggleSubtaskCompletion in projectComponent.controller.js).
+    subtasks: {
+      type: [projectSubtaskSchema],
+      default: [],
     },
 
     title: {

@@ -340,7 +340,11 @@ export const getComponentTemplates = async (req, res) => {
 
     if (!paginationRequested) {
       const components = await ComponentTemplate.find(filter)
-        .populate("projectModule", "name color")
+        .populate({
+          path: "projectModule",
+          select: "name color domain",
+          populate: { path: "domain", select: "name color" },
+        })
         .populate("createdBy", "username")
         .sort({ createdAt: -1 });
 
@@ -356,7 +360,11 @@ export const getComponentTemplates = async (req, res) => {
 
     const [components, total] = await Promise.all([
       ComponentTemplate.find(filter)
-        .populate("projectModule", "name color")
+        .populate({
+          path: "projectModule",
+          select: "name color domain",
+          populate: { path: "domain", select: "name color" },
+        })
         .populate("createdBy", "username")
         .sort({ createdAt: -1 })
         .skip(skip)

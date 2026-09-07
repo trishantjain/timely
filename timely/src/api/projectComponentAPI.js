@@ -61,3 +61,24 @@ export const updateProjectComponent = (componentId, payload) => {
 export const deleteProjectComponent = (componentId) => {
   return api.delete(`/project-components/${componentId}`);
 };
+
+// ===================================
+// SUBTASKS
+// ===================================
+
+export const addSubtask = (componentId, taskId, data) =>
+  api.post(
+    `/project-components/${componentId}/tasks/${taskId}/subtasks`,
+    data,
+  );
+
+export const toggleSubtaskCompletion = (componentId, taskId, subtaskId, completed) =>
+  api.patch(
+    `/project-components/${componentId}/tasks/${taskId}/subtasks/${subtaskId}/completion`,
+    { completed },
+  );
+
+export const deleteSubtask = (componentId, taskId, subtaskId) =>
+  api.delete(
+    `/project-components/${componentId}/tasks/${taskId}/subtasks/${subtaskId}`,
+  );

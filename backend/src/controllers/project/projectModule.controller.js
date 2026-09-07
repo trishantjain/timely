@@ -31,6 +31,8 @@ export const createProjectModule = async (req, res) => {
       createdBy: req.user.id,
     });
 
+    await module.populate("domain", "name color");
+
     res.status(201).json({
       success: true,
       data: module,
@@ -84,7 +86,14 @@ export const updateProjectModule = async (req, res) => {
 
     if (typeof isActive === "boolean") module.isActive = isActive;
 
+    // Backfill ownership for modules created before createdBy was required.
+    if (!module.createdBy) {
+      module.createdBy = req.user.id;
+    }
+
     await module.save();
+
+    await module.populate("domain", "name color");
 
     res.json({
       success: true,
@@ -140,6 +149,7 @@ export const getProjectModules = async (req, res) => {
     const modules = await ProjectModule.find({
       // isActive: true
     })
+      .populate("domain", "name color")
       .sort({
         name: 1,
       })

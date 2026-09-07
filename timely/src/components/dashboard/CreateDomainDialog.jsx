@@ -147,7 +147,7 @@ export default function CreateDomainDialog({ refreshDomains }) {
             </div>
           )}
 
-          <div className="flex justify-end gap-3 pt-2">
+          <div className="flex justify-end gap-3 pt-2 text-black">
             <Button
               type="button"
               variant="outline"

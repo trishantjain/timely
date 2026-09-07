@@ -7,6 +7,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 
 import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
+
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -22,6 +31,7 @@ import {
   CheckCircle2,
   CircleAlert,
   CircleUserRound,
+  ClipboardList,
   Layers,
   Users,
 } from "lucide-react";
@@ -30,6 +40,7 @@ import { getProjectById, updateProjectDomains } from "@/api/projectAPI";
 import { getDomains } from "@/api/domainAPI";
 import { getEmployees } from "@/api/employeeAPI";
 import { createAssignments } from "@/api/assignmentAPI";
+import { getProjectPendingTasks } from "@/api/taskAPI";
 import { useAlertDialog } from "@/components/common/ConfirmDialogContext";
 
 export default function ProjectDetails() {
@@ -58,6 +69,12 @@ export default function ProjectDetails() {
 
   const [selectedManualTaskDomain, setSelectedManualTaskDomain] = useState("");
 
+  // PENDING TASKS — tasks in this project that currently require
+  // employee action (see loadPendingTasks below).
+  const [pendingTasks, setPendingTasks] = useState([]);
+  const [pendingTasksLoading, setPendingTasksLoading] = useState(true);
+  const [pendingTasksError, setPendingTasksError] = useState("");
+
   // const [isDomainDialogOpen, setIsDomainDialogOpen] = useState(false);
 
   // const [selectedDomainIds, setSelectedDomainIds] = useState([]);
@@ -70,6 +87,35 @@ export default function ProjectDetails() {
   useEffect(() => {
     loadProject();
   }, [id]);
+
+  // Load once on mount/id change, and again whenever the admin
+  // switches into the tab — this is what keeps the list from going
+  // stale after an employee acts on a task and the admin comes back.
+  useEffect(() => {
+    if (activeTab === "tasks") {
+      loadPendingTasks();
+    }
+  }, [id, activeTab]);
+
+  const loadPendingTasks = async () => {
+    try {
+      setPendingTasksLoading(true);
+      setPendingTasksError("");
+
+      const res = await getProjectPendingTasks(id);
+
+      setPendingTasks(Array.isArray(res.data?.data) ? res.data.data : []);
+    } catch (err) {
+      console.error("Failed to load pending tasks:", err);
+
+      setPendingTasks([]);
+      setPendingTasksError(
+        err.response?.data?.message || "Failed to load pending tasks.",
+      );
+    } finally {
+      setPendingTasksLoading(false);
+    }
+  };
 
   const loadProject = async () => {
     try {
@@ -329,8 +375,8 @@ export default function ProjectDetails() {
     },
     {
       id: "tasks",
-      label: "Tasks",
-      icon: Layers,
+      label: "Pending Tasks",
+      icon: ClipboardList,
     },
     {
       id: "info",
@@ -459,6 +505,27 @@ export default function ProjectDetails() {
                       {assignments.length}
                     </span>
                   )}
+
+                  {tab.id === "tasks" &&
+                    !pendingTasksLoading &&
+                    pendingTasks.length > 0 && (
+                      <span
+                        className="
+                        flex
+                        items-center
+                        justify-center
+                        h-5
+                        min-w-5
+                        px-1
+                        text-[10px]
+                        rounded-full
+                        bg-[#202a36]
+                        text-[#cbd5e1]
+                      "
+                      >
+                        {pendingTasks.length}
+                      </span>
+                    )}
 
                   {isActive && (
                     <span className="absolute bottom-0 left-0 w-full h-0.5 bg-[#3b82f6]" />
@@ -802,7 +869,7 @@ export default function ProjectDetails() {
           </Card>
         )}
 
-        {/* ================= TASKS ================= */}
+        {/* ================= PENDING TASKS ================= */}
 
         {activeTab === "tasks" && (
           <Card className="border-[#d9e0e8] bg-white shadow-sm">
@@ -810,101 +877,112 @@ export default function ProjectDetails() {
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h2 className="text-base font-semibold text-[#1f2937]">
-                    Project Tasks
+                    Pending Tasks
                   </h2>
 
                   <p className="mt-0.5 text-xs text-[#64748b]">
-                    Manage project work items, components and assigned tasks.
+                    Tasks in this project that currently require employee
+                    action.
                   </p>
                 </div>
 
-                <Button
-                  size="sm"
-                  onClick={() =>
-                    navigate(`/admin/project/${project._id}/components`)
-                  }
-                  className="bg-[#2563eb] text-white hover:bg-[#1d4ed8]"
+                <Badge
+                  variant="outline"
+                  className="w-fit border-[#dbe2ea] bg-[#f6f7f9] text-[#475569]"
                 >
-                  Manage Tasks
-                </Button>
+                  {pendingTasksLoading
+                    ? "…"
+                    : `${pendingTasks.length} Pending`}
+                </Badge>
               </div>
 
-              <div className="grid gap-3 mt-4 sm:grid-cols-2 lg:grid-cols-3">
-                <button
-                  type="button"
-                  onClick={handleOpenDomainDialog}
-                  className="
-    flex
-    items-center
-    gap-3
-    p-4
-    text-left
-    transition-all
-    border
-    border-[#dbe2ea]
-    rounded-lg
-    bg-[#fafbfc]
-    hover:border-[#93c5fd]
-    hover:bg-[#f8fbff]
-    hover:shadow-sm
-    cursor-pointer
-  "
-                >
-                  <div
-                    className="
-      flex
-      items-center
-      justify-center
-      w-10
-      h-10
-      rounded-lg
-      bg-[#edf2f7]
-      text-[#475569]
-    "
-                  >
-                    <Layers size={18} />
+              <div className="mt-4">
+                {pendingTasksLoading ? (
+                  <div className="py-10 text-sm text-center text-[#64748b]">
+                    Loading pending tasks...
                   </div>
-
-                  <div className="min-w-0">
-                    <p className="text-xs text-[#64748b]">Project Domains</p>
-
-                    <div className="flex items-center gap-2">
-                      <p className="mt-0.5 text-lg font-semibold text-[#1f2937]">
-                        {project.domains?.length || 0}
-                      </p>
-
-                      <span className="text-[11px] text-[#2563eb]">Manage</span>
+                ) : pendingTasksError ? (
+                  <div className="py-10 text-sm text-center text-red-500">
+                    {pendingTasksError}
+                  </div>
+                ) : pendingTasks.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center gap-2 py-14 text-center">
+                    <div className="flex items-center justify-center border rounded-full w-11 h-11 border-[#dbe2ea] bg-[#fafbfc]">
+                      <ClipboardList size={20} className="text-[#94a3b8]" />
                     </div>
-                  </div>
-                </button>
 
-                <div className="flex items-center gap-3 p-4 border border-[#dbe2ea] rounded-lg bg-[#fafbfc]">
-                  <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-[#edf2f7] text-[#475569]">
-                    <Users size={18} />
-                  </div>
+                    <p className="text-sm font-medium text-[#1f2937]">
+                      No pending tasks
+                    </p>
 
-                  <div>
-                    <p className="text-xs text-[#64748b]">Assigned Employees</p>
-
-                    <p className="mt-0.5 text-lg font-semibold text-[#1f2937]">
-                      {assignments.length}
+                    <p className="max-w-sm text-xs text-[#64748b]">
+                      Every task in this project is either completed or
+                      waiting on review — nothing currently needs employee
+                      action.
                     </p>
                   </div>
-                </div>
+                ) : (
+                  <div className="overflow-hidden border rounded-lg border-[#dbe2ea]">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="border-[#dbe2ea] hover:bg-transparent">
+                          <TableHead className="text-[#64748b]">
+                            Task
+                          </TableHead>
+                          <TableHead className="text-[#64748b]">
+                            Employee
+                          </TableHead>
+                          <TableHead className="text-[#64748b]">
+                            Deadline
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
 
-                <div className="flex items-center gap-3 p-4 border border-[#dbe2ea] rounded-lg bg-[#fafbfc]">
-                  <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-[#edf2f7] text-[#475569]">
-                    <CheckCircle2 size={18} />
+                      <TableBody>
+                        {pendingTasks.map((task) => (
+                          <TableRow
+                            key={`${task.componentId}-${task.taskId}`}
+                            className="border-[#dbe2ea] cursor-pointer hover:bg-[#f8fafc]"
+                            onClick={() =>
+                              navigate(
+                                `/admin/tasks/${task.componentId}/${task.taskId}`,
+                              )
+                            }
+                          >
+                            <TableCell>
+                              <p className="text-sm font-medium text-[#1f2937]">
+                                {task.taskTitle}
+                              </p>
+
+                              {task.moduleName && (
+                                <p className="mt-0.5 text-xs text-[#64748b]">
+                                  {task.moduleName}
+                                </p>
+                              )}
+                            </TableCell>
+
+                            <TableCell className="text-sm text-[#1f2937]">
+                              {task.assignedEmployee?.username || "Unassigned"}
+                            </TableCell>
+
+                            <TableCell className="text-sm text-[#1f2937]">
+                              {task.deadline
+                                ? new Date(task.deadline).toLocaleDateString(
+                                    "en-GB",
+                                    {
+                                      day: "2-digit",
+                                      month: "short",
+                                      year: "numeric",
+                                    },
+                                  )
+                                : "No deadline"}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
                   </div>
-
-                  <div>
-                    <p className="text-xs text-[#64748b]">Assignment Status</p>
-
-                    <p className="mt-0.5 text-sm font-semibold text-[#1f2937]">
-                      {assignmentsCreated ? "Completed" : "Pending"}
-                    </p>
-                  </div>
-                </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -1179,8 +1257,8 @@ export default function ProjectDetails() {
           {/* FOOTER */}
 
           {domainDialogError && (
-            <div className="px-7 pt-4">
-              <div className="px-3 py-2 text-sm border rounded-md border-red-500/40 bg-red-500/10 text-red-400">
+            <div className="pt-4 px-7">
+              <div className="px-3 py-2 text-sm text-red-400 border rounded-md border-red-500/40 bg-red-500/10">
                 {domainDialogError}
               </div>
             </div>
@@ -1199,6 +1277,7 @@ export default function ProjectDetails() {
           text-slate-300
           hover:bg-[#223044]
           hover:text-white
+          text-black
         "
             >
               Cancel
