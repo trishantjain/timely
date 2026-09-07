@@ -14,3 +14,6 @@ export const getEmployeeProjectTasks = (projectId, employeeId) =>
   api.get(
     `/project-components/projects/${projectId}/employees/${employeeId}/tasks`,
   );
+
+export const getProjectPendingTasks = (projectId) =>
+  api.get(`/project-components/projects/${projectId}/pending-tasks`);

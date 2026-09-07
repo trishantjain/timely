@@ -481,6 +481,118 @@ export const getMyTasks = async (req, res) => {
   }
 };
 
+// =========================================
+// PROJECT-SCOPED "PENDING TASKS"
+//
+// A filtered operational view of the SAME task records used by
+// getMyTasks above — not a new hierarchy or duplicate data. A task
+// is "pending employee action" when it is in one of the statuses
+// where the assignee (not a merely-tagged employee — tags are
+// view-only) still has to do something: it hasn't been started/
+// finished yet (PENDING/IN_PROGRESS), or it was reviewed and sent
+// back for rework (REJECTED). SUBMITTED/UNDER_REVIEW are waiting on
+// the admin/reviewer, and APPROVED is done, so neither belongs here.
+// =========================================
+const EMPLOYEE_ACTION_PENDING_STATUSES = ["PENDING", "IN_PROGRESS", "REJECTED"];
+
+export const getProjectPendingTasks = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(projectId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid project ID.",
+      });
+    }
+
+    // Admins see every employee's pending-action tasks in the
+    // project; an employee only ever sees their own — never another
+    // employee's pending work. Frontend filtering is presentation
+    // only, this is the authoritative check.
+    const isAdmin = req.user.role === "admin";
+
+    const query = { project: projectId };
+
+    if (!isAdmin) {
+      query["tasks.assignedEmployee"] = req.user.id;
+    }
+
+    const components = await ProjectComponent.find(query)
+      .populate("projectModule", "name")
+      .populate("tasks.assignedEmployee", "username email")
+      .lean();
+
+    const pendingTasks = [];
+
+    for (const component of components) {
+      for (const task of component.tasks || []) {
+        if (!EMPLOYEE_ACTION_PENDING_STATUSES.includes(task.status)) {
+          continue;
+        }
+
+        const assignedEmployeeId = task.assignedEmployee?._id?.toString();
+
+        // Only the primary assignee has an action to take — a tagged
+        // employee can view the task but can't submit for it, so it
+        // is never "pending" for them.
+        if (!assignedEmployeeId) {
+          continue;
+        }
+
+        if (!isAdmin && assignedEmployeeId !== req.user.id.toString()) {
+          continue;
+        }
+
+        pendingTasks.push({
+          projectId,
+          componentId: component._id,
+          componentName: component.name,
+          moduleId: component.projectModule?._id || null,
+          moduleName: component.projectModule?.name || null,
+          taskId: task._id,
+          taskTitle: task.title,
+          taskDescription: task.description,
+          deadline: task.deadline,
+          status: task.status,
+          submissionRule: {
+            type: task.submissionRule?.type || "TEXT",
+          },
+          assignedEmployee: task.assignedEmployee
+            ? {
+                _id: task.assignedEmployee._id,
+                username: task.assignedEmployee.username,
+                email: task.assignedEmployee.email,
+              }
+            : null,
+        });
+      }
+    }
+
+    // Soonest deadlines first; tasks with no deadline sort last.
+    pendingTasks.sort((a, b) => {
+      if (!a.deadline) return 1;
+      if (!b.deadline) return -1;
+      return new Date(a.deadline) - new Date(b.deadline);
+    });
+
+    return res.status(200).json({
+      success: true,
+      count: pendingTasks.length,
+      data: pendingTasks,
+    });
+  } catch (err) {
+    console.error("[ProjectComponent] Get Project Pending Tasks Error");
+
+    console.error(err);
+
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
 export const getTaskDetails = async (req, res) => {
   try {
     const { componentId, taskId } = req.params;

@@ -8,6 +8,7 @@ import {
   getTaskDetails,
   getEmployeeProjectTasks,
   getProjectDomainTasks,
+  getProjectPendingTasks,
   addManualTask,
   addManualTaskToProject,
   updateTaskCompletion,
@@ -57,6 +58,15 @@ router.get(
   protect,
   adminOnly,
   getProjectDomainTasks,
+);
+
+// Project-scoped "Pending Tasks" — admins see every employee's
+// pending-action tasks in the project, employees see only their own
+// (enforced in the controller, not just filtered on the frontend).
+router.get(
+  "/projects/:projectId/pending-tasks",
+  protect,
+  getProjectPendingTasks,
 );
 
 // =========================================
