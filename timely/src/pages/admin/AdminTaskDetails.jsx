@@ -19,7 +19,6 @@ import {
   ArrowLeft,
   Calendar,
   ClipboardList,
-  User,
   Mail,
   FolderKanban,
   Layers,
@@ -27,8 +26,6 @@ import {
   CheckCircle2,
   Clock,
   History,
-  ChevronDown,
-  ChevronUp,
   XCircle,
   ZoomIn,
   ZoomOut,
@@ -86,8 +83,7 @@ export default function AdminTaskDetails() {
   // Route may provide either (componentId, taskId) — the classic Task
   // View route — or a submissionId — the classic Review Submission
   // route. Both resolve to this single unified page.
-  const { componentId, taskId, submissionId: submissionIdParam } =
-    useParams();
+  const { componentId, taskId, submissionId: submissionIdParam } = useParams();
 
   const navigate = useNavigate();
 
@@ -104,7 +100,9 @@ export default function AdminTaskDetails() {
   // Review panel state
   const [reviewComment, setReviewComment] = useState("");
 
-  const [showHistory, setShowHistory] = useState(false);
+  // Left sidebar: switches between the version history list and the
+  // daily updates timeline, and which version is selected within it.
+  const [sidebarTab, setSidebarTab] = useState("submissions");
 
   const [selectedVersion, setSelectedVersion] = useState(null);
 
@@ -328,24 +326,22 @@ export default function AdminTaskDetails() {
   // ==========================================
   const reviewPanel = hasSubmission && (
     <div className="overflow-hidden border rounded-xl bg-background">
-      <div className="p-5 border-b">
+      <div className="p-4 border-b bg-slate-200">
         <h2 className="font-semibold">Review Decision</h2>
 
-        <p className="mt-1 text-sm text-muted-foreground">
+        {/* <p className="mt-1 text-sm text-muted-foreground">
           Approve or reject the current submission.
-        </p>
+        </p> */}
       </div>
 
       <div className="p-5">
-        <div className="mb-5">
-          <p className="mb-2 text-xs font-medium tracking-wide uppercase text-muted-foreground">
+        <div className="flex items-center gap-20 mb-5">
+          <p className="text-xs font-medium tracking-wide uppercase text-muted-foreground">
             Current Status
           </p>
 
           <div
-            className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium ${getReviewStatusStyle(
-              latest.reviewStatus,
-            )}`}
+            className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium ${getReviewStatusStyle(latest.reviewStatus)}`}
           >
             {latest.reviewStatus === "APPROVED" ? (
               <CheckCircle2 size={16} />
@@ -443,7 +439,11 @@ export default function AdminTaskDetails() {
             </p>
           </div>
 
-          <Button variant="outline" className="gap-2 shrink-0" onClick={closeViewer}>
+          <Button
+            variant="outline"
+            className="gap-2 shrink-0"
+            onClick={closeViewer}
+          >
             <X size={16} />
             Close Viewer
           </Button>
@@ -458,7 +458,9 @@ export default function AdminTaskDetails() {
                   <Button
                     variant="outline"
                     size="icon"
-                    onClick={() => setZoom((prev) => Math.max(0.25, prev - 0.25))}
+                    onClick={() =>
+                      setZoom((prev) => Math.max(0.25, prev - 0.25))
+                    }
                   >
                     <ZoomOut size={16} />
                   </Button>
@@ -471,7 +473,11 @@ export default function AdminTaskDetails() {
                     <ZoomIn size={16} />
                   </Button>
 
-                  <Button variant="outline" size="icon" onClick={() => setZoom(1)}>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setZoom(1)}
+                  >
                     <Maximize size={16} />
                   </Button>
 
@@ -564,7 +570,7 @@ export default function AdminTaskDetails() {
           )}
         </div>
 
-                <Card>
+        <Card>
           <CardContent className="flex items-center gap-3 p-4">
             <div className="flex items-center justify-center w-10 h-10 border rounded-lg bg-muted">
               <Calendar size={18} />
@@ -577,12 +583,11 @@ export default function AdminTaskDetails() {
             </div>
           </CardContent>
         </Card>
-
       </div>
 
       {/* TASK INFORMATION */}
       {/* <div className="grid gap-4 mt-6 sm:grid-cols-2 lg:grid-cols-3"> */}
-        {/* <Card>
+      {/* <Card>
           <CardContent className="flex items-center gap-3 p-4">
             <div className="flex items-center justify-center w-10 h-10 border rounded-lg bg-muted">
               <FolderKanban size={18} />
@@ -596,7 +601,7 @@ export default function AdminTaskDetails() {
           </CardContent>
         </Card> */}
 
-        {/* <Card>
+      {/* <Card>
           <CardContent className="flex items-center gap-3 p-4">
             <div className="flex items-center justify-center w-10 h-10 border rounded-lg bg-muted">
               <Layers size={18} />
@@ -610,7 +615,7 @@ export default function AdminTaskDetails() {
           </CardContent>
         </Card> */}
 
-        {/* <Card>
+      {/* <Card>
           <CardContent className="flex items-center gap-3 p-4">
             <div className="flex items-center justify-center w-10 h-10 border rounded-lg bg-muted">
               <ClipboardList size={18} />
@@ -624,7 +629,7 @@ export default function AdminTaskDetails() {
           </CardContent>
         </Card> */}
 
-        {/* <Card>
+      {/* <Card>
           <CardContent className="flex items-center gap-3 p-4">
             <div className="flex items-center justify-center w-10 h-10 border rounded-lg bg-muted">
               <User size={18} />
@@ -642,7 +647,7 @@ export default function AdminTaskDetails() {
           </CardContent>
         </Card> */}
 
-        {/* <Card>
+      {/* <Card>
           <CardContent className="flex items-center gap-3 p-4">
             <div className="flex items-center justify-center w-10 h-10 border rounded-lg bg-muted">
               <Mail size={18} />
@@ -701,238 +706,234 @@ export default function AdminTaskDetails() {
           SUBMISSION + REVIEW — only rendered when a submission exists
          ============================================================ */}
       {hasSubmission && (
-        <div className="">
-          <div className="flex flex-col gap-4 mb-4 sm:flex-row sm:items-center sm:justify-between">
-            <h2 className="text-lg font-semibold">Submission</h2>
-
-            {previousVersions.length > 0 && (
-              <Button
-                variant="outline"
-                onClick={() => setShowHistory(!showHistory)}
-                className="gap-2 shrink-0"
-              >
-                <History size={16} />
-                Previous Versions ({previousVersions.length})
-                {showHistory ? (
-                  <ChevronUp size={16} />
-                ) : (
-                  <ChevronDown size={16} />
-                )}
-              </Button>
-            )}
-          </div>
-
-          {/* SUBMISSION META */}
-          <div className="grid grid-cols-1 gap-px mb-6 overflow-hidden border rounded-xl bg-border sm:grid-cols-2 lg:grid-cols-3">
-            <div className="p-4 bg-background">
-              <div className="flex items-center gap-2 mb-2 text-xs text-muted-foreground">
-                <User size={15} />
-                Submitted By
-              </div>
-
-              <p className="font-medium">
-                {currentSubmission.submittedBy?.username || "-"}
-              </p>
-            </div>
-
-            {/* <div className="p-4 bg-background">
-              <div className="flex items-center gap-2 mb-2 text-xs text-muted-foreground">
-                <Mail size={15} />
-                Email
-              </div>
-
-              <p className="text-sm font-medium truncate">
-                {currentSubmission.submittedBy?.email || "-"}
-              </p>
-            </div> */}
-
-            <div className="p-4 bg-background">
-              <div className="flex items-center gap-2 mb-2 text-xs text-muted-foreground">
-                <Calendar size={15} />
-                Submitted On
-              </div>
-
-              <p className="text-sm font-medium">
-                {new Date(currentSubmission.createdAt).toLocaleString()}
-              </p>
-            </div>
-
-            <div className="p-4 bg-background">
-              <div className="flex items-center gap-2 mb-2 text-xs text-muted-foreground">
-                <Clock size={15} />
-                Version
-              </div>
-
-              <p className="flex items-center gap-2 font-medium">
-                Version {currentSubmission.version}
-                {currentSubmission._id === latest._id && (
-                  <span className="inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
-                    Latest
-                  </span>
-                )}
-              </p>
-            </div>
-          </div>
-
-          {/* PREVIOUS VERSIONS */}
-          {showHistory && previousVersions.length > 0 && (
-            <div className="p-4 mb-6 border rounded-xl bg-muted/20">
-              <div className="mb-4">
-                <h3 className="font-semibold">Previous Submissions</h3>
-
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Select a previous version to view.
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                {previousVersions.map((version) => (
-                  <button
-                    key={version._id}
-                    onClick={() => setSelectedVersion(version)}
-                    className={`w-full rounded-lg border p-4 text-left transition-colors hover:bg-muted/50 ${
-                      currentSubmission._id === version._id
-                        ? "border-primary bg-primary/5"
-                        : "bg-background"
-                    }`}
-                  >
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <p className="font-medium">Version {version.version}</p>
-
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {new Date(version.createdAt).toLocaleString()}
-                        </p>
-                      </div>
-
-                      <span
-                        className={`inline-flex w-fit rounded-full border px-2.5 py-1 text-xs font-medium ${getReviewStatusStyle(
-                          version.reviewStatus,
-                        )}`}
-                      >
-                        {version.reviewStatus?.replaceAll("_", " ")}
-                      </span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-
-              {selectedVersion && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="mt-4"
-                  onClick={() => setSelectedVersion(null)}
+        <div className="flex flex-col gap-6 lg:flex-row">
+          {/* ================================================
+              LEFT SIDEBAR — jump between previous submissions
+              and daily updates. Always visible, so it's never
+              ambiguous which version is on screen.
+             ================================================ */}
+          <aside className="w-full shrink-0 lg:w-64">
+            <div className="space-y-3 lg:sticky lg:top-6">
+              <div className="grid grid-cols-2 gap-1 p-1 border rounded-lg bg-muted/40">
+                <button
+                  onClick={() => setSidebarTab("submissions")}
+                  className={`flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-colors ${
+                    sidebarTab === "submissions"
+                      ? "bg-background shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
                 >
-                  Show Current Submission
-                </Button>
-              )}
-            </div>
-          )}
+                  <History size={14} />
+                  Submissions
+                </button>
 
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-            <div className="space-y-6">
-              {/* TEXT SUBMISSION */}
-              <section className="overflow-hidden border rounded-xl bg-background">
-                <div className="px-2 py-1 border-b">
-                  <h2 className="font-semibold">Submission Description</h2>
+                <button
+                  onClick={() => setSidebarTab("updates")}
+                  className={`flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-colors ${
+                    sidebarTab === "updates"
+                      ? "bg-background shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Calendar size={14} />
+                  Daily Updates
+                </button>
+              </div>
 
-                  {/* <p className="mt-1 text-sm text-muted-foreground">
-                    Text submitted by the employee.
-                  </p> */}
-                </div>
+              {sidebarTab === "submissions" ? (
+                <div className="overflow-hidden border rounded-xl bg-background">
+                  <div className="px-4 py-3 border-b bg-muted/20">
+                    <p className="text-xs font-medium tracking-wide uppercase text-muted-foreground">
+                      Version History
+                    </p>
+                  </div>
 
-                <div className="p-2">
-                  {currentSubmission.textSubmission ? (
-                    <div className="text-sm leading-7 whitespace-pre-wrap">
-                      {currentSubmission.textSubmission}
-                    </div>
-                  ) : (
-                    <div className="py-6 text-sm text-center text-muted-foreground">
-                      No text submission provided.
-                    </div>
-                  )}
-                </div>
-              </section>
+                  <div className="divide-y max-h-[520px] overflow-y-auto">
+                    {[latest, ...previousVersions].map((version) => {
+                      const isLatest = version._id === latest._id;
+                      const isViewing = currentSubmission._id === version._id;
 
-              {/* FILES */}
-              <section className="overflow-hidden border rounded-xl bg-background">
-                <div className="px-5 py-4 border-b">
-                  <h2 className="font-semibold">Uploaded Files</h2>
-
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {currentSubmission.files?.length || 0} file(s) submitted.
-                  </p>
-                </div>
-
-                <div className="p-4">
-                  {currentSubmission.files?.length > 0 ? (
-                    <div className="space-y-3">
-                      {currentSubmission.files.map((file, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center justify-between gap-4 p-4 border rounded-lg"
+                      return (
+                        <button
+                          key={version._id}
+                          onClick={() =>
+                            setSelectedVersion(isLatest ? null : version)
+                          }
+                          className={`block w-full border-l-4 px-4 py-3 text-left transition-colors hover:bg-muted/40 ${
+                            isViewing
+                              ? "border-primary bg-primary/5"
+                              : "border-transparent"
+                          }`}
                         >
-                          <div className="flex items-center min-w-0 gap-3">
-                            <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-muted shrink-0">
-                              <FileText size={19} />
-                            </div>
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="flex items-center gap-1.5 text-sm font-medium">
+                              Version {version.version}
+                              {isLatest && (
+                                <span className="inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-primary">
+                                  Latest
+                                </span>
+                              )}
+                            </p>
 
-                            <div className="min-w-0">
-                              <p className="font-medium truncate">
-                                {file.originalName}
-                              </p>
-
-                              <p className="mt-1 text-xs text-muted-foreground">
-                                {formatFileSize(file.size)}
-                              </p>
-                            </div>
+                            {isViewing && (
+                              <CheckCircle2
+                                size={15}
+                                className="text-primary shrink-0"
+                              />
+                            )}
                           </div>
 
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() =>
-                              openFile(file, currentSubmission._id, index)
-                            }
+                          <p className="mt-1 text-[11px] text-muted-foreground">
+                            {new Date(version.createdAt).toLocaleString()}
+                          </p>
+
+                          <span
+                            className={`mt-2 inline-flex w-fit rounded-full border px-2 py-0.5 text-[10px] font-medium ${getReviewStatusStyle(
+                              version.reviewStatus,
+                            )}`}
                           >
-                            View
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="py-6 text-sm text-center text-muted-foreground">
-                      No files uploaded.
-                    </div>
-                  )}
+                            {version.reviewStatus?.replaceAll("_", " ")}
+                          </span>
+
+                          {isViewing && (
+                            <p className="mt-2 text-[10px] font-medium text-primary">
+                              Currently viewing
+                            </p>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </section>
-
-              {selectedVersion?.reviewRemark && (
-                <section className="p-5 border rounded-xl bg-red-50/50">
-                  <h3 className="font-semibold">Previous Review Feedback</h3>
-
-                  <p className="mt-3 text-sm leading-6 whitespace-pre-wrap text-muted-foreground">
-                    {selectedVersion.reviewRemark}
-                  </p>
-                </section>
+              ) : (
+                <div className="overflow-hidden border rounded-xl bg-background">
+                  <DailyUpdatesTimeline
+                    componentId={currentComponentId}
+                    taskId={task._id}
+                    canPost={false}
+                  />
+                </div>
               )}
             </div>
+          </aside>
 
-            <aside className="h-fit lg:sticky lg:top-6">{reviewPanel}</aside>
+          {/* ================================================
+              MAIN CONTENT — the version selected in the sidebar
+             ================================================ */}
+          <div className="flex-1 min-w-0">
+            <div className="flex flex-col gap-4 mb-4 sm:flex-row sm:items-center sm:justify-between">
+              <h2 className="text-lg font-semibold">Submission</h2>
+            </div>
+
+            {currentSubmission._id !== latest._id && (
+              <div className="flex flex-col items-start justify-between gap-3 p-4 mb-6 border rounded-xl border-amber-300 bg-amber-50 sm:flex-row sm:items-center">
+                <p className="text-sm text-amber-900">
+                  You&apos;re viewing{" "}
+                  <span className="font-semibold">
+                    Version {currentSubmission.version}
+                  </span>{" "}
+                  — an older submission, not the current one.
+                </p>
+
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="bg-white border-amber-300 text-amber-900 hover:bg-amber-100 shrink-0"
+                  onClick={() => setSelectedVersion(null)}
+                >
+                  Jump to Latest
+                </Button>
+              </div>
+            )}
+
+            {/* SUBMITTED CONTENT — one block: document(s) first, the
+                employee's description below it. Who submitted it and
+                when is already on the sidebar row, so it isn't
+                repeated here. */}
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+              <div className="space-y-6">
+                <section className="overflow-hidden border rounded-xl bg-background">
+                  <div className="flex items-center justify-between px-5 py-4 border-b bg-slate-200">
+                    <h2 className="font-semibold ">Submitted Document</h2>
+
+                    <p className="text-xs text-muted-foreground">
+                      By {currentSubmission.submittedBy?.username || "-"} ·{" "}
+                      {new Date(currentSubmission.createdAt).toLocaleString()}
+                    </p>
+                  </div>
+
+                  <div className="p-4">
+                    {currentSubmission.files?.length > 0 ? (
+                      <div className="space-y-3">
+                        {currentSubmission.files.map((file, index) => (
+                          <div
+                            key={index}
+                            className="flex items-center justify-between gap-4 p-4 border rounded-lg"
+                          >
+                            <div className="flex items-center min-w-0 gap-3">
+                              <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-muted shrink-0">
+                                <FileText size={19} />
+                              </div>
+
+                              <div className="min-w-0">
+                                <p className="font-medium truncate">
+                                  {file.originalName}
+                                </p>
+
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                  {formatFileSize(file.size)}
+                                </p>
+                              </div>
+                            </div>
+
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() =>
+                                openFile(file, currentSubmission._id, index)
+                              }
+                            >
+                              View
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="py-6 text-sm text-center text-muted-foreground">
+                        No files uploaded.
+                      </div>
+                    )}
+
+                    <div className="pt-4 mt-4 border-t">
+                      {currentSubmission.textSubmission ? (
+                        <p className="text-sm leading-7 whitespace-pre-wrap">
+                          {currentSubmission.textSubmission}
+                        </p>
+                      ) : (
+                        <p className="text-sm text-center text-muted-foreground">
+                          No description provided.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </section>
+
+                {selectedVersion?.reviewRemark && (
+                  <section className="p-5 border rounded-xl bg-red-50/50">
+                    <h3 className="font-semibold">Previous Review Feedback</h3>
+
+                    <p className="mt-3 text-sm leading-6 whitespace-pre-wrap text-muted-foreground">
+                      {selectedVersion.reviewRemark}
+                    </p>
+                  </section>
+                )}
+              </div>
+
+              <aside className="h-fit lg:sticky lg:top-6">{reviewPanel}</aside>
+            </div>
           </div>
         </div>
       )}
-
-      {/* DAILY UPDATES — separate from submission/review workflow */}
-      <div className="mt-8">
-        <DailyUpdatesTimeline
-          componentId={currentComponentId}
-          taskId={task._id}
-          canPost={false}
-        />
-      </div>
     </div>
   );
 }

@@ -5,6 +5,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+
 import { getTaskUpdates, addTaskUpdate } from "@/api/dailyUpdateAPI";
 
 import { AlertCircle, History } from "lucide-react";
@@ -61,6 +69,9 @@ export default function DailyUpdatesTimeline({ componentId, taskId, canPost }) {
   const [content, setContent] = useState("");
   const [posting, setPosting] = useState(false);
   const [postError, setPostError] = useState("");
+
+  // Which update the "full information" popup is currently showing.
+  const [selectedUpdate, setSelectedUpdate] = useState(null);
 
   const loadUpdates = async () => {
     try {
@@ -174,9 +185,11 @@ export default function DailyUpdatesTimeline({ componentId, taskId, canPost }) {
 
                 <div className="space-y-3">
                   {group.items.map((update) => (
-                    <div
+                    <button
+                      type="button"
                       key={update._id}
-                      className="flex items-start gap-3 p-3 border rounded-lg border-border bg-muted/40"
+                      onClick={() => setSelectedUpdate(update)}
+                      className="flex items-start w-full gap-3 p-3 text-left transition-colors border rounded-lg cursor-pointer border-border bg-muted/40 hover:border-primary/40 hover:bg-muted/70"
                     >
                       <Avatar className="w-8 h-8 mt-0.5">
                         <AvatarFallback className="text-xs font-semibold">
@@ -197,11 +210,11 @@ export default function DailyUpdatesTimeline({ componentId, taskId, canPost }) {
                           </span>
                         </div>
 
-                        <p className="mt-1 text-sm leading-6 whitespace-pre-wrap text-foreground/90">
+                        <p className="mt-1 text-sm leading-6 line-clamp-2 text-foreground/90">
                           {update.content}
                         </p>
                       </div>
-                    </div>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -209,6 +222,38 @@ export default function DailyUpdatesTimeline({ componentId, taskId, canPost }) {
           </div>
         )}
       </CardContent>
+
+      {/* Full-information popup for a clicked update */}
+      <Dialog
+        open={!!selectedUpdate}
+        onOpenChange={(open) => !open && setSelectedUpdate(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Avatar className="w-7 h-7">
+                <AvatarFallback className="text-xs font-semibold">
+                  {(selectedUpdate?.employee?.username || "?")
+                    .charAt(0)
+                    .toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              {selectedUpdate?.employee?.username || "Unknown"}
+            </DialogTitle>
+
+            <DialogDescription>
+              {selectedUpdate &&
+                `${formatDay(selectedUpdate.createdAt)} · ${formatTime(
+                  selectedUpdate.createdAt,
+                )}`}
+            </DialogDescription>
+          </DialogHeader>
+
+          <p className="text-sm leading-7 whitespace-pre-wrap text-foreground/90">
+            {selectedUpdate?.content}
+          </p>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

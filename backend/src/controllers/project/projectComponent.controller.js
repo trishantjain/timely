@@ -370,13 +370,19 @@ export const getMyTasks = async (req, res) => {
         continue;
       }
 
+      // NOTE: projectModule can legitimately be null — the
+      // auto-created "Manual Tasks" container (see
+      // addManualTaskToProject) is created with projectModule: null
+      // on purpose, for tasks that aren't tied to any work item.
+      // Skipping the whole component whenever projectModule was
+      // missing meant employees could never see a manual task
+      // assigned to them through that container — so this only logs
+      // now, it doesn't drop the component's tasks.
       if (!component.projectModule) {
-        console.error(
-          "[Get My Tasks] Project Module not found for component:",
+        console.log(
+          "[Get My Tasks] Component has no Project Module (likely a manual-tasks container):",
           component._id.toString(),
         );
-
-        continue;
       }
 
       for (const task of component.tasks) {
@@ -420,9 +426,9 @@ export const getMyTasks = async (req, res) => {
 
             componentName: component.name,
 
-            moduleId: component.projectModule._id,
+            moduleId: component.projectModule?._id || null,
 
-            moduleName: component.projectModule.name,
+            moduleName: component.projectModule?.name || "Manual Tasks",
 
             taskId: task._id,
 
