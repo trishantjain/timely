@@ -29,6 +29,30 @@ import {
 } from "lucide-react";
 
 // ==========================================
+// WORD DOCUMENT DETECTION
+//
+// This preview pane used to just point an <iframe> straight at the
+// raw docx bytes, which browsers can't render at all (they have no
+// built-in Word renderer), so Word files previewed here silently
+// failed. They're now converted to PDF server-side with LibreOffice
+// (see previewSubmissionFileAsPdf on the backend / the same fix
+// applied in AdminTaskDetails.jsx) and previewed through the normal
+// PDF iframe below.
+// ==========================================
+const WORD_MIME_TYPES = [
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+];
+
+const isWordDocument = (file) => {
+  if (WORD_MIME_TYPES.includes(file?.mimeType)) return true;
+
+  const name = (file?.originalName || "").toLowerCase();
+
+  return name.endsWith(".doc") || name.endsWith(".docx");
+};
+
+// ==========================================
 // FORMAT FILE SIZE
 // ==========================================
 
@@ -143,18 +167,20 @@ export default function ReviewSubmission() {
 
   const openFile = async (file, versionId, fileIndex) => {
     try {
-      const response = await api.get(
-        `/submissions/versions/${versionId}/files/${fileIndex}/download`,
-        {
-          responseType: "blob",
-        },
-      );
+      const endpoint = isWordDocument(file)
+        ? `/submissions/versions/${versionId}/files/${fileIndex}/preview-pdf`
+        : `/submissions/versions/${versionId}/files/${fileIndex}/download`;
 
-      const mimeType =
-        file.mimeType || response.headers["content-type"] || "application/pdf";
+      const response = await api.get(endpoint, {
+        responseType: "blob",
+      });
+
+      const mimeType = isWordDocument(file)
+        ? "application/pdf"
+        : file.mimeType || response.headers["content-type"] || "application/pdf";
 
       const blob = new Blob([response.data], {
-        type: file.mimeType || "application/pdf",
+        type: mimeType,
       });
 
       const blobUrl = URL.createObjectURL(blob);

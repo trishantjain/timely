@@ -11,6 +11,30 @@ import {
   uploadFileToCloudinary,
   deleteFileFromCloudinary,
 } from "../../utils/cloudinaryUpload.js";
+import { convertToPdf } from "../../utils/docxToPdf.js";
+
+// Office file types that need server-side PDF conversion before they
+// can be previewed (browsers can't render these natively). Anything
+// not in this list (PDFs, images) is previewed as-is.
+const OFFICE_PREVIEW_EXTENSIONS = [".doc", ".docx", ".ppt", ".pptx"];
+
+// Very small in-memory cache so re-opening the same file preview
+// during a session doesn't re-run the (slow) LibreOffice conversion
+// every time. Keyed by "<versionId>:<fileIndex>". Not persisted
+// across server restarts/instances — fine for now, but if this needs
+// to survive restarts or scale across multiple app instances, cache
+// the converted PDF back to Cloudinary/disk instead.
+const pdfPreviewCache = new Map();
+const PDF_PREVIEW_CACHE_LIMIT = 50;
+
+const cachePdfPreview = (key, buffer) => {
+  if (pdfPreviewCache.size >= PDF_PREVIEW_CACHE_LIMIT) {
+    const oldestKey = pdfPreviewCache.keys().next().value;
+    pdfPreviewCache.delete(oldestKey);
+  }
+
+  pdfPreviewCache.set(key, buffer);
+};
 
 // Extensions we'll accept at all, regardless of a task's allowedExtensions
 // list — a baseline denylist against obviously dangerous upload types.
@@ -550,7 +574,112 @@ export const downloadSubmissionFile = async (req, res) => {
       });
     }
 
+    // Cloudinary stores every upload under a random public_id
+    // (see uploadFileToCloudinary: unique_filename: true), so its
+    // own URL/headers never carry the name the user originally
+    // uploaded. Injecting Cloudinary's fl_attachment transform makes
+    // Cloudinary itself send the right Content-Disposition filename,
+    // so the correct name shows up on ANY download path — the app's
+    // own "Download" button, a browser's native PDF-viewer download
+    // icon, right-click "Save As", etc. — not just the one place the
+    // frontend happens to set an <a download> attribute.
+    const safeName = (file.originalName || "download").replace(
+      /["\r\n]/g,
+      "",
+    );
+
+    const attachmentUrl = file.secureUrl.replace(
+      "/upload/",
+      `/upload/fl_attachment:${encodeURIComponent(safeName)}/`,
+    );
+
+    file.secureUrl = attachmentUrl;
+
     return res.redirect(file.secureUrl);
+  } catch (err) {
+    console.error("[Submission] File View Error", err);
+
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+// ==========================================
+// PREVIEW A SUBMITTED OFFICE FILE AS PDF
+//
+// Converts Word/PowerPoint files to PDF server-side with LibreOffice
+// and streams the PDF back, so the frontend can preview it through
+// the same PDF <iframe> path already used elsewhere — instead of the
+// old client-side docx-preview renderer, which doesn't fully support
+// floating shapes/text boxes (anchored images, arrows, callout
+// labels), causing overlap/drift in the old preview.
+// ==========================================
+export const previewSubmissionFileAsPdf = async (req, res) => {
+  try {
+    const { versionId, fileIndex } = req.params;
+
+    const version = await SubmissionVersion.findById(versionId);
+
+    if (!version) {
+      return res.status(404).json({
+        success: false,
+        message: "Submission version not found.",
+      });
+    }
+
+    const isOwner = version.submittedBy.toString() === req.user.id.toString();
+    const isAdmin = req.user.role === "admin";
+
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({
+        success: false,
+        message: "You do not have access to this file.",
+      });
+    }
+
+    const file = version.files[Number(fileIndex)];
+
+    if (!file || !file.secureUrl) {
+      return res.status(404).json({
+        success: false,
+        message: "File not found on this submission.",
+      });
+    }
+
+    const extension = "." + (file.originalName || "").split(".").pop().toLowerCase();
+
+    if (!OFFICE_PREVIEW_EXTENSIONS.includes(extension)) {
+      return res.status(400).json({
+        success: false,
+        message: "This file type doesn't need PDF conversion.",
+      });
+    }
+
+    const cacheKey = `${versionId}:${fileIndex}`;
+    let pdfBuffer = pdfPreviewCache.get(cacheKey);
+
+    if (!pdfBuffer) {
+      const sourceResponse = await fetch(file.secureUrl);
+
+      if (!sourceResponse.ok) {
+        throw new Error(
+          `Failed to fetch source file from storage (status ${sourceResponse.status}).`,
+        );
+      }
+
+      const sourceBuffer = Buffer.from(await sourceResponse.arrayBuffer());
+
+      pdfBuffer = await convertToPdf(sourceBuffer, extension);
+
+      cachePdfPreview(cacheKey, pdfBuffer);
+    }
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", "inline");
+
+    return res.send(pdfBuffer);
   } catch (err) {
     console.error("[Submission] File View Error", err);
 

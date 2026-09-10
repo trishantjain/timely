@@ -7,6 +7,7 @@ import {
   reviewSubmission,
   submitTask,
   downloadSubmissionFile,
+  previewSubmissionFileAsPdf,
 } from "../../controllers/submission/submission.controller.js";
 import {
   submitTaskRules,
@@ -52,6 +53,15 @@ router.get(
   "/versions/:versionId/files/:fileIndex/download",
   protect,
   downloadSubmissionFile,
+);
+
+// Server-side LibreOffice conversion for Word/PowerPoint previews —
+// see previewSubmissionFileAsPdf for why this replaces the old
+// client-side docx-preview renderer.
+router.get(
+  "/versions/:versionId/files/:fileIndex/preview-pdf",
+  protect,
+  previewSubmissionFileAsPdf,
 );
 
 router.get("/pending", protect, adminOnly, getPendingReviews);

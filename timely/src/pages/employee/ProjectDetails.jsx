@@ -1,5 +1,6 @@
 import { getProjectById } from "@/api/projectAPI";
 import { getMyTasks } from "@/api/taskAPI";
+import ProjectFilesPanel from "@/components/project/ProjectFilesPanel";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -304,28 +305,14 @@ export default function EmployeeProjectDetails() {
       {activeTab === "documents" && (
         <div className="mt-5">
           <div className="mb-4">
-            <h2 className="text-lg font-semibold">Assigned Documents</h2>
+            <h2 className="text-lg font-semibold">Shared Files</h2>
 
             <p className="mt-1 text-sm text-muted-foreground">
-              Documents and templates assigned to you for this project.
+              Files your project admin has shared for this project.
             </p>
           </div>
 
-          {/* CURRENTLY EMPTY STATE */}
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-10 text-center">
-              <div className="flex items-center justify-center border rounded-full w-11 h-11 bg-muted">
-                <FileText size={20} className="text-muted-foreground" />
-              </div>
-
-              <h3 className="mt-3 font-medium">No documents assigned yet</h3>
-
-              <p className="max-w-md mt-1 text-sm text-muted-foreground">
-                When your project manager assigns a document or template, it
-                will appear here.
-              </p>
-            </CardContent>
-          </Card>
+          <ProjectFilesPanel projectId={project._id} isAdmin={false} />
         </div>
       )}
     </div>

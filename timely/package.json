@@ -22,7 +22,6 @@
     "button": "^1.1.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "docx-preview": "^0.4.0",
     "lucide-react": "^0.577.0",
     "mammoth": "^1.12.2",
     "radix-ui": "^1.4.3",

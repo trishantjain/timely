@@ -1,8 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { useNavigate, useParams } from "react-router-dom";
-
-import { renderAsync as renderDocxAsync } from "docx-preview";
 
 import { getTaskDetails } from "@/api/projectComponentAPI";
 import { getSubmissionHistory, reviewSubmission } from "@/api/submissionAPI";
@@ -40,23 +38,26 @@ import {
 // WORD DOCUMENT DETECTION
 //
 // Browsers have no built-in renderer for Word files (unlike PDFs
-// and images, which <iframe>/<img> can show natively). Pointing an
-// iframe straight at a docx blob just makes the browser fall back
-// to downloading it — that's the bug being fixed here.
+// and images, which <iframe>/<img> can show natively).
 //
-// Embedding a third-party viewer (Microsoft/Google) was tried first,
-// but those services fetch the file from THEIR servers, which can't
-// reach files that aren't reachable from the public internet (e.g.
-// local/dev environments, or storage that blocks external crawlers).
+// Embedding a third-party viewer (Microsoft/Google) doesn't work
+// here — those services fetch the file from THEIR servers, which
+// can't reach files that aren't reachable from the public internet
+// (e.g. local/dev environments, or storage that blocks external
+// crawlers).
 //
-// So instead the file is rendered entirely client-side with
-// docx-preview, which reproduces actual Word layout — fonts, page
-// size/margins, headers/footers, tables — rather than the plain
-// semantic HTML a basic docx-to-HTML converter produces. It's given
-// the bytes already fetched through the existing authenticated
-// download endpoint (same one PDFs/images use) and draws into the
-// SAME iframe already used below, keeping full style isolation from
-// the rest of the app.
+// A previous version rendered these entirely client-side with
+// docx-preview, a JS library that reimplements Word's layout engine
+// in the browser. It doesn't fully support floating/anchored shapes
+// (text boxes, arrows, absolute-positioned images) — common in real
+// docs that annotate screenshots — so those elements would drift or
+// overlap.
+//
+// Word docs are now converted to PDF server-side with LibreOffice
+// (see previewSubmissionFileAsPdf on the backend) and previewed
+// through the exact same PDF <iframe> path as everything else below
+// — LibreOffice's layout engine renders floating shapes correctly, so
+// this gives pixel-accurate previews regardless of what's in the doc.
 // ==========================================
 const WORD_MIME_TYPES = [
   "application/msword",
@@ -69,16 +70,6 @@ const isWordDocument = (file) => {
   const name = (file?.originalName || "").toLowerCase();
 
   return name.endsWith(".doc") || name.endsWith(".docx");
-};
-
-const DOCX_RENDER_OPTIONS = {
-  inWrapper: true,
-  ignoreWidth: false,
-  ignoreHeight: false,
-  breakPages: true,
-  // Keeps embedded images inline as data URLs instead of blob: URLs,
-  // so there's nothing extra to track/revoke when the viewer closes.
-  useBase64URL: true,
 };
 
 
@@ -171,15 +162,6 @@ export default function AdminTaskDetails() {
   // revokeObjectURL on a URL we don't own.
   const [isBlobPreview, setIsBlobPreview] = useState(false);
 
-  // True while previewing a Word file: renders via docx-preview
-  // (see docxIframeRef below) instead of setting previewUrl.
-  const [isDocxPreview, setIsDocxPreview] = useState(false);
-
-  // Holds the fetched docx bytes between openFile() and the iframe's
-  // onLoad handler, which is where the actual docx-preview render
-  // call happens (it needs the iframe's own document to draw into).
-  const docxBlobRef = useRef(null);
-
   const loadData = async () => {
     try {
       setLoading(true);
@@ -248,48 +230,32 @@ export default function AdminTaskDetails() {
 
   const openFile = async (file, versionId, fileIndex) => {
     try {
-      // Fetch the bytes through the existing authenticated download
-      // route — the same one already used for PDFs/images, so this
-      // works with whatever storage/auth setup is already in place.
-      const response = await api.get(
-        `/submissions/versions/${versionId}/files/${fileIndex}/download`,
-        {
-          responseType: "blob",
-        },
-      );
+      // Word docs go through the server-side LibreOffice conversion
+      // endpoint (already PDF bytes by the time they arrive here);
+      // everything else (PDFs, images) uses the existing authenticated
+      // download route directly.
+      const endpoint = isWordDocument(file)
+        ? `/submissions/versions/${versionId}/files/${fileIndex}/preview-pdf`
+        : `/submissions/versions/${versionId}/files/${fileIndex}/download`;
 
-      const mimeType =
-        file.mimeType || response.headers["content-type"] || "application/pdf";
+      const response = await api.get(endpoint, {
+        responseType: "blob",
+      });
 
-      // Word documents: the browser can't render these natively, so
-      // draw them into the docx-preview iframe below instead. The
-      // actual render call happens in that iframe's onLoad handler
-      // (it needs the iframe's own document to draw into) — here we
-      // just stash the bytes and flip the viewer into "docx mode".
-      if (isWordDocument(file)) {
-        docxBlobRef.current = response.data;
+      const mimeType = isWordDocument(file)
+        ? "application/pdf"
+        : file.mimeType || response.headers["content-type"] || "application/pdf";
 
-        setIsBlobPreview(false);
-        setPreviewUrl(null);
-        setIsDocxPreview(true);
-        setPreviewFileName(file.originalName);
-        setPreviewMimeType(mimeType);
-        setZoom(1);
-        setViewerOpen(true);
-        return;
-      }
-
-      // PDFs and images: render straight from a local blob URL,
-      // which browsers display inline just fine.
+      // Render straight from a local blob URL, which browsers display
+      // inline just fine (native PDF viewer for PDFs/converted docs,
+      // <img> for images).
       const blob = new Blob([response.data], {
-        type: file.mimeType || "application/pdf",
+        type: mimeType,
       });
 
       const blobUrl = URL.createObjectURL(blob);
 
       setIsBlobPreview(true);
-      setIsDocxPreview(false);
-      docxBlobRef.current = null;
       setPreviewUrl(blobUrl);
       setPreviewFileName(file.originalName);
       setPreviewMimeType(mimeType);
@@ -302,28 +268,6 @@ export default function AdminTaskDetails() {
           ? "Unable to preview this document. Try downloading it instead."
           : "Unable to open file.",
       );
-    }
-  };
-
-  // Called once the docx-preview iframe has a live document to draw
-  // into. Renders the bytes stashed by openFile() above, reproducing
-  // real Word layout (fonts, page size, headers/footers, tables)
-  // rather than plain HTML.
-  const renderDocxPreview = async (iframeEl) => {
-    const doc = iframeEl?.contentDocument;
-
-    if (!doc || !docxBlobRef.current) return;
-
-    try {
-      await renderDocxAsync(
-        docxBlobRef.current,
-        doc.body,
-        doc.head,
-        DOCX_RENDER_OPTIONS,
-      );
-    } catch (err) {
-      console.error(err);
-      alertDialog("Unable to preview this document. Try downloading it instead.");
     }
   };
 
@@ -367,10 +311,7 @@ export default function AdminTaskDetails() {
       URL.revokeObjectURL(previewUrl);
     }
 
-    docxBlobRef.current = null;
-
     setPreviewUrl(null);
-    setIsDocxPreview(false);
     setPreviewFileName("");
     setPreviewMimeType("");
     setIsBlobPreview(false);
@@ -655,13 +596,6 @@ export default function AdminTaskDetails() {
                     className="object-contain max-w-full max-h-full transition-transform duration-200"
                   />
                 </div>
-              ) : isDocxPreview ? (
-                <iframe
-                  key={previewFileName}
-                  title={previewFileName}
-                  className="absolute inset-0 w-full h-full bg-white border-0"
-                  onLoad={(e) => renderDocxPreview(e.currentTarget)}
-                />
               ) : (
                 <iframe
                   src={previewUrl}

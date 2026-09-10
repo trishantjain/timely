@@ -18,6 +18,7 @@ import assignmentRoutes from "./routes/assignment/assignment.routes.js";
 import projectModuleRoutes from "./routes/project/projectModule.routes.js";
 import projectComponentRoutes from "./routes/project/projectComponent.routes.js";
 import submissionRoutes from "./routes/submission/submission.routes.js";
+import projectFileRoutes from "./routes/project/projectFile.routes.js";
 import componentTemplateRoutes from "./routes/template/componentTemplate.routes.js";
 import dailyUpdateRoutes from "./routes/update/dailyUpdate.routes.js";
 
@@ -119,6 +120,7 @@ app.use("/api/assignments", assignmentRoutes);
 app.use("/api/project-modules", projectModuleRoutes);
 app.use("/api/project-components", projectComponentRoutes);
 app.use("/api/submissions", submissionRoutes);
+app.use("/api/project-files", projectFileRoutes);
 app.use("/api/component-template", componentTemplateRoutes);
 app.use("/api/daily-updates", dailyUpdateRoutes);
 

@@ -33,11 +33,13 @@ import {
   CircleUserRound,
   ClipboardList,
   Clock,
+  FileText,
   Layers,
   Users,
 } from "lucide-react";
 
 import { getProjectById, updateProjectDomains } from "@/api/projectAPI";
+import ProjectFilesPanel from "@/components/project/ProjectFilesPanel";
 import { getDomains } from "@/api/domainAPI";
 import { getEmployees } from "@/api/employeeAPI";
 import { createAssignments } from "@/api/assignmentAPI";
@@ -419,6 +421,11 @@ export default function ProjectDetails() {
       id: "review",
       label: "Review Tasks",
       icon: Clock,
+    },
+    {
+      id: "files",
+      label: "Files",
+      icon: FileText,
     },
     {
       id: "info",
@@ -1163,6 +1170,25 @@ export default function ProjectDetails() {
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {/* ================= FILES ================= */}
+
+        {activeTab === "files" && (
+          <div className="p-4 sm:p-5">
+            <div className="mb-4">
+              <h2 className="text-base font-semibold text-[#1f2937]">
+                Project Files
+              </h2>
+
+              <p className="text-xs text-[#64748b]">
+                Upload files here to share them with everyone assigned to
+                this project.
+              </p>
+            </div>
+
+            <ProjectFilesPanel projectId={project._id} isAdmin={true} />
+          </div>
         )}
 
         {/* ================= PROJECT INFO ================= */}

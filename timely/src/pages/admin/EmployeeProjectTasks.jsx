@@ -54,9 +54,7 @@ export default function EmployeeProjectTasks() {
     } catch (err) {
       console.error(err);
 
-      setError(
-        err.response?.data?.message || "Unable to load employee tasks.",
-      );
+      setError(err.response?.data?.message || "Unable to load employee tasks.");
     } finally {
       setLoading(false);
     }
@@ -166,12 +164,24 @@ export default function EmployeeProjectTasks() {
               <p className="text-sm font-semibold truncate">{project.name}</p>
             </div>
           </div>
+
+          <div className="flex items-center min-w-0 gap-3 px-4 py-3 border rounded-xl bg-muted/20 sm:max-w-xs">
+            <div className="flex items-center justify-center border rounded-lg h-9 w-9 shrink-0 bg-muted/40">
+              <FolderKanban size={17} />
+            </div>
+
+            <div className="min-w-0">
+              <p className="text-xs text-muted-foreground">Assigned Tasks</p>
+
+              <p className="text-sm font-semibold">{tasks.length}</p>
+            </div>
+          </div>
         </div>
 
         {/* SUMMARY */}
 
-        <div className="grid border-t sm:grid-cols-2">
-          <div className="flex items-center gap-3 px-5 py-4 sm:px-6">
+        {/* <div className="grid border-t sm:grid-cols-2"> */}
+          {/* <div className="flex items-center gap-3 px-5 py-4 sm:px-6">
             <div className="flex items-center justify-center border rounded-lg h-9 w-9 bg-muted/40">
               <User size={17} />
             </div>
@@ -181,9 +191,9 @@ export default function EmployeeProjectTasks() {
 
               <p className="text-sm font-semibold">{employee.username}</p>
             </div>
-          </div>
+          </div> */}
 
-          <div className="flex items-center gap-3 px-5 py-4 border-t sm:border-l sm:border-t-0 sm:px-6">
+          {/* <div className="flex items-center gap-3 px-5 py-4 border-t sm:border-l sm:border-t-0 sm:px-6">
             <div className="flex items-center justify-center border rounded-lg h-9 w-9 bg-muted/40">
               <ClipboardList size={17} />
             </div>
@@ -193,8 +203,8 @@ export default function EmployeeProjectTasks() {
 
               <p className="text-sm font-semibold">{tasks.length}</p>
             </div>
-          </div>
-        </div>
+          </div> */}
+        {/* </div> */}
       </div>
 
       {/* TASKS */}
@@ -243,7 +253,7 @@ export default function EmployeeProjectTasks() {
                       handleTaskClick(task);
                     }
                   }}
-                  className="flex flex-col w-full gap-4 px-5 py-4 text-left transition-colors hover:bg-muted/30 sm:px-6 md:flex-row md:items-center md:justify-between"
+                  className="flex flex-col w-full gap-4 px-5 py-2 text-left transition-colors hover:bg-muted/30 sm:px-6 md:flex-row md:items-center md:justify-between"
                 >
                   {/* TASK INFO */}
 
