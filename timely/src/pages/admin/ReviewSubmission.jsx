@@ -153,9 +153,7 @@ export default function ReviewSubmission() {
     } catch (err) {
       console.error(err);
 
-      setLoadError(
-        err.response?.data?.message || "Unable to load submission.",
-      );
+      setLoadError(err.response?.data?.message || "Unable to load submission.");
     } finally {
       setLoading(false);
     }
@@ -177,7 +175,9 @@ export default function ReviewSubmission() {
 
       const mimeType = isWordDocument(file)
         ? "application/pdf"
-        : file.mimeType || response.headers["content-type"] || "application/pdf";
+        : file.mimeType ||
+          response.headers["content-type"] ||
+          "application/pdf";
 
       const blob = new Blob([response.data], {
         type: mimeType,
@@ -375,7 +375,7 @@ export default function ReviewSubmission() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 rounded-lg border bg-muted/20 px-3 py-2 text-sm text-muted-foreground shrink-0">
+          <div className="flex items-center gap-2 px-3 py-2 text-sm border rounded-lg bg-muted/20 text-muted-foreground shrink-0">
             <GitCommitHorizontal size={16} />
             {sortedVersions.length}{" "}
             {sortedVersions.length === 1 ? "version" : "versions"} submitted
@@ -397,8 +397,8 @@ export default function ReviewSubmission() {
                 "
       >
         {/* ==================================
-                    LEFT — VERSION TIMELINE
-                ================================== */}
+                LEFT — VERSION TIMELINE
+            ================================== */}
 
         <aside className="h-fit lg:sticky lg:top-6">
           <div className="overflow-hidden border rounded-xl bg-background">
@@ -452,9 +452,7 @@ export default function ReviewSubmission() {
                                             `}
                     >
                       <span
-                        className={`
-                                                    relative
-                                                    z-10
+                        className={`relative z-10
                                                     mt-1
                                                     h-3
                                                     w-3
@@ -467,7 +465,7 @@ export default function ReviewSubmission() {
                                                 `}
                       />
 
-                      <div className="min-w-0 flex-1 pb-4">
+                      <div className="flex-1 min-w-0 pb-4">
                         <div className="flex flex-wrap items-center gap-1.5">
                           <span className="text-sm font-medium">
                             Version {version.version}
@@ -512,10 +510,8 @@ export default function ReviewSubmission() {
 
                         <div className="flex items-center gap-1.5 mt-2 text-xs text-muted-foreground">
                           <Paperclip size={12} />
-
                           {version.files?.length || 0} file
                           {version.files?.length === 1 ? "" : "s"}
-
                           {fileDelta ? (
                             <span
                               className={
@@ -618,10 +614,10 @@ export default function ReviewSubmission() {
           </div>
 
           {!isViewingLatest && (
-            <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <div className="flex items-center gap-2 px-4 py-3 text-sm border rounded-lg border-amber-200 bg-amber-50 text-amber-800">
               <Clock size={16} className="shrink-0" />
-              You&apos;re viewing an earlier version. Review decisions can
-              only be made on the latest submission.
+              You&apos;re viewing an earlier version. Review decisions can only
+              be made on the latest submission.
             </div>
           )}
 
@@ -819,8 +815,8 @@ export default function ReviewSubmission() {
 
               {!isViewingLatest && (
                 <p className="mt-4 text-xs leading-5 text-center text-muted-foreground">
-                  You are viewing a previous version. Switch back to the
-                  current submission to review it.
+                  You are viewing a previous version. Switch back to the current
+                  submission to review it.
                 </p>
               )}
 
