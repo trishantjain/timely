@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import path from "path";
 
 import Submission from "../../models/submission/Submission.js";
 import SubmissionVersion from "../../models/submission/SubmissionVersion.js";
@@ -583,14 +584,14 @@ export const downloadSubmissionFile = async (req, res) => {
     // own "Download" button, a browser's native PDF-viewer download
     // icon, right-click "Save As", etc. — not just the one place the
     // frontend happens to set an <a download> attribute.
-    const safeName = (file.originalName || "download").replace(
-      /["\r\n]/g,
-      "",
-    );
+    // NEW — replace with this:
+    const rawName = file.originalName || "download";
+    const safeName = rawName.replace(/["\r\n,/:]/g, "_");
+    const encodedName = encodeURIComponent(safeName).replace(/\./g, "%2E");
 
     const attachmentUrl = file.secureUrl.replace(
       "/upload/",
-      `/upload/fl_attachment:${encodeURIComponent(safeName)}/`,
+      `/upload/fl_attachment:${encodedName}/`,
     );
 
     file.secureUrl = attachmentUrl;
@@ -648,7 +649,8 @@ export const previewSubmissionFileAsPdf = async (req, res) => {
       });
     }
 
-    const extension = "." + (file.originalName || "").split(".").pop().toLowerCase();
+    const extension =
+      "." + (file.originalName || "").split(".").pop().toLowerCase();
 
     if (!OFFICE_PREVIEW_EXTENSIONS.includes(extension)) {
       return res.status(400).json({

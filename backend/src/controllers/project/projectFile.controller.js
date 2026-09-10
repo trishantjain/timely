@@ -125,14 +125,14 @@ export const downloadProjectFile = asyncHandler(async (req, res) => {
   // URL never carries the original filename — inject fl_attachment so
   // Cloudinary serves it with the right Content-Disposition filename
   // on any download path (custom button, native browser download, etc).
-  const safeName = (file.originalName || "download").replace(
-    /["\r\n]/g,
-    "",
-  );
+  // NEW:
+  const rawName = file.originalName || "download";
+  const safeName = rawName.replace(/["\r\n,/:]/g, "_");
+  const encodedName = encodeURIComponent(safeName).replace(/\./g, "%2E");
 
   const attachmentUrl = file.secureUrl.replace(
     "/upload/",
-    `/upload/fl_attachment:${encodeURIComponent(safeName)}/`,
+    `/upload/fl_attachment:${encodedName}/`,
   );
 
   return res.redirect(attachmentUrl);
