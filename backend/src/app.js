@@ -1,3 +1,5 @@
+dotenv.config();
+
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -21,7 +23,6 @@ import dailyUpdateRoutes from "./routes/update/dailyUpdate.routes.js";
 
 import { notFound, errorHandler } from "./middleware/errorMiddleware.js";
 
-dotenv.config();
 
 const allowedOrigins = [
     "http://localhost:5173",      // Local React

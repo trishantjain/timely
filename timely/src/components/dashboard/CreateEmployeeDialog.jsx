@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
 
 import {
     Dialog,
@@ -178,11 +177,8 @@ export default function CreateEmployeeDialog({
                         <div className="grid grid-cols-2 gap-3">
                             {domains.map(domain => (
 
-                                <div
+                                <label
                                     key={domain._id}
-                                    onClick={() =>
-                                        toggleDomain(domain._id)
-                                    }
                                     className={`cursor-pointer rounded-lg border p-3 transition ${selectedDomains.includes(domain._id)
                                         ? "border-blue-600 bg-blue-50"
                                         : ""
@@ -191,8 +187,11 @@ export default function CreateEmployeeDialog({
 
                                     <div className="flex items-center gap-2">
 
-                                        <Checkbox
+                                        <input
+                                            type="checkbox"
                                             checked={selectedDomains.includes(domain._id)}
+                                            onChange={() => toggleDomain(domain._id)}
+                                            className="h-4 w-4 shrink-0 accent-primary"
                                         />
 
                                         <span>
@@ -201,7 +200,7 @@ export default function CreateEmployeeDialog({
 
                                     </div>
 
-                                </div>
+                                </label>
 
                             ))}
 

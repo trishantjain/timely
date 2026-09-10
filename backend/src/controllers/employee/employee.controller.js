@@ -2,6 +2,8 @@ import User from "../../models/auth/User.js";
 import ProjectMember from "../../models/project/ProjectMember.js";
 import Project from "../../models/project/Project.js";
 import mongoose from "mongoose";
+import { issueVerificationToken } from "../../services/verification.service.js";
+import logger from "../../utils/logger.js";
 
 // GET ALL EMPLOYEES
 export const getEmployees = async (req, res) => {
@@ -142,6 +144,12 @@ export const updateEmployee = async (req, res) => {
             }
         }
 
+        // If the email is actually changing, the new address is
+        // unverified until the employee clicks the new link -- and
+        // task-notification emails stop going to the old address the
+        // moment it's replaced.
+        const emailIsChanging = email !== undefined && email !== employee.email;
+
         const updatedEmployee = await User.findByIdAndUpdate(
             id,
 
@@ -149,6 +157,7 @@ export const updateEmployee = async (req, res) => {
                 ...(username !== undefined && { username }),
                 ...(email !== undefined && { email }),
                 ...(expertise !== undefined && { expertise }),
+                ...(emailIsChanging && { emailVerified: false }),
             },
 
             {
@@ -158,6 +167,18 @@ export const updateEmployee = async (req, res) => {
         )
             .populate("expertise", "name color")
             .select("-password");
+
+        if (emailIsChanging) {
+            try {
+                await issueVerificationToken(updatedEmployee);
+            } catch (err) {
+                logger.error(
+                    "employee",
+                    `Failed to send verification email to updated address ${updatedEmployee.email}`,
+                    err,
+                );
+            }
+        }
 
         return res.json({
             success: true,

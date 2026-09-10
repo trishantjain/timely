@@ -2,6 +2,7 @@ import { Outlet } from "react-router-dom";
 
 import EmployeeSidebar from "./EmployeeSidebar";
 import Navbar from "./Navbar";
+import EmailVerificationBanner from "../common/EmailVerificationBanner";
 
 export default function EmployeeLayout() {
     return (
@@ -16,6 +17,7 @@ export default function EmployeeLayout() {
                 {/* FIXED TOP NAVIGATION */}
                 <div className="sticky top-0 z-50 shrink-0">
                     <Navbar />
+                    <EmailVerificationBanner />
                 </div>
 
                 {/* SCROLLABLE PAGE CONTENT */}

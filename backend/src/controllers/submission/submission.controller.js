@@ -179,15 +179,32 @@ export const submitTask = async (req, res) => {
     }
 
     // ==========================================
-    // SUPPORTING PDF VALIDATION
+    // SUPPORTING DOCUMENT VALIDATION
     // ==========================================
-    for (const pdf of supportingPdfs) {
-      if (pdf.mimetype !== "application/pdf") {
+    // for (const pdf of supportingPdfs) {
+    //   if (pdf.mimetype !== "application/pdf") {
+    //     await session.abortTransaction();
+
+    //     return res.status(400).json({
+    //       success: false,
+    //       message: "Supporting documents must be PDF files.",
+    //     });
+    //   }
+    // }
+    const allowedSupportingExtensions = [".pdf", ".doc", ".docx"];
+
+    for (const document of supportingPdfs) {
+      const extension = `.${document.originalname
+        .split(".")
+        .pop()
+        .toLowerCase()}`;
+
+      if (!allowedSupportingExtensions.includes(extension)) {
         await session.abortTransaction();
 
         return res.status(400).json({
           success: false,
-          message: "Supporting documents must be PDF files.",
+          message: "Supporting documents must be PDF, DOC, or DOCX files.",
         });
       }
     }
@@ -825,11 +842,29 @@ function sanitizeVersion(versionDoc) {
 // ==========================================
 export const getPendingReviews = async (req, res) => {
   try {
-    const submissions = await Submission.find({
-      status: "UNDER_REVIEW",
-    })
+    const { projectId } = req.query;
+
+    const filter = { status: "UNDER_REVIEW" };
+
+    // Optional project scope — used by the project-level "Review Tasks"
+    // tab so it can reuse this same endpoint/query instead of a
+    // duplicate one. Omitting projectId keeps the original
+    // workspace-wide behaviour (e.g. the /admin/reviews page).
+    if (projectId) {
+      if (!mongoose.Types.ObjectId.isValid(projectId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid project ID.",
+        });
+      }
+
+      filter.project = projectId;
+    }
+
+    const submissions = await Submission.find(filter)
       .populate("project", "name")
       .populate("projectComponent", "name")
+      .populate("assignedEmployee", "username email")
       .populate("latestSubmission")
       .sort({
         updatedAt: -1,

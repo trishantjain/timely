@@ -1,6 +1,8 @@
 import bcrypt from "bcrypt";
 import User from "../../models/auth/User.js";
 import { signToken } from "../../config/jwt.js";
+import { issueVerificationToken } from "../../services/verification.service.js";
+import logger from "../../utils/logger.js";
 
 const isDev = process.env.NODE_ENV !== "production";
 
@@ -35,6 +37,17 @@ export const createUser = async (req, res) => {
 
     // SAVING USER
     await user.save();
+
+    // New employees start with emailVerified: false (schema default).
+    // Send the verification email now -- awaited so we can log a
+    // failure, but a failure here must never fail the account
+    // creation itself (the admin can still use "resend verification"
+    // from the employee's own login later).
+    try {
+      await issueVerificationToken(user);
+    } catch (err) {
+      logger.error("auth", `Failed to send verification email to new user ${user.email}`, err);
+    }
 
     user.password = undefined;
 

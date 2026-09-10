@@ -6,6 +6,11 @@ import User from "../../models/auth/User.js";
 import ProjectMember from "../../models/project/ProjectMember.js";
 import Submission from "../../models/submission/Submission.js";
 import mongoose from "mongoose";
+import { EMPLOYEE_ACTION_PENDING_STATUSES } from "../../constants/taskStatus.js";
+import {
+  notifyTaskAssigned,
+  notifyNewTasksAssigned,
+} from "../../services/notification.service.js";
 
 // =========================================
 // ADD COMPONENT TO PROJECT (SNAPSHOT)
@@ -269,6 +274,13 @@ export const assignTaskToEmployee = async (req, res) => {
 
     // console.log("\n===== SAVE COMPLETED =====");
 
+    // Fire-and-forget: send the "new task assigned" email if the
+    // employee's address is verified. Never awaited so this never
+    // slows down or fails the assignment response itself; internal
+    // dedupe (NotificationLog) protects against double-sends if this
+    // endpoint is retried for the same task/employee pair.
+    notifyTaskAssigned({ componentId: component._id, taskId });
+
     // Reload from MongoDB
     const updatedComponent = await ProjectComponent.findById(componentId);
 
@@ -499,7 +511,6 @@ export const getMyTasks = async (req, res) => {
 // back for rework (REJECTED). SUBMITTED/UNDER_REVIEW are waiting on
 // the admin/reviewer, and APPROVED is done, so neither belongs here.
 // =========================================
-const EMPLOYEE_ACTION_PENDING_STATUSES = ["PENDING", "IN_PROGRESS", "REJECTED"];
 
 export const getProjectPendingTasks = async (req, res) => {
   try {
@@ -1061,6 +1072,10 @@ export const addManualTask = async (req, res) => {
 
     const newTask = component.tasks[component.tasks.length - 1];
 
+    if (newTask.assignedEmployee) {
+      notifyTaskAssigned({ componentId: component._id, taskId: newTask._id });
+    }
+
     return res.status(201).json({
       success: true,
       message: "Manual task added successfully.",
@@ -1189,6 +1204,10 @@ export const addManualTaskToProject = async (req, res) => {
     await container.save();
 
     const newTask = container.tasks[container.tasks.length - 1];
+
+    if (newTask.assignedEmployee) {
+      notifyTaskAssigned({ componentId: container._id, taskId: newTask._id });
+    }
 
     return res.status(201).json({
       success: true,
@@ -1677,6 +1696,14 @@ export const updateProjectComponent = async (req, res) => {
 
       const updatedTasks = [];
 
+      // Tracks which positions in updatedTasks are brand-new tasks
+      // that already have an assignee, so a "new task assigned" email
+      // can go out after save() once each gets a real _id. Existing
+      // tasks are never reassigned through this bulk endpoint (their
+      // assignedEmployee is left untouched above), so only new tasks
+      // need this.
+      const newlyAssignedIndices = [];
+
       for (let index = 0; index < tasks.length; index++) {
         const incomingTask = tasks[index];
 
@@ -1714,6 +1741,10 @@ export const updateProjectComponent = async (req, res) => {
           // NEW PROJECT-SPECIFIC TASK
           // ===================================
 
+          if (incomingTask.assignedEmployee) {
+            newlyAssignedIndices.push(updatedTasks.length);
+          }
+
           updatedTasks.push({
             templateTaskId: incomingTask.templateTaskId || null,
 
@@ -1743,6 +1774,24 @@ export const updateProjectComponent = async (req, res) => {
       }
 
       component.tasks = updatedTasks;
+
+      await component.save();
+
+      if (newlyAssignedIndices.length > 0) {
+        const newTaskIds = newlyAssignedIndices
+          .map((idx) => component.tasks[idx]?._id)
+          .filter(Boolean);
+
+        if (newTaskIds.length > 0) {
+          notifyNewTasksAssigned({ componentId: component._id, taskIds: newTaskIds });
+        }
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: "Work item updated successfully.",
+        data: component,
+      });
     }
 
     await component.save();

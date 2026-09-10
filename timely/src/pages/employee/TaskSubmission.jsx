@@ -12,10 +12,7 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 
-import {
-  getTaskDetails,
-  tagEmployeeOnTask,
-} from "@/api/projectComponentAPI";
+import { getTaskDetails, tagEmployeeOnTask } from "@/api/projectComponentAPI";
 import { submitTask } from "@/api/submissionAPI";
 import { useAlertDialog } from "@/components/common/ConfirmDialogContext";
 import { getProjectMembers } from "@/api/projectMemberAPI";
@@ -394,7 +391,7 @@ export default function TaskSubmission() {
 
                     <input
                       type="file"
-                      accept="application/pdf"
+                      accept=".pdf,.doc,.docx,.xlsx"
                       className="hidden"
                       multiple
                       onChange={(e) => {
@@ -402,12 +399,22 @@ export default function TaskSubmission() {
 
                         if (!files.length) return;
 
-                        const invalidFiles = files.filter(
-                          (file) => file.type !== "application/pdf",
-                        );
+                        const allowedExtensions = [
+                          ".pdf",
+                          ".doc",
+                          ".docx",
+                          ".xlsx",
+                        ];
+
+                        const invalidFiles = files.filter((file) => {
+                          const extension = `.${file.name.split(".").pop().toLowerCase()}`;
+                          return !allowedExtensions.includes(extension);
+                        });
 
                         if (invalidFiles.length > 0) {
-                          setErrors(["Only PDF files are allowed."]);
+                          setErrors([
+                            "Only PDF, DOC, DOCX, and XLSX files are allowed.",
+                          ]);
                           e.target.value = "";
                           return;
                         }
@@ -421,7 +428,7 @@ export default function TaskSubmission() {
                     />
                     <input
                       type="file"
-                      accept="application/pdf"
+                      accept=".pdf,.doc,.docx,.xlsx"
                       className="hidden"
                       multiple
                       onChange={(e) => {
@@ -429,12 +436,22 @@ export default function TaskSubmission() {
 
                         if (!files.length) return;
 
-                        const invalidFiles = files.filter(
-                          (file) => file.type !== "application/pdf",
-                        );
+                        const allowedExtensions = [
+                          ".pdf",
+                          ".doc",
+                          ".docx",
+                          ".xlsx",
+                        ];
+
+                        const invalidFiles = files.filter((file) => {
+                          const extension = `.${file.name.split(".").pop().toLowerCase()}`;
+                          return !allowedExtensions.includes(extension);
+                        });
 
                         if (invalidFiles.length > 0) {
-                          setErrors(["Only PDF files are allowed."]);
+                          setErrors([
+                            "Only PDF, DOC, DOCX, and XLSX files are allowed.",
+                          ]);
                           e.target.value = "";
                           return;
                         }

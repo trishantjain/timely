@@ -32,6 +32,7 @@ import {
   CircleAlert,
   CircleUserRound,
   ClipboardList,
+  Clock,
   Layers,
   Users,
 } from "lucide-react";
@@ -41,6 +42,7 @@ import { getDomains } from "@/api/domainAPI";
 import { getEmployees } from "@/api/employeeAPI";
 import { createAssignments } from "@/api/assignmentAPI";
 import { getProjectPendingTasks } from "@/api/taskAPI";
+import { getPendingReviews } from "@/api/submissionAPI";
 import { useAlertDialog } from "@/components/common/ConfirmDialogContext";
 
 export default function ProjectDetails() {
@@ -75,6 +77,13 @@ export default function ProjectDetails() {
   const [pendingTasksLoading, setPendingTasksLoading] = useState(true);
   const [pendingTasksError, setPendingTasksError] = useState("");
 
+  // REVIEW TASKS — submissions in this project currently sitting in
+  // UNDER_REVIEW status and awaiting admin action (see loadReviewTasks
+  // below). Mirrors the pendingTasks pattern above.
+  const [reviewTasks, setReviewTasks] = useState([]);
+  const [reviewTasksLoading, setReviewTasksLoading] = useState(true);
+  const [reviewTasksError, setReviewTasksError] = useState("");
+
   // const [isDomainDialogOpen, setIsDomainDialogOpen] = useState(false);
 
   // const [selectedDomainIds, setSelectedDomainIds] = useState([]);
@@ -95,6 +104,10 @@ export default function ProjectDetails() {
     if (activeTab === "tasks") {
       loadPendingTasks();
     }
+
+    if (activeTab === "review") {
+      loadReviewTasks();
+    }
   }, [id, activeTab]);
 
   const loadPendingTasks = async () => {
@@ -114,6 +127,30 @@ export default function ProjectDetails() {
       );
     } finally {
       setPendingTasksLoading(false);
+    }
+  };
+
+  // Loads submissions in this project that are UNDER_REVIEW, scoping
+  // the shared /submissions/pending endpoint to this project via
+  // getPendingReviews(projectId) — the same endpoint the workspace-wide
+  // Pending Reviews page uses, just filtered.
+  const loadReviewTasks = async () => {
+    try {
+      setReviewTasksLoading(true);
+      setReviewTasksError("");
+
+      const res = await getPendingReviews(id);
+
+      setReviewTasks(Array.isArray(res.data?.data) ? res.data.data : []);
+    } catch (err) {
+      console.error("Failed to load review tasks:", err);
+
+      setReviewTasks([]);
+      setReviewTasksError(
+        err.response?.data?.message || "Failed to load review tasks.",
+      );
+    } finally {
+      setReviewTasksLoading(false);
     }
   };
 
@@ -379,6 +416,11 @@ export default function ProjectDetails() {
       icon: ClipboardList,
     },
     {
+      id: "review",
+      label: "Review Tasks",
+      icon: Clock,
+    },
+    {
       id: "info",
       label: "Project Info",
       icon: BriefcaseBusiness,
@@ -527,6 +569,27 @@ export default function ProjectDetails() {
                       </span>
                     )}
 
+                  {tab.id === "review" &&
+                    !reviewTasksLoading &&
+                    reviewTasks.length > 0 && (
+                      <span
+                        className="
+                        flex
+                        items-center
+                        justify-center
+                        h-5
+                        min-w-5
+                        px-1
+                        text-[10px]
+                        rounded-full
+                        bg-[#202a36]
+                        text-[#cbd5e1]
+                      "
+                      >
+                        {reviewTasks.length}
+                      </span>
+                    )}
+
                   {isActive && (
                     <span className="absolute bottom-0 left-0 w-full h-0.5 bg-[#3b82f6]" />
                   )}
@@ -564,6 +627,23 @@ export default function ProjectDetails() {
                     Assign project domains to team members.
                   </p>
                 </div>
+
+                {assignmentsCreated && (
+                  <Button
+                    size="sm" 
+                    onClick={() =>
+                      navigate(`/admin/project/${project._id}/components`)
+                    }
+                    className="
+                      bg-[#2563eb]
+                      text-white
+                      hover:bg-[#1d4ed8]
+                      shadow-sm
+                    "
+                  >
+                    Manage Tasks
+                  </Button>
+                )}
 
                 {assignmentsCreated && (
                   <Badge
@@ -847,23 +927,6 @@ export default function ProjectDetails() {
                     Confirm Assignments
                   </Button>
                 )}
-
-                {assignmentsCreated && (
-                  <Button
-                    size="sm"
-                    onClick={() =>
-                      navigate(`/admin/project/${project._id}/components`)
-                    }
-                    className="
-                      bg-[#2563eb]
-                      text-white
-                      hover:bg-[#1d4ed8]
-                      shadow-sm
-                    "
-                  >
-                    Manage Tasks
-                  </Button>
-                )}
               </div>
             </CardContent>
           </Card>
@@ -890,9 +953,7 @@ export default function ProjectDetails() {
                   variant="outline"
                   className="w-fit border-[#dbe2ea] bg-[#f6f7f9] text-[#475569]"
                 >
-                  {pendingTasksLoading
-                    ? "…"
-                    : `${pendingTasks.length} Pending`}
+                  {pendingTasksLoading ? "…" : `${pendingTasks.length} Pending`}
                 </Badge>
               </div>
 
@@ -906,7 +967,7 @@ export default function ProjectDetails() {
                     {pendingTasksError}
                   </div>
                 ) : pendingTasks.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center gap-2 py-14 text-center">
+                  <div className="flex flex-col items-center justify-center gap-2 text-center py-14">
                     <div className="flex items-center justify-center border rounded-full w-11 h-11 border-[#dbe2ea] bg-[#fafbfc]">
                       <ClipboardList size={20} className="text-[#94a3b8]" />
                     </div>
@@ -916,9 +977,8 @@ export default function ProjectDetails() {
                     </p>
 
                     <p className="max-w-sm text-xs text-[#64748b]">
-                      Every task in this project is either completed or
-                      waiting on review — nothing currently needs employee
-                      action.
+                      Every task in this project is either completed or waiting
+                      on review — nothing currently needs employee action.
                     </p>
                   </div>
                 ) : (
@@ -926,9 +986,7 @@ export default function ProjectDetails() {
                     <Table>
                       <TableHeader>
                         <TableRow className="border-[#dbe2ea] hover:bg-transparent">
-                          <TableHead className="text-[#64748b]">
-                            Task
-                          </TableHead>
+                          <TableHead className="text-[#64748b]">Task</TableHead>
                           <TableHead className="text-[#64748b]">
                             Employee
                           </TableHead>
@@ -976,6 +1034,125 @@ export default function ProjectDetails() {
                                     },
                                   )
                                 : "No deadline"}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* ================= REVIEW TASKS ================= */}
+
+        {activeTab === "review" && (
+          <Card className="border-[#d9e0e8] bg-white shadow-sm">
+            <CardContent className="p-4 sm:p-5">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h2 className="text-base font-semibold text-[#1f2937]">
+                    Review Tasks
+                  </h2>
+
+                  <p className="mt-0.5 text-xs text-[#64748b]">
+                    Submissions in this project that are awaiting admin
+                    review.
+                  </p>
+                </div>
+
+                <Badge
+                  variant="outline"
+                  className="w-fit border-[#dbe2ea] bg-[#f6f7f9] text-[#475569]"
+                >
+                  {reviewTasksLoading ? "…" : `${reviewTasks.length} Pending`}
+                </Badge>
+              </div>
+
+              <div className="mt-4">
+                {reviewTasksLoading ? (
+                  <div className="py-10 text-sm text-center text-[#64748b]">
+                    Loading review tasks...
+                  </div>
+                ) : reviewTasksError ? (
+                  <div className="py-10 text-sm text-center text-red-500">
+                    {reviewTasksError}
+                  </div>
+                ) : reviewTasks.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center gap-2 text-center py-14">
+                    <div className="flex items-center justify-center border rounded-full w-11 h-11 border-[#dbe2ea] bg-[#fafbfc]">
+                      <Clock size={20} className="text-[#94a3b8]" />
+                    </div>
+
+                    <p className="text-sm font-medium text-[#1f2937]">
+                      No tasks pending review.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="overflow-hidden border rounded-lg border-[#dbe2ea]">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="border-[#dbe2ea] hover:bg-transparent">
+                          <TableHead className="text-[#64748b]">
+                            Component
+                          </TableHead>
+                          <TableHead className="text-[#64748b]">
+                            Employee
+                          </TableHead>
+                          <TableHead className="text-[#64748b]">
+                            Submitted
+                          </TableHead>
+                          <TableHead className="text-[#64748b]">
+                            Status
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+
+                      <TableBody>
+                        {reviewTasks.map((item) => (
+                          <TableRow
+                            key={item._id}
+                            className="border-[#dbe2ea] cursor-pointer hover:bg-[#f8fafc]"
+                            onClick={() =>
+                              navigate(`/admin/reviews/${item._id}`)
+                            }
+                          >
+                            <TableCell>
+                              <p className="text-sm font-medium text-[#1f2937]">
+                                {item.projectComponent?.name ||
+                                  "Untitled Component"}
+                              </p>
+                            </TableCell>
+
+                            <TableCell className="text-sm text-[#1f2937]">
+                              {item.assignedEmployee?.username ||
+                                "Unassigned"}
+                            </TableCell>
+
+                            <TableCell className="text-sm text-[#1f2937]">
+                              {item.updatedAt
+                                ? new Date(item.updatedAt).toLocaleDateString(
+                                    "en-GB",
+                                    {
+                                      day: "2-digit",
+                                      month: "short",
+                                      year: "numeric",
+                                    },
+                                  )
+                                : "-"}
+                            </TableCell>
+
+                            <TableCell>
+                              <Badge
+                                variant="outline"
+                                className="text-[11px] capitalize border-[#dbe2ea] bg-[#f6f7f9] text-[#475569]"
+                              >
+                                {item.status
+                                  ?.replaceAll("_", " ")
+                                  .toLowerCase() || "-"}
+                              </Badge>
                             </TableCell>
                           </TableRow>
                         ))}

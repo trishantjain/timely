@@ -91,6 +91,8 @@ const projectTaskSchema = new mongoose.Schema(
           "EXCEL",
           "MULTIPLE",
           "CHECKBOX",
+          "DOCX",
+          "XLSX"
         ],
         default: "TEXT",
       },

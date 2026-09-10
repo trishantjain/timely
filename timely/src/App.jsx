@@ -5,6 +5,7 @@ import "./App.css";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 import Login from "./pages/auth/Login";
+import VerifyEmail from "./pages/auth/VerifyEmail";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import UserDashboard from "./pages/employee/Dashboard";
 import ProtectedRoute from "./components/dashboard/ProtectedRoute";
@@ -37,6 +38,8 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Login />} />
+
+          <Route path="/verify-email" element={<VerifyEmail />} />
 
           <Route
             path="/admin"

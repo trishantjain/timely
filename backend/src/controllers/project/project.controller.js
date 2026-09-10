@@ -4,6 +4,7 @@ import ProjectMember from "../../models/project/ProjectMember.js";
 import ProjectModule from "../../models/project/ProjectModule.js";
 import ComponentTemplate from "../../models/template/ComponentTemplate.js";
 import ProjectComponent from "../../models/project/ProjectComponent.js";
+import Submission from "../../models/submission/Submission.js";
 
 // =========================================
 // AUTO CREATE PROJECT WORK ITEMS
@@ -273,7 +274,40 @@ export const getProjects = async (req, res) => {
     });
 
     // =========================================
-    // ADD MEMBER COUNT TO PROJECT RESPONSE
+    // ADMIN-ONLY: PENDING REVIEW COUNT PER PROJECT
+    //
+    // One aggregate query across every project the admin can see,
+    // rather than a per-project request — keeps the listing cheap
+    // regardless of how many projects exist. Only admins may see
+    // this (same authorization rule as the review endpoints), so
+    // employees never get the count.
+    // =========================================
+
+    const pendingReviewCountMap = new Map();
+
+    if (req.user.role === "admin") {
+      const pendingReviewCounts = await Submission.aggregate([
+        {
+          $match: {
+            project: { $in: projectIds },
+            status: "UNDER_REVIEW",
+          },
+        },
+        {
+          $group: {
+            _id: "$project",
+            count: { $sum: 1 },
+          },
+        },
+      ]);
+
+      pendingReviewCounts.forEach(({ _id, count }) => {
+        pendingReviewCountMap.set(_id.toString(), count);
+      });
+    }
+
+    // =========================================
+    // ADD MEMBER COUNT (+ PENDING REVIEW COUNT) TO PROJECT RESPONSE
     // =========================================
 
     const projectsWithMemberCount = projects.map((project) => {
@@ -281,11 +315,17 @@ export const getProjects = async (req, res) => {
 
       const uniqueEmployees = memberCountMap.get(projectId)?.size || 0;
 
-      return {
+      const result = {
         ...project,
 
         memberCount: uniqueEmployees,
       };
+
+      if (req.user.role === "admin") {
+        result.pendingReviewCount = pendingReviewCountMap.get(projectId) || 0;
+      }
+
+      return result;
     });
 
     return res.status(200).json(projectsWithMemberCount);

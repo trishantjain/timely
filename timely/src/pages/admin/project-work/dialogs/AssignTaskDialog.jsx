@@ -75,7 +75,7 @@ export default function AssignTaskDialog({
                       employee.username || employee.name || "Unknown Employee";
 
                     return (
-                      <SelectItem key={member._id} value={employee._id}>
+                      <SelectItem key={member._id} value={member._id}>
                         {employeeName}
                       </SelectItem>
                     );

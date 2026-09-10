@@ -10,7 +10,10 @@ import {
   Users,
   Layers,
   ArrowUpRight,
+  Clock,
 } from "lucide-react";
+
+import { Badge } from "@/components/ui/badge";
 
 import DeleteProjectDialog from "@/components/project/DeleteProjectDialog";
 
@@ -29,6 +32,12 @@ export default function ProjectList({ projects = [], refreshProjects }) {
     }
 
     return Array.isArray(project.members) ? project.members.length : 0;
+  };
+
+  const getPendingReviewCount = (project) => {
+    return typeof project.pendingReviewCount === "number"
+      ? project.pendingReviewCount
+      : 0;
   };
 
   const getDomainCount = (project) => {
@@ -112,6 +121,7 @@ export default function ProjectList({ projects = [], refreshProjects }) {
             {filteredProjects.map((project) => {
               const memberCount = getMemberCount(project);
               const domainCount = getDomainCount(project);
+              const pendingReviewCount = getPendingReviewCount(project);
 
               return (
                 <div
@@ -162,6 +172,19 @@ export default function ProjectList({ projects = [], refreshProjects }) {
                     <h3 className="flex-1 min-w-0 text-xl font-bold tracking-tight truncate transition-colors text-foreground group-hover:text-orange-600">
                       {project.name}
                     </h3>
+
+                    {pendingReviewCount > 0 && (
+                      <Badge
+                        variant="outline"
+                        title={`${pendingReviewCount} task${
+                          pendingReviewCount === 1 ? "" : "s"
+                        } awaiting admin review`}
+                        className="flex items-center gap-1 px-2 py-0 text-[11px] shrink-0 border-orange-200 bg-orange-50 text-orange-700"
+                      >
+                        <Clock size={11} />
+                        {pendingReviewCount}
+                      </Badge>
+                    )}
 
                     <div
                       className="transition-opacity duration-200 opacity-0 shrink-0 group-hover:opacity-100 group-focus-within:opacity-100"
