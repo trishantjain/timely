@@ -126,16 +126,34 @@ export const downloadProjectFile = asyncHandler(async (req, res) => {
   // Cloudinary serves it with the right Content-Disposition filename
   // on any download path (custom button, native browser download, etc).
   // NEW:
-  const rawName = file.originalName || "download";
-  const safeName = rawName.replace(/["\r\n,/:]/g, "_");
-  const encodedName = encodeURIComponent(safeName).replace(/\./g, "%2E");
+  const sourceResponse = await fetch(file.secureUrl);
 
-  const attachmentUrl = file.secureUrl.replace(
-    "/upload/",
-    `/upload/fl_attachment:${encodedName}/`,
+  if (!sourceResponse.ok) {
+    throw new Error(
+      `Failed to fetch source file from storage (status ${sourceResponse.status}).`,
+    );
+  }
+
+  const fileBuffer = Buffer.from(await sourceResponse.arrayBuffer());
+
+  const originalName = file.originalName || "download";
+  // ASCII-safe fallback for older clients, plus a proper UTF-8 encoded
+  // name (RFC 5987) so accented characters/emoji in filenames still work.
+  const asciiFallback = originalName.replace(/[^\x20-\x7E]/g, "_");
+  const utf8Name = encodeURIComponent(originalName);
+
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename="${asciiFallback}"; filename*=UTF-8''${utf8Name}`,
+  );
+  res.setHeader(
+    "Content-Type",
+    file.mimeType ||
+      sourceResponse.headers.get("content-type") ||
+      "application/octet-stream",
   );
 
-  return res.redirect(attachmentUrl);
+  return res.send(fileBuffer);
 });
 
 // ==========================================

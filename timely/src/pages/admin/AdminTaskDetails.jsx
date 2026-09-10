@@ -32,6 +32,7 @@ import {
   Maximize,
   X,
   Download,
+  Loader2,
 } from "lucide-react";
 
 // ==========================================
@@ -162,6 +163,13 @@ export default function AdminTaskDetails() {
   // revokeObjectURL on a URL we don't own.
   const [isBlobPreview, setIsBlobPreview] = useState(false);
 
+  // Tracks the index of whichever file is currently being fetched
+  // (and, for Word docs, converted to PDF server-side via LibreOffice
+  // — that conversion is the slow part, easily a few seconds). Used
+  // to show a per-row loading spinner instead of leaving the button
+  // looking unresponsive while the user waits.
+  const [loadingIndex, setLoadingIndex] = useState(null);
+
   const loadData = async () => {
     try {
       setLoading(true);
@@ -229,6 +237,8 @@ export default function AdminTaskDetails() {
   }, [componentId, taskId, submissionIdParam]);
 
   const openFile = async (file, versionId, fileIndex) => {
+    setLoadingIndex(fileIndex);
+
     try {
       // Word docs go through the server-side LibreOffice conversion
       // endpoint (already PDF bytes by the time they arrive here);
@@ -268,6 +278,8 @@ export default function AdminTaskDetails() {
           ? "Unable to preview this document. Try downloading it instead."
           : "Unable to open file.",
       );
+    } finally {
+      setLoadingIndex(null);
     }
   };
 
@@ -985,11 +997,19 @@ export default function AdminTaskDetails() {
                               <Button
                                 size="sm"
                                 variant="outline"
+                                disabled={loadingIndex === index}
                                 onClick={() =>
                                   openFile(file, currentSubmission._id, index)
                                 }
                               >
-                                View
+                                {loadingIndex === index ? (
+                                  <>
+                                    <Loader2 size={14} className="mr-1.5 animate-spin" />
+                                    Opening...
+                                  </>
+                                ) : (
+                                  "View"
+                                )}
                               </Button>
 
                               <Button
