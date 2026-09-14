@@ -885,7 +885,7 @@ export default function WorkspaceManagement() {
                       size="icon"
                       onClick={() => deleteModule(module)}
                       title="Delete module"
-                      className="h-9 w-9 shrink-0 rounded-lg text-red-500 hover:bg-red-50 hover:text-red-600"
+                      className="text-red-500 rounded-lg h-9 w-9 shrink-0 hover:bg-red-50 hover:text-red-600"
                     >
                       <Trash2 size={15} />
                     </Button>
@@ -1668,7 +1668,7 @@ export default function WorkspaceManagement() {
                   variant="outline"
                   size="sm"
                   onClick={addTask}
-                  className="h-8 gap-1.5 text-xs"
+                  className="h-8 gap-1.5 text-xs text-[#202021]"
                 >
                   <Plus size={14} />
                   Add Task

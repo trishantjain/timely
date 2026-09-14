@@ -5,6 +5,46 @@ import mongoose from "mongoose";
 import { issueVerificationToken } from "../../services/verification.service.js";
 import logger from "../../utils/logger.js";
 
+// =========================================
+// EMPLOYEE DIRECTORY (minimal fields, any authenticated user)
+//
+// Used by the "tag an employee" picker on tasks/subtasks. Unlike
+// getEmployees above (admin-only, full record), this is intentionally
+// open to any logged-in employee too, and intentionally NOT scoped to
+// a project — the whole point of tagging is that it can reach a
+// colleague on a different project, so filtering this list down to
+// "people on my project" would defeat that.
+// =========================================
+export const getEmployeeDirectory = async (req, res) => {
+    try {
+        const { search } = req.query;
+
+        const filter = { role: "employee" };
+
+        if (search && search.trim()) {
+            const regex = new RegExp(search.trim(), "i");
+            filter.$or = [{ username: regex }, { email: regex }];
+        }
+
+        const employees = await User.find(filter)
+            .select("username email")
+            .limit(50)
+            .lean();
+
+        return res.json({
+            success: true,
+            data: employees,
+        });
+    } catch (err) {
+        console.error("getEmployeeDirectory error:", err);
+
+        return res.status(500).json({
+            success: false,
+            message: err.message,
+        });
+    }
+};
+
 // GET ALL EMPLOYEES
 export const getEmployees = async (req, res) => {
     try {

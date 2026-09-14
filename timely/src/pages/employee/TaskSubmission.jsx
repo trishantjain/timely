@@ -1,21 +1,24 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 
-import { getTaskDetails, tagEmployeeOnTask } from "@/api/projectComponentAPI";
+import {
+  getTaskDetails,
+  tagEmployeeOnTask,
+  untagEmployeeFromTask,
+  addSubtask,
+  toggleSubtaskCompletion,
+  deleteSubtask,
+  tagEmployeeOnSubtask,
+  untagEmployeeFromSubtask,
+} from "@/api/projectComponentAPI";
 import { submitTask } from "@/api/submissionAPI";
 import { useAlertDialog } from "@/components/common/ConfirmDialogContext";
-import { getProjectMembers } from "@/api/projectMemberAPI";
+import { getEmployeeDirectory } from "@/api/employeeAPI";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -32,7 +35,137 @@ import {
   Trash2,
   Users,
   Tag,
+  Plus,
+  Search,
+  X,
+  ListTodo,
+  UserRound,
 } from "lucide-react";
+
+// ==========================================
+// EMPLOYEE SEARCH PICKER
+//
+// Small reusable "tag an employee" search box, backed by the
+// directory endpoint (GET /employees/directory) rather than a
+// project-scoped member list — tagging is deliberately allowed to
+// reach any employee, including ones on a completely different
+// project, so they can find out something elsewhere is pending on
+// them (see getMyTasks on the backend).
+// ==========================================
+function EmployeeSearchPicker({
+  selected,
+  onSelect,
+  onClear,
+  excludeIds = [],
+}) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [open, setOpen] = useState(false);
+  const debounceRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    clearTimeout(debounceRef.current);
+
+    debounceRef.current = setTimeout(async () => {
+      try {
+        setSearching(true);
+
+        const res = await getEmployeeDirectory(query);
+
+        const employees = res.data?.data || [];
+
+        setResults(
+          employees.filter((employee) => !excludeIds.includes(employee._id)),
+        );
+      } catch (err) {
+        console.error(err);
+        setResults([]);
+      } finally {
+        setSearching(false);
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, 300);
+
+    return () => clearTimeout(debounceRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, open]);
+
+  if (selected) {
+    return (
+      <div className="flex items-center justify-between gap-2 p-2 border rounded-lg border-border bg-muted/40">
+        <span className="text-sm font-medium">{selected.username}</span>
+
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="w-6 h-6"
+          onClick={onClear}
+        >
+          <X size={14} />
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative">
+      <div className="relative">
+        <Search
+          size={14}
+          className="absolute -translate-y-1/2 left-2.5 top-1/2 text-muted-foreground"
+        />
+
+        <Input
+          placeholder="Search employees by name or email..."
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setTimeout(() => setOpen(false), 150)}
+          className="pl-8 bg-background"
+        />
+      </div>
+
+      {open && (
+        <div className="absolute z-10 w-full mt-1 overflow-y-auto border rounded-lg shadow-md border-border bg-popover max-h-48">
+          {searching ? (
+            <div className="px-3 py-2 text-xs text-muted-foreground">
+              Searching...
+            </div>
+          ) : results.length === 0 ? (
+            <div className="px-3 py-2 text-xs text-muted-foreground">
+              No employees found.
+            </div>
+          ) : (
+            results.map((employee) => (
+              <button
+                key={employee._id}
+                type="button"
+                // onMouseDown (not onClick) so this fires before the
+                // input's onBlur closes the dropdown.
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  onSelect(employee);
+                  setQuery("");
+                  setOpen(false);
+                }}
+                className="flex flex-col w-full px-3 py-2 text-left hover:bg-muted"
+              >
+                <span className="text-sm">{employee.username}</span>
+                <span className="text-xs text-muted-foreground">
+                  {employee.email}
+                </span>
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function TaskSubmission() {
   const navigate = useNavigate();
@@ -49,12 +182,17 @@ export default function TaskSubmission() {
   const [dragging, setDragging] = useState(false);
   const [errors, setErrors] = useState([]);
 
-  const [projectMembers, setProjectMembers] = useState([]);
-  const [tagEmployeeId, setTagEmployeeId] = useState("");
+  const [tagSelectedEmployee, setTagSelectedEmployee] = useState(null);
   const [tagMessage, setTagMessage] = useState("");
   const [tagging, setTagging] = useState(false);
   const [tagError, setTagError] = useState("");
   const [removingTagId, setRemovingTagId] = useState(null);
+
+  // Subtasks (employee's own ad-hoc to-dos under this task)
+  const [subtaskTitle, setSubtaskTitle] = useState("");
+  const [addingSubtask, setAddingSubtask] = useState(false);
+  const [subtaskError, setSubtaskError] = useState("");
+  const [busySubtaskId, setBusySubtaskId] = useState(null);
 
   const alertDialog = useAlertDialog();
 
@@ -82,34 +220,22 @@ export default function TaskSubmission() {
     loadTask();
   }, []);
 
-  useEffect(() => {
-    const projectId = taskData?.projectId || taskData?.project?._id;
+  const currentUserId = currentUser?._id;
 
-    if (!projectId) return;
+  const isAssignee =
+    taskData?.task?.assignedEmployee &&
+    taskData.task.assignedEmployee._id === currentUserId;
 
-    getProjectMembers(projectId)
-      .then((res) => setProjectMembers(res.data?.data || []))
-      .catch((err) => console.error(err));
-  }, [taskData?.projectId]);
+  const taskTagExcludeIds = useMemo(() => {
+    const ids = (taskData?.task?.tags || []).map((t) => t.employee?._id);
 
-  const taggedIds = useMemo(
-    () => (taskData?.task?.tags || []).map((t) => t.employee?._id),
-    [taskData],
-  );
+    if (currentUserId) ids.push(currentUserId);
 
-  const taggableMembers = useMemo(
-    () =>
-      projectMembers.filter(
-        (m) =>
-          m.employee &&
-          m.employee._id !== currentUser?._id &&
-          !taggedIds.includes(m.employee._id),
-      ),
-    [projectMembers, currentUser, taggedIds],
-  );
+    return ids.filter(Boolean);
+  }, [taskData, currentUserId]);
 
   const handleTagEmployee = async () => {
-    if (!tagEmployeeId) {
+    if (!tagSelectedEmployee) {
       setTagError("Choose an employee to tag.");
       return;
     }
@@ -119,11 +245,11 @@ export default function TaskSubmission() {
       setTagError("");
 
       await tagEmployeeOnTask(componentId, taskId, {
-        employeeId: tagEmployeeId,
+        employeeId: tagSelectedEmployee._id,
         message: tagMessage,
       });
 
-      setTagEmployeeId("");
+      setTagSelectedEmployee(null);
       setTagMessage("");
 
       await loadTask();
@@ -155,6 +281,94 @@ export default function TaskSubmission() {
     } finally {
       setRemovingTagId(null);
     }
+  };
+
+  // ==========================================
+  // SUBTASKS
+  //
+  // An employee can add their own subtasks under a task assigned to
+  // them, to track smaller to-dos the admin can see without needing
+  // to be told about them separately. They can only delete subtasks
+  // they created themselves (backend enforces this too).
+  // ==========================================
+
+  const handleAddSubtask = async () => {
+    if (!subtaskTitle.trim()) {
+      setSubtaskError("Enter a title for the subtask.");
+      return;
+    }
+
+    try {
+      setAddingSubtask(true);
+      setSubtaskError("");
+
+      await addSubtask(componentId, taskId, { title: subtaskTitle.trim() });
+
+      setSubtaskTitle("");
+
+      await loadTask();
+    } catch (err) {
+      console.error(err);
+
+      setSubtaskError(err.response?.data?.message || "Unable to add subtask.");
+    } finally {
+      setAddingSubtask(false);
+    }
+  };
+
+  const handleToggleSubtask = async (subtask) => {
+    try {
+      setBusySubtaskId(subtask._id);
+
+      await toggleSubtaskCompletion(
+        componentId,
+        taskId,
+        subtask._id,
+        !subtask.completed,
+      );
+
+      await loadTask();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setBusySubtaskId(null);
+    }
+  };
+
+  const handleDeleteSubtask = async (subtask) => {
+    try {
+      setBusySubtaskId(subtask._id);
+
+      await deleteSubtask(componentId, taskId, subtask._id);
+
+      await loadTask();
+    } catch (err) {
+      console.error(err);
+
+      await alertDialog({
+        description:
+          err.response?.data?.message || "Unable to delete this subtask.",
+      });
+    } finally {
+      setBusySubtaskId(null);
+    }
+  };
+
+  const handleTagOnSubtask = async (subtask, employee, message) => {
+    await tagEmployeeOnSubtask(componentId, taskId, subtask._id, {
+      employeeId: employee._id,
+      message,
+    });
+
+    await loadTask();
+  };
+
+  const handleUntagFromSubtask = async (subtask, employeeId) => {
+    await untagEmployeeFromSubtask(componentId, taskId, subtask._id, {
+      employeeId,
+    });
+
+    await loadTask();
   };
 
   const submissionRule = taskData?.task?.submissionRule;
@@ -285,7 +499,7 @@ export default function TaskSubmission() {
         <div className="space-y-5">
           <Card className="border-border bg-card">
             <CardHeader className="pb-4">
-              <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
                   <p className="text-sm text-muted-foreground">
                     {project?.name}
@@ -300,6 +514,24 @@ export default function TaskSubmission() {
                 >
                   {task.status}
                 </Badge>
+
+                {task.deadline && (
+                  <Card className="border-border bg-card">
+                    <CardContent className="flex items-center gap-3 p-4">
+                      <Calendar size={18} className="text-muted-foreground" />
+
+                      <div>
+                        <p className="text-xs uppercase text-muted-foreground">
+                          Deadline
+                        </p>
+
+                        <p className="mt-1 text-sm font-medium">
+                          {new Date(task.deadline).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
               </div>
             </CardHeader>
 
@@ -572,6 +804,88 @@ export default function TaskSubmission() {
             taskId={taskId}
             canPost
           />
+
+          {/* ================= SUBTASKS ================= */}
+          <Card className="border-border bg-card">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <ListTodo size={16} className="text-muted-foreground" />
+                Subtasks
+              </CardTitle>
+            </CardHeader>
+
+            <CardContent className="space-y-3">
+              <p className="text-xs leading-5 text-muted-foreground">
+                {isAssignee
+                  ? "Track your own to-dos under this task — your admin can see these too."
+                  : "Smaller to-dos under this task."}
+              </p>
+
+              {(task.subtasks || []).length === 0 && (
+                <p className="text-xs italic text-muted-foreground">
+                  No subtasks yet.
+                </p>
+              )}
+
+              {(task.subtasks || []).map((subtask) => (
+                <SubtaskRow
+                  key={subtask._id}
+                  subtask={subtask}
+                  currentUserId={currentUserId}
+                  canToggle={isAssignee}
+                  canDelete={
+                    subtask.createdByRole === "EMPLOYEE" &&
+                    subtask.createdBy?._id === currentUserId
+                  }
+                  busy={busySubtaskId === subtask._id}
+                  onToggle={() => handleToggleSubtask(subtask)}
+                  onDelete={() => handleDeleteSubtask(subtask)}
+                  onTag={(employee, message) =>
+                    handleTagOnSubtask(subtask, employee, message)
+                  }
+                  onUntag={(employeeId) =>
+                    handleUntagFromSubtask(subtask, employeeId)
+                  }
+                />
+              ))}
+
+              {isAssignee && (
+                <div className="pt-2 space-y-2 border-t border-border">
+                  <div className="flex items-center gap-2">
+                    <Input
+                      placeholder="New subtask title..."
+                      value={subtaskTitle}
+                      onChange={(e) => setSubtaskTitle(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleAddSubtask();
+                        }
+                      }}
+                      className="bg-background"
+                    />
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleAddSubtask}
+                      disabled={addingSubtask || !subtaskTitle.trim()}
+                    >
+                      <Plus size={14} className="mr-1" />
+                      Add
+                    </Button>
+                  </div>
+
+                  {subtaskError && (
+                    <div className="flex items-center gap-2 text-sm text-destructive">
+                      <AlertCircle size={16} />
+                      {subtaskError}
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         <div className="space-y-4">
@@ -593,7 +907,7 @@ export default function TaskSubmission() {
             </CardContent>
           </Card> */}
 
-          {task.deadline && (
+          {/* {task.deadline && (
             <Card className="border-border bg-card">
               <CardContent className="flex items-center gap-3 p-4">
                 <Calendar size={18} className="text-muted-foreground" />
@@ -609,7 +923,7 @@ export default function TaskSubmission() {
                 </div>
               </CardContent>
             </Card>
-          )}
+          )} */}
 
           <Card className="border-border bg-card">
             <CardContent className="p-4">
@@ -652,8 +966,8 @@ export default function TaskSubmission() {
 
             <CardContent className="space-y-3">
               <p className="text-xs leading-5 text-muted-foreground">
-                Loop in another employee on this task so you can hand off
-                context or information about it.
+                Loop in any employee on this task — even one on a different
+                project — so they know it's pending on them.
               </p>
 
               {(task.tags || []).length > 0 && (
@@ -703,46 +1017,15 @@ export default function TaskSubmission() {
                 </div>
               )}
 
-              <Select
-                value={tagEmployeeId}
-                onValueChange={(value) => {
-                  if (value === "__DESELECT__") {
-                    setTagEmployeeId("");
-                    setTagMessage("");
-                    setTagError("");
-                    return;
-                  }
-
-                  setTagEmployeeId(value);
+              <EmployeeSearchPicker
+                selected={tagSelectedEmployee}
+                onSelect={(employee) => {
+                  setTagSelectedEmployee(employee);
+                  setTagError("");
                 }}
-              >
-                <SelectTrigger className="bg-background">
-                  <SelectValue placeholder="Select an employee" />
-                </SelectTrigger>
-
-                <SelectContent>
-                  {tagEmployeeId && (
-                    <SelectItem value="__DESELECT__">
-                      Deselect employee
-                    </SelectItem>
-                  )}
-
-                  {taggableMembers.length === 0 && !tagEmployeeId && (
-                    <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                      No other project members to tag.
-                    </div>
-                  )}
-
-                  {taggableMembers.map((member) => (
-                    <SelectItem
-                      key={member.employee._id}
-                      value={member.employee._id}
-                    >
-                      {member.employee.username}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                onClear={() => setTagSelectedEmployee(null)}
+                excludeIds={taskTagExcludeIds}
+              />
 
               <Input
                 placeholder="Optional note for them..."
@@ -763,7 +1046,7 @@ export default function TaskSubmission() {
                 variant="outline"
                 className="w-full"
                 onClick={handleTagEmployee}
-                disabled={tagging || !tagEmployeeId}
+                disabled={tagging || !tagSelectedEmployee}
               >
                 {tagging ? "Tagging..." : "Tag Employee"}
               </Button>
@@ -771,6 +1054,193 @@ export default function TaskSubmission() {
           </Card>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ==========================================
+// SUBTASK ROW
+//
+// One subtask under the task, with its own completion toggle, delete
+// (only for the employee who created it), and a per-subtask tag
+// picker/list so an employee can loop a colleague into just that
+// subtask.
+// ==========================================
+function SubtaskRow({
+  subtask,
+  currentUserId,
+  canToggle,
+  canDelete,
+  busy,
+  onToggle,
+  onDelete,
+  onTag,
+  onUntag,
+}) {
+  const [tagOpen, setTagOpen] = useState(false);
+  const [tagSelectedEmployee, setTagSelectedEmployee] = useState(null);
+  const [tagMessage, setTagMessage] = useState("");
+  const [tagging, setTagging] = useState(false);
+  const [tagError, setTagError] = useState("");
+  const [untaggingId, setUntaggingId] = useState(null);
+
+  const tags = subtask.tags || [];
+
+  const excludeIds = useMemo(() => {
+    const ids = tags.map((t) => t.employee?._id).filter(Boolean);
+
+    if (currentUserId) ids.push(currentUserId);
+
+    return ids;
+  }, [tags, currentUserId]);
+
+  const handleTag = async () => {
+    if (!tagSelectedEmployee) {
+      setTagError("Choose an employee to tag.");
+      return;
+    }
+
+    try {
+      setTagging(true);
+      setTagError("");
+
+      await onTag(tagSelectedEmployee, tagMessage);
+
+      setTagSelectedEmployee(null);
+      setTagMessage("");
+      setTagOpen(false);
+    } catch (err) {
+      console.error(err);
+
+      setTagError(err.response?.data?.message || "Unable to tag employee.");
+    } finally {
+      setTagging(false);
+    }
+  };
+
+  const handleUntag = async (employeeId) => {
+    try {
+      setUntaggingId(employeeId);
+
+      await onUntag(employeeId);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setUntaggingId(null);
+    }
+  };
+
+  return (
+    <div className="p-2 border rounded-lg border-border bg-muted/30">
+      <div className="flex items-center gap-2.5">
+        <Checkbox
+          checked={!!subtask.completed}
+          disabled={!canToggle || busy}
+          onCheckedChange={onToggle}
+        />
+
+        <span
+          className={`flex-1 text-sm ${
+            subtask.completed
+              ? "text-muted-foreground line-through"
+              : "text-foreground"
+          }`}
+        >
+          {subtask.title}
+        </span>
+
+        {subtask.createdByRole === "EMPLOYEE" && (
+          <span className="flex items-center gap-1 rounded-full border border-border bg-background px-2 py-0.5 text-[10px] text-muted-foreground">
+            <UserRound size={10} />
+            {subtask.createdBy?.username || "Employee"}
+          </span>
+        )}
+
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="px-2 text-xs h-7"
+          onClick={() => setTagOpen((v) => !v)}
+        >
+          <Tag size={12} className="mr-1" />
+          Tag
+        </Button>
+
+        {canDelete && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="w-7 h-7 text-destructive hover:text-destructive"
+            disabled={busy}
+            onClick={onDelete}
+          >
+            <Trash2 size={14} />
+          </Button>
+        )}
+      </div>
+
+      {tags.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 pl-7 mt-2">
+          {tags.map((tag) => (
+            <span
+              key={tag.employee?._id}
+              className="flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] text-amber-700 dark:text-amber-400"
+              title={tag.message || undefined}
+            >
+              {tag.employee?.username || "Employee"}
+              <button
+                type="button"
+                onClick={() => handleUntag(tag.employee?._id)}
+                disabled={untaggingId === tag.employee?._id}
+                aria-label={`Remove tag for ${tag.employee?.username}`}
+              >
+                <X size={10} />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
+      {tagOpen && (
+        <div className="mt-2 space-y-2 pl-7">
+          <EmployeeSearchPicker
+            selected={tagSelectedEmployee}
+            onSelect={(employee) => {
+              setTagSelectedEmployee(employee);
+              setTagError("");
+            }}
+            onClear={() => setTagSelectedEmployee(null)}
+            excludeIds={excludeIds}
+          />
+
+          <Input
+            placeholder="Optional note for them..."
+            value={tagMessage}
+            onChange={(e) => setTagMessage(e.target.value)}
+            className="h-8 text-xs bg-background"
+          />
+
+          {tagError && (
+            <div className="flex items-center gap-2 text-xs text-destructive">
+              <AlertCircle size={13} />
+              {tagError}
+            </div>
+          )}
+
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="w-full h-8 text-xs"
+            onClick={handleTag}
+            disabled={tagging || !tagSelectedEmployee}
+          >
+            {tagging ? "Tagging..." : "Tag Employee"}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

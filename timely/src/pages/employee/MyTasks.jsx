@@ -230,6 +230,18 @@ export default function MyTasks() {
                           Tagged on this task
                         </Badge>
                       )}
+
+                      {/* TAGGED ON A SUBTASK (someone's own ad-hoc
+                          subtask under this task, not the task itself) */}
+                      {task.isTaggedOnSubtask && !task.isAssignee && (
+                        <Badge
+                          variant="outline"
+                          className="flex items-center gap-1 border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400"
+                        >
+                          <Tag size={12} />
+                          Tagged on a subtask
+                        </Badge>
+                      )}
                     </div>
 
                     <div className="flex flex-wrap gap-4 mt-2 text-sm text-muted-foreground">
@@ -251,14 +263,37 @@ export default function MyTasks() {
                         </div>
                       )}
 
-                      {task.isTagged && !task.isAssignee && (
-                        <div className="flex items-center gap-2">
-                          <UserCircle2 size={15} />
-                          Owner:{" "}
-                          {task.assignedEmployee?.username || "Unassigned"}
-                        </div>
-                      )}
+                      {(task.isTagged || task.isTaggedOnSubtask) &&
+                        !task.isAssignee && (
+                          <div className="flex items-center gap-2">
+                            <UserCircle2 size={15} />
+                            Owner:{" "}
+                            {task.assignedEmployee?.username || "Unassigned"}
+                          </div>
+                        )}
                     </div>
+
+                    {/* Which subtask(s) they were tagged on, if any —
+                        this is what actually tells them "this is
+                        pending because of you", not just the task */}
+                    {task.taggedSubtasks && task.taggedSubtasks.length > 0 && (
+                      <div className="flex flex-col gap-1 mt-2">
+                        {task.taggedSubtasks.map((subtask) => (
+                          <div
+                            key={subtask.subtaskId}
+                            className="flex items-start gap-2 text-xs text-muted-foreground"
+                          >
+                            <Tag size={12} className="mt-0.5 shrink-0" />
+                            <span>
+                              <span className="font-medium text-foreground">
+                                {subtask.title}
+                              </span>
+                              {subtask.message && ` — "${subtask.message}"`}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   <Button
@@ -270,7 +305,8 @@ export default function MyTasks() {
                       )
                     }
                   >
-                    {task.isTagged && !task.isAssignee
+                    {(task.isTagged || task.isTaggedOnSubtask) &&
+                    !task.isAssignee
                       ? "View Task"
                       : submissionType === "CHECKBOX"
                         ? "Open Checkbox Task"

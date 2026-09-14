@@ -142,6 +142,9 @@ export const getProjectComponents = async (req, res) => {
       })
 
       .populate("tasks.assignedEmployee", "username email")
+      .populate("tasks.subtasks.createdBy", "username email")
+      .populate("tasks.subtasks.tags.employee", "username email")
+      .populate("tasks.subtasks.tags.taggedBy", "username email")
       .sort({
         createdAt: 1,
       })
@@ -339,6 +342,7 @@ export const getMyTasks = async (req, res) => {
       $or: [
         { "tasks.assignedEmployee": req.user.id },
         { "tasks.tags.employee": req.user.id },
+        { "tasks.subtasks.tags.employee": req.user.id },
       ],
     };
 
@@ -416,6 +420,28 @@ export const getMyTasks = async (req, res) => {
 
         const isTaggedToEmployee = Boolean(myTag);
 
+        // Subtasks this employee has been tagged on, under this task
+        // (could be a subtask an admin added, or one a colleague
+        // added themselves and tagged this employee on).
+        const taggedSubtasks = (task.subtasks || [])
+          .map((subtask) => {
+            const subtaskTag = (subtask.tags || []).find(
+              (tag) =>
+                tag.employee && tag.employee.toString() === req.user.id.toString(),
+            );
+
+            if (!subtaskTag) return null;
+
+            return {
+              subtaskId: subtask._id,
+              title: subtask.title,
+              message: subtaskTag.message || "",
+            };
+          })
+          .filter(Boolean);
+
+        const isTaggedOnSubtask = taggedSubtasks.length > 0;
+
         // =========================================
         // PROJECT CHECK
         // Extra safety check
@@ -426,7 +452,7 @@ export const getMyTasks = async (req, res) => {
           component.project._id.toString() === projectId.toString();
 
         if (
-          (isAssignedToEmployee || isTaggedToEmployee) &&
+          (isAssignedToEmployee || isTaggedToEmployee || isTaggedOnSubtask) &&
           belongsToRequestedProject
         ) {
           myTasks.push({
@@ -462,6 +488,14 @@ export const getMyTasks = async (req, res) => {
             isAssignee: isAssignedToEmployee,
 
             isTagged: isTaggedToEmployee,
+
+            // True when the employee wasn't tagged on the task
+            // itself, but was tagged on one of its subtasks — the
+            // frontend uses this to show "Tagged on a subtask" instead
+            // of "Tagged on this task".
+            isTaggedOnSubtask,
+
+            taggedSubtasks,
 
             assignedEmployee: task.assignedEmployee
               ? {
@@ -610,6 +644,90 @@ export const getProjectPendingTasks = async (req, res) => {
   }
 };
 
+// =========================================
+// GET ALL PENDING TASKS (WORKSPACE-WIDE)
+//
+// Admin-only. Same "pending employee action" definition as
+// getProjectPendingTasks above, just without the project filter —
+// this is what powers the dashboard's "Pending Tasks" button, where
+// the admin wants to see every employee's pending work across every
+// project in one place rather than opening each project individually.
+// =========================================
+export const getAllPendingTasks = async (req, res) => {
+  try {
+    const components = await ProjectComponent.find({
+      "tasks.status": { $in: EMPLOYEE_ACTION_PENDING_STATUSES },
+    })
+      .populate("project", "name")
+      .populate("projectModule", "name")
+      .populate("tasks.assignedEmployee", "username email")
+      .lean();
+
+    const pendingTasks = [];
+
+    for (const component of components) {
+      if (!component.project) continue;
+
+      for (const task of component.tasks || []) {
+        if (!EMPLOYEE_ACTION_PENDING_STATUSES.includes(task.status)) {
+          continue;
+        }
+
+        // Only the primary assignee has an action to take — a tagged
+        // employee can view the task but can't submit for it, so it
+        // is never "pending" for them.
+        if (!task.assignedEmployee) {
+          continue;
+        }
+
+        pendingTasks.push({
+          projectId: component.project._id,
+          projectName: component.project.name,
+          componentId: component._id,
+          componentName: component.name,
+          moduleId: component.projectModule?._id || null,
+          moduleName: component.projectModule?.name || null,
+          taskId: task._id,
+          taskTitle: task.title,
+          taskDescription: task.description,
+          deadline: task.deadline,
+          status: task.status,
+          submissionRule: {
+            type: task.submissionRule?.type || "TEXT",
+          },
+          assignedEmployee: {
+            _id: task.assignedEmployee._id,
+            username: task.assignedEmployee.username,
+            email: task.assignedEmployee.email,
+          },
+        });
+      }
+    }
+
+    // Soonest deadlines first; tasks with no deadline sort last.
+    pendingTasks.sort((a, b) => {
+      if (!a.deadline) return 1;
+      if (!b.deadline) return -1;
+      return new Date(a.deadline) - new Date(b.deadline);
+    });
+
+    return res.status(200).json({
+      success: true,
+      count: pendingTasks.length,
+      data: pendingTasks,
+    });
+  } catch (err) {
+    console.error("[ProjectComponent] Get All Pending Tasks Error");
+
+    console.error(err);
+
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
 export const getTaskDetails = async (req, res) => {
   try {
     const { componentId, taskId } = req.params;
@@ -619,7 +737,10 @@ export const getTaskDetails = async (req, res) => {
       .populate("projectModule", "name")
       .populate("tasks.assignedEmployee", "username email")
       .populate("tasks.tags.employee", "username email")
-      .populate("tasks.tags.taggedBy", "username email");
+      .populate("tasks.tags.taggedBy", "username email")
+      .populate("tasks.subtasks.createdBy", "username email")
+      .populate("tasks.subtasks.tags.employee", "username email")
+      .populate("tasks.subtasks.tags.taggedBy", "username email");
 
     if (!component) {
       return res.status(404).json({
@@ -1265,6 +1386,29 @@ export const addSubtask = async (req, res) => {
       });
     }
 
+    // =========================================
+    // PERMISSION CHECK
+    //
+    // Admins can add a subtask under any task. An employee can only
+    // add one under a task assigned to them — this is how they track
+    // their own smaller to-dos under work the admin already gave
+    // them, and it's what surfaces to the admin as "the employee's
+    // own tasks" under that task.
+    // =========================================
+
+    const isAdmin = req.user.role === "admin";
+
+    const isAssignee =
+      task.assignedEmployee &&
+      task.assignedEmployee.toString() === req.user.id.toString();
+
+    if (!isAdmin && !isAssignee) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only add subtasks under a task assigned to you.",
+      });
+    }
+
     const nextDisplayOrder =
       task.subtasks.length > 0
         ? Math.max(
@@ -1277,11 +1421,16 @@ export const addSubtask = async (req, res) => {
       description: description?.trim() || "",
       displayOrder: nextDisplayOrder,
       completed: false,
+      createdBy: req.user.id,
+      createdByRole: isAdmin ? "ADMIN" : "EMPLOYEE",
     });
 
     await component.save();
 
-    const newSubtask = task.subtasks[task.subtasks.length - 1];
+    await component.populate("tasks.subtasks.createdBy", "username email");
+
+    const updatedTask = component.tasks.id(taskId);
+    const newSubtask = updatedTask.subtasks[updatedTask.subtasks.length - 1];
 
     return res.status(201).json({
       success: true,
@@ -1408,6 +1557,29 @@ export const deleteSubtask = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: "Subtask not found.",
+      });
+    }
+
+    // =========================================
+    // PERMISSION CHECK
+    //
+    // Admins can delete any subtask. An employee can only delete a
+    // subtask they personally created — not admin-added or
+    // template-generated ones, and not a colleague's own subtasks
+    // under the same task.
+    // =========================================
+
+    const isAdmin = req.user.role === "admin";
+
+    const isCreator =
+      subtask.createdByRole === "EMPLOYEE" &&
+      subtask.createdBy &&
+      subtask.createdBy.toString() === req.user.id.toString();
+
+    if (!isAdmin && !isCreator) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only delete subtasks you created.",
       });
     }
 
@@ -1587,22 +1759,12 @@ export const tagEmployeeOnTask = async (req, res) => {
       });
     }
 
-    const isProjectMember = await ProjectMember.findOne({
-      project: component.project,
-      employee: employeeId,
-    });
-
-    const isEmbeddedProjectMember = await Project.exists({
-      _id: component.project,
-      "members.user_id": employeeId,
-    });
-
-    if (!isProjectMember && !isEmbeddedProjectMember) {
-      return res.status(400).json({
-        success: false,
-        message: "That employee is not a member of this project.",
-      });
-    }
+    // NOTE: intentionally no project-membership check here. Tagging
+    // is meant to work across projects — e.g. tagging someone from a
+    // different project so they know a task elsewhere is blocked on
+    // them. getMyTasks already surfaces cross-project tags for
+    // exactly this reason; restricting who can be tagged to project
+    // members would silently defeat that.
 
     const alreadyTagged = task.tags.some(
       (tag) => tag.employee.toString() === employeeId,
@@ -1644,8 +1806,149 @@ export const tagEmployeeOnTask = async (req, res) => {
 };
 
 // =========================================
-// UPDATE PROJECT COMPONENT / WORK ITEM
+// TAG AN EMPLOYEE ON A SUBTASK
+//
+// Same idea as tagEmployeeOnTask, but scoped to one subtask — this is
+// how an employee loops a colleague into their own ad-hoc subtask
+// (added via addSubtask) even if that colleague isn't on this
+// project. getMyTasks surfaces the parent task to the tagged
+// employee with this subtask flagged, so they can see what's pending
+// because of them without needing project access.
 // =========================================
+export const tagEmployeeOnSubtask = async (req, res) => {
+  try {
+    const { componentId, taskId, subtaskId } = req.params;
+
+    const { employeeId, message } = req.body;
+
+    if (!employeeId) {
+      return res.status(400).json({
+        success: false,
+        message: "employeeId is required.",
+      });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(employeeId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid employee ID.",
+      });
+    }
+
+    const component = await ProjectComponent.findById(componentId);
+
+    if (!component) {
+      return res.status(404).json({
+        success: false,
+        message: "Project component not found.",
+      });
+    }
+
+    const task = component.tasks.id(taskId);
+
+    if (!task) {
+      return res.status(404).json({
+        success: false,
+        message: "Task not found.",
+      });
+    }
+
+    const subtask = task.subtasks.id(subtaskId);
+
+    if (!subtask) {
+      return res.status(404).json({
+        success: false,
+        message: "Subtask not found.",
+      });
+    }
+
+    // =========================================
+    // PERMISSION CHECK
+    //
+    // Allowed: admins, the employee assigned to the parent task, the
+    // employee who created this subtask, or someone already tagged
+    // on it (so a tag can be passed along further).
+    // =========================================
+
+    const isAdmin = req.user.role === "admin";
+
+    const isTaskAssignee =
+      task.assignedEmployee &&
+      task.assignedEmployee.toString() === req.user.id.toString();
+
+    const isSubtaskCreator =
+      subtask.createdBy &&
+      subtask.createdBy.toString() === req.user.id.toString();
+
+    const isAlreadyTagged = subtask.tags.some(
+      (tag) => tag.employee.toString() === req.user.id.toString(),
+    );
+
+    if (!isAdmin && !isTaskAssignee && !isSubtaskCreator && !isAlreadyTagged) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not allowed to tag employees on this subtask.",
+      });
+    }
+
+    if (employeeId === req.user.id.toString()) {
+      return res.status(400).json({
+        success: false,
+        message: "You cannot tag yourself.",
+      });
+    }
+
+    const employee = await User.findById(employeeId);
+
+    if (!employee || employee.role !== "employee") {
+      return res.status(404).json({
+        success: false,
+        message: "Employee not found.",
+      });
+    }
+
+    // NOTE: intentionally no project-membership check — see the same
+    // note in tagEmployeeOnTask above.
+
+    const alreadyTagged = subtask.tags.some(
+      (tag) => tag.employee.toString() === employeeId,
+    );
+
+    if (alreadyTagged) {
+      return res.status(400).json({
+        success: false,
+        message: "This employee is already tagged on the subtask.",
+      });
+    }
+
+    subtask.tags.push({
+      employee: employeeId,
+      message: message || "",
+      taggedBy: req.user.id,
+    });
+
+    await component.save();
+
+    await component.populate("tasks.subtasks.tags.employee", "username email");
+    await component.populate("tasks.subtasks.tags.taggedBy", "username email");
+
+    const updatedTask = component.tasks.id(taskId);
+    const updatedSubtask = updatedTask.subtasks.id(subtaskId);
+
+    return res.status(200).json({
+      success: true,
+      message: `${employee.username} has been tagged on this subtask.`,
+      data: updatedSubtask.tags,
+    });
+  } catch (err) {
+    console.error("tagEmployeeOnSubtask error:", err);
+
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
 
 export const updateProjectComponent = async (req, res) => {
   try {

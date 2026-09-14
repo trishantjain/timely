@@ -21,6 +21,7 @@ import MyTasks from "./pages/employee/MyTasks";
 import TaskSubmission from "./pages/employee/TaskSubmission";
 import EmployeeUpdates from "./pages/employee/Updates";
 import PendingReviews from "./pages/admin/PendingReviews";
+import PendingTasks from "./pages/admin/PendingTasks";
 import WorkspaceManagement from "./pages/admin/WorkspaceManagement";
 import EmployeeDetails from "./pages/admin/EmployeeDetails";
 import DomainDetails from "./pages/admin/DomainDetails";
@@ -76,6 +77,8 @@ function App() {
             />
 
             <Route path="reviews" element={<PendingReviews />} />
+
+            <Route path="pending-tasks" element={<PendingTasks />} />
 
             <Route path="projects" element={<AdminDashboard />} />
 

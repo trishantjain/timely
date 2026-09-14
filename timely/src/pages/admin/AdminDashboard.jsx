@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Plus, UserPlus, FolderKanban } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Plus, UserPlus, FolderKanban, ListTodo } from "lucide-react";
 
 import StatsCards from "@/components/dashboard/StatsCards";
 import ProjectList from "@/components/project/ProjectList";
@@ -9,6 +10,7 @@ import { getProjects } from "@/api/projectAPI";
 import { Button } from "@/components/ui/button";
 
 export default function AdminDashboard() {
+  const navigate = useNavigate();
   const [projects, setProjects] = useState([]);
   const [openCreateProject, setOpenCreateProject] = useState(false);
 
@@ -59,6 +61,15 @@ export default function AdminDashboard() {
             <UserPlus size={16} />
             Invite Employee
           </Button> */}
+
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => navigate("/admin/pending-tasks")}
+          >
+            <ListTodo size={16} />
+            Pending Tasks
+          </Button>
 
           <Button
             className="gap-2 shadow-sm"

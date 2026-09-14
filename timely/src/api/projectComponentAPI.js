@@ -24,6 +24,13 @@ export const tagEmployeeOnTask = (componentId, taskId, data) =>
     data,
   );
 
+// Remove a tag from a task. axios requires the body for a DELETE
+// request under the `data` key.
+export const untagEmployeeFromTask = (componentId, taskId, data) =>
+  api.delete(`/project-components/${componentId}/tasks/${taskId}/tag`, {
+    data,
+  });
+
 export const getMyTasks = () => api.get("/project-components/my-tasks");
 
 // ===================================
@@ -81,4 +88,20 @@ export const toggleSubtaskCompletion = (componentId, taskId, subtaskId, complete
 export const deleteSubtask = (componentId, taskId, subtaskId) =>
   api.delete(
     `/project-components/${componentId}/tasks/${taskId}/subtasks/${subtaskId}`,
+  );
+
+// Tag another employee on a specific subtask — works across
+// projects; the tagged employee doesn't need to be on this project
+// to see the parent task afterward (see getMyTasks).
+export const tagEmployeeOnSubtask = (componentId, taskId, subtaskId, data) =>
+  api.patch(
+    `/project-components/${componentId}/tasks/${taskId}/subtasks/${subtaskId}/tag`,
+    data,
+  );
+
+// Remove a tag from a subtask.
+export const untagEmployeeFromSubtask = (componentId, taskId, subtaskId, data) =>
+  api.delete(
+    `/project-components/${componentId}/tasks/${taskId}/subtasks/${subtaskId}/tag`,
+    { data },
   );

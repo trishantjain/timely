@@ -33,6 +33,62 @@ const projectSubtaskSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+
+    // Who actually created this subtask. Template-generated subtasks
+    // and ones an admin adds manually are createdByRole "ADMIN" (with
+    // createdBy null for template-generated ones, since there's no
+    // single author); ones an employee adds themselves — to track
+    // their own ad-hoc work under a task the admin assigned them —
+    // are "EMPLOYEE", with createdBy set to that employee. This is
+    // what lets an employee delete/manage only the subtasks they
+    // personally added, while admin-managed ones stay admin-only.
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
+    },
+
+    createdByRole: {
+      type: String,
+      enum: ["ADMIN", "EMPLOYEE"],
+      default: "ADMIN",
+    },
+
+    // Employees tagged on this specific subtask — same shape/purpose
+    // as the task-level `tags` below. Lets an employee loop in a
+    // colleague on their own ad-hoc subtask even if that colleague
+    // isn't assigned to this project; the tagged employee then sees
+    // the parent task (with this subtask highlighted) in their own
+    // task list, so they know something elsewhere depends on them.
+    tags: {
+      type: [
+        {
+          employee: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            required: true,
+          },
+
+          message: {
+            type: String,
+            default: "",
+            trim: true,
+          },
+
+          taggedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            required: true,
+          },
+
+          createdAt: {
+            type: Date,
+            default: Date.now,
+          },
+        },
+      ],
+      default: [],
+    },
   },
   {
     _id: true,
@@ -50,9 +106,12 @@ const projectTaskSchema = new mongoose.Schema(
 
     // Project-specific subtasks belonging to this task. Populated
     // automatically from the ComponentTemplate task's default subtasks
-    // when a Work Package is added to the project, and can also be
-    // added manually by an admin (see addSubtask/deleteSubtask/
-    // toggleSubtaskCompletion in projectComponent.controller.js).
+    // when a Work Package is added to the project. Can also be added
+    // manually — by an admin (createdByRole "ADMIN"), or by the
+    // employee this task is assigned to, to track their own smaller
+    // to-dos under it (createdByRole "EMPLOYEE") — see addSubtask/
+    // deleteSubtask/toggleSubtaskCompletion/tagEmployeeOnSubtask in
+    // projectComponent.controller.js.
     subtasks: {
       type: [projectSubtaskSchema],
       default: [],

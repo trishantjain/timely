@@ -9,10 +9,14 @@ import {
   getEmployeeProjectTasks,
   getProjectDomainTasks,
   getProjectPendingTasks,
+  getAllPendingTasks,
   addManualTask,
   addManualTaskToProject,
   updateTaskCompletion,
   tagEmployeeOnTask,
+  // untagEmployeeFromTask,
+  tagEmployeeOnSubtask,
+  // untagEmployeeFromSubtask,
   updateProjectComponent,
   deleteProjectComponent,
   addSubtask,
@@ -69,6 +73,10 @@ router.get(
   getProjectPendingTasks,
 );
 
+// Workspace-wide "Pending Tasks" — powers the admin dashboard button,
+// listing every employee's pending-action tasks across all projects.
+router.get("/pending-tasks", protect, adminOnly, getAllPendingTasks);
+
 // =========================================
 // MANUAL TASKS
 // =========================================
@@ -90,23 +98,24 @@ router.patch(
 // Tag another employee on a task so they can be handed context /
 // information about it (admin, the task's assignee, or an already
 // tagged employee can tag further employees).
-router.patch(
+router.patch("/:componentId/tasks/:taskId/tag", protect, tagEmployeeOnTask);
+
+// Remove a tag from a task (admin, the task's assignee, whoever added
+// the tag, or the tagged employee removing themselves).
+router.delete(
   "/:componentId/tasks/:taskId/tag",
   protect,
-  tagEmployeeOnTask,
+  // untagEmployeeFromTask,
 );
 
 // =========================================
 // SUBTASKS
 // =========================================
 
-// Admin adds a project-specific subtask under a task
-router.post(
-  "/:componentId/tasks/:taskId/subtasks",
-  protect,
-  adminOnly,
-  addSubtask,
-);
+// Admin adds a project-specific subtask under a task, OR an employee
+// adds one of their own under a task assigned to them — see the
+// permission check inside addSubtask.
+router.post("/:componentId/tasks/:taskId/subtasks", protect, addSubtask);
 
 // Assigned employee (or admin) toggles a subtask's completion
 router.patch(
@@ -115,12 +124,31 @@ router.patch(
   toggleSubtaskCompletion,
 );
 
-// Admin deletes a project-specific subtask
+// Admin deletes any subtask; an employee may delete only a subtask
+// they created themselves — see the permission check inside
+// deleteSubtask.
 router.delete(
   "/:componentId/tasks/:taskId/subtasks/:subtaskId",
   protect,
-  adminOnly,
   deleteSubtask,
+);
+
+// Tag another employee on a specific subtask — see permission check
+// inside tagEmployeeOnSubtask. Deliberately allows tagging employees
+// outside this project (that's the point: it's how someone finds out
+// a task elsewhere is waiting on them).
+router.patch(
+  "/:componentId/tasks/:taskId/subtasks/:subtaskId/tag",
+  protect,
+  tagEmployeeOnSubtask,
+);
+
+// Remove a tag from a subtask — same permission rules as untagging a
+// task (see untagEmployeeFromSubtask).
+router.delete(
+  "/:componentId/tasks/:taskId/subtasks/:subtaskId/tag",
+  protect,
+  // untagEmployeeFromSubtask,
 );
 
 // router.patch("/:projectId/domains", protect, adminOnly, updateProjectDomains);
