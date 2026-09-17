@@ -1,5 +1,6 @@
 import { getProjectById } from "@/api/projectAPI";
 import { getMyTasks } from "@/api/taskAPI";
+import { getMyProjectSubmissions } from "@/api/submissionAPI";
 import ProjectFilesPanel from "@/components/project/ProjectFilesPanel";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -19,6 +20,8 @@ import {
   Tag,
   UserCircle2,
   ClipboardCheck,
+  Download,
+  AlertTriangle,
 } from "lucide-react";
 
 const STATUS_COLORS = {
@@ -42,6 +45,16 @@ export default function EmployeeProjectDetails() {
   // don't have to leave the project to see (and open) their tasks.
   const [tasks, setTasks] = useState([]);
   const [tasksLoading, setTasksLoading] = useState(true);
+
+  // DOCUMENTS SUBMITTED BY THIS EMPLOYEE FOR THIS PROJECT — the actual
+  // fix: this used to come from ProjectFilesPanel (admin "shared
+  // files"), a different feature entirely, which is why submitted
+  // documents never showed up. `docsError` is tracked separately from
+  // an empty list so a failed request never silently renders as
+  // "no documents submitted yet".
+  const [documents, setDocuments] = useState([]);
+  const [documentsLoading, setDocumentsLoading] = useState(true);
+  const [documentsError, setDocumentsError] = useState(false);
 
   // KEEPING THE ORIGINAL WORKING API LOGIC
   const loadProject = async () => {
@@ -70,12 +83,33 @@ export default function EmployeeProjectDetails() {
     }
   };
 
+  const loadDocuments = async () => {
+    try {
+      setDocumentsLoading(true);
+      setDocumentsError(false);
+
+      const res = await getMyProjectSubmissions(id);
+
+      setDocuments(Array.isArray(res.data?.data) ? res.data.data : []);
+    } catch (err) {
+      console.error(err);
+
+      // Distinguish "API failed" from "genuinely no documents" — do
+      // NOT fall back to an empty array here, or a failed request
+      // silently looks identical to having nothing submitted yet.
+      setDocumentsError(true);
+    } finally {
+      setDocumentsLoading(false);
+    }
+  };
+
   // Re-run whenever the project id changes so switching projects (e.g. via
   // the sidebar) always reloads the right project's tasks — never stale
   // tasks left over from a previously viewed project.
   useEffect(() => {
     loadProject();
     loadTasks();
+    loadDocuments();
   }, [id]);
 
   const sortedTasks = useMemo(() => {
@@ -303,16 +337,135 @@ export default function EmployeeProjectDetails() {
 
       {/* ================= DOCUMENTS TAB ================= */}
       {activeTab === "documents" && (
-        <div className="mt-5">
-          <div className="mb-4">
-            <h2 className="text-lg font-semibold">Shared Files</h2>
+        <div className="mt-5 space-y-8">
+          {/* SUBMITTED DOCUMENTS */}
+          <div>
+            <div className="mb-4">
+              <h2 className="text-lg font-semibold">Submitted Documents</h2>
 
-            <p className="mt-1 text-sm text-muted-foreground">
-              Files your project admin has shared for this project.
-            </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Documents you have submitted for tasks in this project.
+              </p>
+            </div>
+
+            {documentsLoading ? (
+              <div className="space-y-3">
+                {[0, 1].map((i) => (
+                  <Card key={i}>
+                    <CardContent className="p-4">
+                      <div className="w-2/3 h-4 rounded bg-muted animate-pulse" />
+                      <div className="w-1/3 h-3 mt-3 rounded bg-muted animate-pulse" />
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : documentsError ? (
+              <Card className="border-destructive/40">
+                <CardContent className="flex flex-col items-center gap-2 py-10 text-center">
+                  <AlertTriangle size={22} className="text-destructive" />
+                  <p className="font-medium text-foreground">
+                    Couldn't load your documents
+                  </p>
+                  <p className="max-w-sm text-sm text-muted-foreground">
+                    Something went wrong while fetching your submitted
+                    documents.
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-2"
+                    onClick={loadDocuments}
+                  >
+                    Try again
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : documents.length === 0 ? (
+              <Card>
+                <CardContent className="flex flex-col items-center gap-2 py-10 text-center">
+                  <div className="flex items-center justify-center border rounded-full w-11 h-11 bg-muted">
+                    <FileText size={20} className="text-muted-foreground" />
+                  </div>
+                  <p className="font-medium text-foreground">
+                    No documents submitted yet.
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-2">
+                {documents.map((doc) => {
+                  const version = doc.latestSubmission;
+                  const files = version?.files || [];
+
+                  return (
+                    <Card key={doc._id}>
+                      <CardContent className="p-4">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="font-medium truncate text-foreground">
+                              {doc.taskTitle}
+                            </p>
+                            <p className="mt-0.5 text-xs text-muted-foreground">
+                              {doc.projectComponent?.name}
+                              {version?.createdAt &&
+                                ` · Submitted ${new Date(
+                                  version.createdAt,
+                                ).toLocaleDateString()}`}
+                            </p>
+                          </div>
+
+                          <Badge
+                            className={
+                              STATUS_COLORS[doc.status] ||
+                              "border-border bg-muted text-muted-foreground"
+                            }
+                          >
+                            {doc.status?.replace(/_/g, " ")}
+                          </Badge>
+                        </div>
+
+                        {files.length > 0 && (
+                          <div className="mt-3 space-y-1.5">
+                            {files.map((file) => (
+                              <a
+                                key={file.index}
+                                href={file.previewUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+                              >
+                                <FileText size={14} className="shrink-0" />
+                                <span className="truncate">
+                                  {file.originalName}
+                                </span>
+                                <Download
+                                  size={13}
+                                  className="ml-auto shrink-0"
+                                />
+                              </a>
+                            ))}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
-          <ProjectFilesPanel projectId={project._id} isAdmin={false} />
+          {/* SHARED FILES */}
+          <div>
+            <div className="mb-4">
+              <h2 className="text-lg font-semibold">Shared Files</h2>
+
+              <p className="mt-1 text-sm text-muted-foreground">
+                Files your project admin has shared for this project.
+              </p>
+            </div>
+
+            <ProjectFilesPanel projectId={project._id} isAdmin={false} />
+          </div>
         </div>
       )}
     </div>

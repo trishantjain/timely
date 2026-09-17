@@ -4,6 +4,7 @@ import upload from "../../middleware/uploadMiddleware.js";
 import {
   getPendingReviews,
   getSubmissionHistory,
+  getMyProjectSubmissions,
   reviewSubmission,
   submitTask,
   downloadSubmissionFile,
@@ -65,5 +66,9 @@ router.get(
 );
 
 router.get("/pending", protect, adminOnly, getPendingReviews);
+
+// Employee's own submitted documents for a project — feeds the
+// "Documents" tab on the employee project details page.
+router.get("/project/:projectId/mine", protect, getMyProjectSubmissions);
 
 export default router;

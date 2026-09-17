@@ -45,6 +45,10 @@ export const getSubmissionHistory = (submissionId) =>
 // projectId is optional — omit it for the workspace-wide pending
 // reviews list, or pass it to scope the same endpoint/query to a
 // single project (used by the project-level Review Tasks tab).
+// Employee's own submitted documents for a project (Documents tab).
+export const getMyProjectSubmissions = (projectId) =>
+  api.get(`/submissions/project/${projectId}/mine`);
+
 export const getPendingReviews = (projectId) =>
   api.get("/submissions/pending", {
     params: projectId ? { projectId } : undefined,

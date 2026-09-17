@@ -69,6 +69,13 @@ submissionSchema.index({
         unique: true
     });
 
+// Supports getPendingReviews / getProjects' pending-review aggregate
+// (query by project + status "UNDER_REVIEW").
+submissionSchema.index({ project: 1, status: 1 });
+
+// Supports getMyProjectSubmissions (query by project + assignedEmployee).
+submissionSchema.index({ project: 1, assignedEmployee: 1 });
+
 export default mongoose.model(
     "Submission",
     submissionSchema

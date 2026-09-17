@@ -985,6 +985,81 @@ function sanitizeVersion(versionDoc) {
 }
 
 // ==========================================
+// GET MY SUBMITTED DOCUMENTS FOR A PROJECT
+//
+// Powers the employee-facing "Documents" tab on a project — every
+// task submission (and its files) the logged-in employee has made
+// for this project, most recent first. Previously this tab was
+// wired to the admin "shared files" panel (ProjectFile), which is a
+// different feature and is naturally empty for most projects — so
+// employees' own submitted documents never showed up anywhere.
+// ==========================================
+export const getMyProjectSubmissions = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(projectId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid project ID.",
+      });
+    }
+
+    const submissions = await Submission.find({
+      project: projectId,
+      assignedEmployee: req.user.id,
+    })
+      .populate("projectComponent", "name")
+      .populate("latestSubmission")
+      .sort({ updatedAt: -1 })
+      .lean();
+
+    // Attach the task title from the component's embedded tasks array
+    // (Task is a subdocument, not a separate collection) without
+    // refetching the same component more than once.
+    const componentCache = new Map();
+
+    for (const submission of submissions) {
+      const componentId = submission.projectComponent?._id?.toString();
+
+      if (componentId && !componentCache.has(componentId)) {
+        const component = await ProjectComponent.findById(componentId)
+          .select("tasks")
+          .lean();
+
+        componentCache.set(componentId, component);
+      }
+
+      const component = componentId ? componentCache.get(componentId) : null;
+
+      const task = component?.tasks?.find(
+        (t) => t._id.toString() === submission.taskId.toString(),
+      );
+
+      submission.taskTitle = task?.title || "Untitled Task";
+
+      if (submission.latestSubmission) {
+        submission.latestSubmission = sanitizeVersion(
+          submission.latestSubmission,
+        );
+      }
+    }
+
+    return res.json({
+      success: true,
+      data: submissions,
+    });
+  } catch (err) {
+    console.error("[Submission] Get My Project Submissions Error", err);
+
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  }
+};
+
+// ==========================================
 // GET PENDING REVIEWS
 // ==========================================
 export const getPendingReviews = async (req, res) => {
