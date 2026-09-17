@@ -7,12 +7,14 @@ import {
   getMyProjectSubmissions,
   reviewSubmission,
   submitTask,
+  uploadAdminRevision,
   downloadSubmissionFile,
   previewSubmissionFileAsPdf,
 } from "../../controllers/submission/submission.controller.js";
 import {
   submitTaskRules,
   reviewSubmissionRules,
+  uploadAdminRevisionRules,
 } from "../../validations/submission.validation.js";
 import validate from "../../middleware/validate.js";
 
@@ -46,6 +48,21 @@ router.patch(
   reviewSubmissionRules,
   validate,
   reviewSubmission,
+);
+
+router.post(
+  "/:submissionId/admin-revision",
+  protect,
+  adminOnly,
+  upload.fields([
+    {
+      name: "files",
+      maxCount: 10,
+    },
+  ]),
+  uploadAdminRevisionRules,
+  validate,
+  uploadAdminRevision,
 );
 
 router.get("/:submissionId/history", protect, getSubmissionHistory);

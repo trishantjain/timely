@@ -20,7 +20,8 @@ const submissionLogSchema = new mongoose.Schema(
                 "SUBMITTED",
                 "APPROVED",
                 "REJECTED",
-                "RESUBMITTED"
+                "RESUBMITTED",
+                "ADMIN_REVISION_UPLOADED"
             ],
             required: true
         },

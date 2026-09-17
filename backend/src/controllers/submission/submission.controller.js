@@ -314,6 +314,25 @@ export const submitTask = async (req, res) => {
     }
 
     // ==========================================
+    // BLOCK RESUBMISSION WHILE UNDER REVIEW
+    //
+    // Once a submission is UNDER_REVIEW, the employee must wait for
+    // the admin to review it (APPROVED/REJECTED) before they can
+    // submit again. This does not affect an admin uploading a
+    // revision document (uploadAdminRevision is a separate endpoint).
+    // ==========================================
+
+    if (submission.status === "UNDER_REVIEW") {
+      await session.abortTransaction();
+
+      return res.status(409).json({
+        success: false,
+        message:
+          "Your previous submission is still awaiting admin review. Please wait until it has been reviewed before submitting again.",
+      });
+    }
+
+    // ==========================================
     // VERSION NUMBER
     // ==========================================
 
@@ -552,7 +571,17 @@ export const downloadSubmissionFile = async (req, res) => {
 
     const isAdmin = req.user.role === "admin";
 
-    if (!isOwner && !isAdmin) {
+    // version.submittedBy is whoever uploaded THIS version (could be an
+    // admin uploading a revision), so it alone can't authorize the
+    // employee the submission actually belongs to — check that too.
+    const parentSubmission = await Submission.findById(version.submission).select(
+      "assignedEmployee",
+    );
+
+    const isAssignedEmployee =
+      parentSubmission?.assignedEmployee?.toString() === req.user.id.toString();
+
+    if (!isOwner && !isAdmin && !isAssignedEmployee) {
       return res.status(403).json({
         success: false,
         message: "You do not have access to this file.",
@@ -649,7 +678,14 @@ export const previewSubmissionFileAsPdf = async (req, res) => {
     const isOwner = version.submittedBy.toString() === req.user.id.toString();
     const isAdmin = req.user.role === "admin";
 
-    if (!isOwner && !isAdmin) {
+    const parentSubmission = await Submission.findById(version.submission).select(
+      "assignedEmployee",
+    );
+
+    const isAssignedEmployee =
+      parentSubmission?.assignedEmployee?.toString() === req.user.id.toString();
+
+    if (!isOwner && !isAdmin && !isAssignedEmployee) {
       return res.status(403).json({
         success: false,
         message: "You do not have access to this file.",
@@ -881,6 +917,200 @@ export const reviewSubmission = async (req, res) => {
 };
 
 // ==========================================
+// ADMIN UPLOADS A REVISION DOCUMENT
+//
+// Adds a new SubmissionVersion (uploaderRole: "ADMIN") on top of the
+// existing submission history — reuses the same version/currentVersion
+// counter as employee submissions (PA1/PA2/PA3...), so it never
+// overwrites or deletes the employee's own submitted versions.
+// Sets status back to REJECTED (the existing "needs employee action"
+// signal already used by reviewSubmission) so the employee sees this
+// in their normal pending/rejected task views and can resubmit via the
+// existing submitTask endpoint.
+// ==========================================
+export const uploadAdminRevision = async (req, res) => {
+  const session = await mongoose.startSession();
+
+  session.startTransaction();
+
+  let uploadedCloudinaryFiles = [];
+
+  try {
+    const { submissionId } = req.params;
+
+    const { remark } = req.body;
+
+    const uploadedFiles = req.files?.files || [];
+
+    if (uploadedFiles.length === 0) {
+      await session.abortTransaction();
+
+      return res.status(400).json({
+        success: false,
+        message: "At least one file is required.",
+      });
+    }
+
+    for (const file of uploadedFiles) {
+      const ext = "." + file.originalname.split(".").pop().toLowerCase();
+
+      if (DISALLOWED_EXTENSIONS.includes(ext)) {
+        await session.abortTransaction();
+
+        return res.status(400).json({
+          success: false,
+          message: `File type ${ext} is not allowed.`,
+        });
+      }
+    }
+
+    // ==========================================
+    // FIND SUBMISSION
+    // ==========================================
+
+    const submission = await Submission.findById(submissionId).session(session);
+
+    if (!submission) {
+      await session.abortTransaction();
+
+      return res.status(404).json({
+        success: false,
+        message: "Submission not found.",
+      });
+    }
+
+    // ==========================================
+    // FIND COMPONENT / TASK
+    // ==========================================
+
+    const component = await ProjectComponent.findById(
+      submission.projectComponent,
+    ).session(session);
+
+    if (!component) {
+      await session.abortTransaction();
+
+      return res.status(404).json({
+        success: false,
+        message: "Project Component not found.",
+      });
+    }
+
+    const task = component.tasks.id(submission.taskId);
+
+    if (!task) {
+      await session.abortTransaction();
+
+      return res.status(404).json({
+        success: false,
+        message: "Task not found.",
+      });
+    }
+
+    // ==========================================
+    // VERSION NUMBER
+    // ==========================================
+
+    const versionNo = submission.currentVersion + 1;
+
+    // ==========================================
+    // UPLOAD FILES TO CLOUDINARY
+    // ==========================================
+
+    uploadedCloudinaryFiles = await Promise.all(
+      uploadedFiles.map(async (file) => {
+        const result = await uploadFileToCloudinary(file, {
+          folder: `timely/submissions/${submission._id}/version-${versionNo}`,
+        });
+
+        return {
+          originalName: file.originalname,
+          publicId: result.public_id,
+          url: result.url,
+          secureUrl: result.secure_url,
+          resourceType: result.resource_type,
+          mimeType: file.mimetype,
+          size: file.size,
+        };
+      }),
+    );
+
+    // ==========================================
+    // CREATE SUBMISSION VERSION (ADMIN)
+    // ==========================================
+
+    const version = await SubmissionVersion.create(
+      [
+        {
+          submission: submission._id,
+          version: versionNo,
+          textSubmission: remark || "",
+          files: uploadedCloudinaryFiles,
+          submittedBy: req.user.id,
+          uploaderRole: "ADMIN",
+        },
+      ],
+      { session },
+    );
+
+    // ==========================================
+    // UPDATE SUBMISSION / TASK
+    // ==========================================
+
+    submission.currentVersion = versionNo;
+    submission.latestSubmission = version[0]._id;
+    submission.status = "REJECTED";
+
+    await submission.save({ session });
+
+    task.status = "REJECTED";
+
+    await component.save({ session });
+
+    // ==========================================
+    // LOG
+    // ==========================================
+
+    await SubmissionLog.create(
+      [
+        {
+          submission: submission._id,
+          version: versionNo,
+          action: "ADMIN_REVISION_UPLOADED",
+          performedBy: req.user.id,
+          remarks: remark || "",
+        },
+      ],
+      { session },
+    );
+
+    await session.commitTransaction();
+
+    return res.status(201).json({
+      success: true,
+      message: "Revision document uploaded.",
+      data: {
+        submissionId: submission._id,
+        version: versionNo,
+      },
+    });
+  } catch (err) {
+    await session.abortTransaction();
+
+    console.error("[Submission] Admin Revision Upload Error", err);
+
+    await cleanupCloudinaryFiles(uploadedCloudinaryFiles);
+
+    return res.status(500).json({
+      success: false,
+      message: err.message,
+    });
+  } finally {
+    session.endSession();
+  }
+};
+
+// ==========================================
 // GET SUBMISSION HISTORY
 // ==========================================
 export const getSubmissionHistory = async (req, res) => {
@@ -894,6 +1124,17 @@ export const getSubmissionHistory = async (req, res) => {
         success: false,
 
         message: "Submission not found.",
+      });
+    }
+
+    const isAdmin = req.user.role === "admin";
+    const isAssignedEmployee =
+      submission.assignedEmployee.toString() === req.user.id.toString();
+
+    if (!isAdmin && !isAssignedEmployee) {
+      return res.status(403).json({
+        success: false,
+        message: "You do not have access to this submission.",
       });
     }
 
@@ -1015,20 +1256,29 @@ export const getMyProjectSubmissions = async (req, res) => {
       .lean();
 
     // Attach the task title from the component's embedded tasks array
-    // (Task is a subdocument, not a separate collection) without
-    // refetching the same component more than once.
-    const componentCache = new Map();
+    // (Task is a subdocument, not a separate collection). Batched into
+    // a single query (instead of one findById per submission) to avoid
+    // an N+1 round-trip pattern.
+    const componentIds = [
+      ...new Set(
+        submissions
+          .map((submission) => submission.projectComponent?._id?.toString())
+          .filter(Boolean),
+      ),
+    ];
+
+    const components = componentIds.length
+      ? await ProjectComponent.find({ _id: { $in: componentIds } })
+          .select("tasks")
+          .lean()
+      : [];
+
+    const componentCache = new Map(
+      components.map((component) => [component._id.toString(), component]),
+    );
 
     for (const submission of submissions) {
       const componentId = submission.projectComponent?._id?.toString();
-
-      if (componentId && !componentCache.has(componentId)) {
-        const component = await ProjectComponent.findById(componentId)
-          .select("tasks")
-          .lean();
-
-        componentCache.set(componentId, component);
-      }
 
       const component = componentId ? componentCache.get(componentId) : null;
 

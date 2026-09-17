@@ -16,9 +16,10 @@ import {
   tagEmployeeOnSubtask,
   untagEmployeeFromSubtask,
 } from "@/api/projectComponentAPI";
-import { submitTask } from "@/api/submissionAPI";
+import { submitTask, getSubmissionHistory } from "@/api/submissionAPI";
 import { useAlertDialog } from "@/components/common/ConfirmDialogContext";
 import { getEmployeeDirectory } from "@/api/employeeAPI";
+import api from "@/services/api";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -40,7 +41,31 @@ import {
   X,
   ListTodo,
   UserRound,
+  Paperclip,
+  Download,
+  MessageSquareText,
+  Eye,
 } from "lucide-react";
+
+// ==========================================
+// WORD DOCUMENT DETECTION
+//
+// Browsers can't render raw .doc/.docx bytes in an <iframe>, so those
+// are converted to PDF server-side (same preview-pdf endpoint used in
+// ReviewSubmission.jsx) before being shown here.
+// ==========================================
+const WORD_MIME_TYPES = [
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+];
+
+const isWordDocument = (file) => {
+  if (WORD_MIME_TYPES.includes(file?.mimeType)) return true;
+
+  const name = (file?.originalName || "").toLowerCase();
+
+  return name.endsWith(".doc") || name.endsWith(".docx");
+};
 
 // ==========================================
 // EMPLOYEE SEARCH PICKER
@@ -175,6 +200,22 @@ export default function TaskSubmission() {
   const [loading, setLoading] = useState(true);
   const [taskData, setTaskData] = useState(null);
 
+  // Submission history (so the employee can see documents/remarks the
+  // admin has left on this task — e.g. an "Upload Revision Document"
+  // the admin attached from ReviewSubmission.jsx). getTaskDetails only
+  // returns the raw task, not its submission, so this is fetched
+  // separately via task.submissionId once the task itself has loaded.
+  const [submissionHistory, setSubmissionHistory] = useState(null);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [downloadingKey, setDownloadingKey] = useState(null);
+
+  // In-page preview of an admin-uploaded document (opened via "View"
+  // instead of downloading it).
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [previewFileName, setPreviewFileName] = useState("");
+  const [previewMimeType, setPreviewMimeType] = useState("");
+  const [previewingKey, setPreviewingKey] = useState(null);
+
   const [textSubmission, setTextSubmission] = useState("");
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [supportingPdfs, setSupportingPdfs] = useState([]);
@@ -208,7 +249,29 @@ export default function TaskSubmission() {
     try {
       const res = await getTaskDetails(componentId, taskId);
 
-      setTaskData(res.data.data);
+      const task = res.data.data;
+
+      setTaskData(task);
+
+      const submissionId = task?.task?.submissionId;
+
+      if (submissionId) {
+        setLoadingHistory(true);
+
+        try {
+          const historyRes = await getSubmissionHistory(submissionId);
+
+          setSubmissionHistory(historyRes.data);
+        } catch (historyErr) {
+          console.error(historyErr);
+
+          setSubmissionHistory(null);
+        } finally {
+          setLoadingHistory(false);
+        }
+      } else {
+        setSubmissionHistory(null);
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -218,7 +281,117 @@ export default function TaskSubmission() {
 
   useEffect(() => {
     loadTask();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Every admin-uploaded revision document across the submission's
+  // history, newest first — these are hidden from the employee entirely
+  // if this view doesn't surface them.
+  const adminRevisions = useMemo(() => {
+    if (!submissionHistory?.history) return [];
+
+    return submissionHistory.history.filter(
+      (version) => version.uploaderRole === "ADMIN",
+    );
+  }, [submissionHistory]);
+
+  const handleDownloadAdminFile = async (version, file) => {
+    const key = `${version._id}-${file.index}`;
+
+    setDownloadingKey(key);
+
+    try {
+      const response = await api.get(
+        `/submissions/versions/${version._id}/files/${file.index}/download`,
+        { responseType: "blob" },
+      );
+
+      const blobUrl = URL.createObjectURL(
+        new Blob([response.data], {
+          type: file.mimeType || response.headers["content-type"],
+        }),
+      );
+
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = file.originalName || "document";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.error(err);
+
+      alertDialog("Unable to download this file.");
+    } finally {
+      setDownloadingKey(null);
+    }
+  };
+
+  // View an admin-uploaded file in-page instead of downloading it.
+  // Word docs go through the server-side PDF conversion first, same
+  // as the admin's own preview in ReviewSubmission.jsx.
+  const handleViewAdminFile = async (version, file) => {
+    const key = `${version._id}-${file.index}`;
+
+    setPreviewingKey(key);
+
+    try {
+      const endpoint = isWordDocument(file)
+        ? `/submissions/versions/${version._id}/files/${file.index}/preview-pdf`
+        : `/submissions/versions/${version._id}/files/${file.index}/download`;
+
+      const response = await api.get(endpoint, { responseType: "blob" });
+
+      const mimeType = isWordDocument(file)
+        ? "application/pdf"
+        : file.mimeType ||
+          response.headers["content-type"] ||
+          "application/pdf";
+
+      const blobUrl = URL.createObjectURL(
+        new Blob([response.data], { type: mimeType }),
+      );
+
+      setPreviewUrl(blobUrl);
+      setPreviewFileName(file.originalName);
+      setPreviewMimeType(mimeType);
+    } catch (err) {
+      console.error(err);
+
+      alertDialog("Unable to open this file.");
+    } finally {
+      setPreviewingKey(null);
+    }
+  };
+
+  const closePreview = () => {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+
+    setPreviewUrl(null);
+    setPreviewFileName("");
+    setPreviewMimeType("");
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        closePreview();
+      }
+    };
+
+    if (previewUrl) {
+      window.addEventListener("keydown", handleKeyDown);
+    }
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewUrl]);
 
   const currentUserId = currentUser?._id;
 
@@ -544,6 +717,99 @@ export default function TaskSubmission() {
             </CardContent>
           </Card>
 
+          {/* ADMIN FEEDBACK / REVISION DOCUMENTS
+              Files the admin attached via "Upload Revision Document"
+              on ReviewSubmission.jsx, plus any remark left with them. */}
+          {loadingHistory ? (
+            <Card className="border-border bg-card">
+              <CardContent className="p-5 text-sm text-muted-foreground">
+                Loading admin feedback...
+              </CardContent>
+            </Card>
+          ) : (
+            adminRevisions.length > 0 && (
+              <Card className="border-amber-200 bg-amber-50/60">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base text-amber-900">
+                    <MessageSquareText size={16} />
+                    Admin Feedback
+                  </CardTitle>
+                </CardHeader>
+
+                <CardContent className="space-y-4">
+                  {adminRevisions.map((version) => (
+                    <div
+                      key={version._id}
+                      className="p-3 bg-white border rounded-lg border-amber-200"
+                    >
+                      {version.textSubmission && (
+                        <p className="mb-2 text-sm leading-6 text-amber-900">
+                          {version.textSubmission}
+                        </p>
+                      )}
+
+                      <div className="space-y-2">
+                        {(version.files || []).map((file) => {
+                          const key = `${version._id}-${file.index}`;
+
+                          return (
+                            <div
+                              key={key}
+                              className="flex items-center justify-between gap-3 p-2 border rounded-lg border-border bg-muted/40"
+                            >
+                              <div className="flex items-center min-w-0 gap-2">
+                                <Paperclip
+                                  size={16}
+                                  className="shrink-0 text-muted-foreground"
+                                />
+
+                                <span className="text-sm truncate">
+                                  {file.originalName}
+                                </span>
+                              </div>
+
+                              <div className="flex items-center gap-2 shrink-0">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={previewingKey === key}
+                                  onClick={() =>
+                                    handleViewAdminFile(version, file)
+                                  }
+                                >
+                                  <Eye size={14} className="mr-1.5" />
+                                  {previewingKey === key
+                                    ? "Opening..."
+                                    : "View"}
+                                </Button>
+
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={downloadingKey === key}
+                                  onClick={() =>
+                                    handleDownloadAdminFile(version, file)
+                                  }
+                                >
+                                  <Download size={14} className="mr-1.5" />
+                                  {downloadingKey === key
+                                    ? "Downloading..."
+                                    : "Download"}
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )
+          )}
+
           <Card className="border-border bg-card">
             <CardHeader>
               <CardTitle className="text-base">Submit Work</CardTitle>
@@ -790,8 +1056,18 @@ export default function TaskSubmission() {
                 </div>
               )}
 
+              {task.status === "UNDER_REVIEW" && (
+                <p className="mb-2 text-xs text-amber-700">
+                  Your submission is awaiting admin review. You can submit
+                  again once it has been reviewed.
+                </p>
+              )}
+
               <div className="flex justify-end pt-2">
-                <Button onClick={handleSubmit} disabled={uploading}>
+                <Button
+                  onClick={handleSubmit}
+                  disabled={uploading || task.status === "UNDER_REVIEW"}
+                >
                   {uploading ? "Submitting..." : "Submit Task"}
                 </Button>
               </div>
@@ -925,7 +1201,7 @@ export default function TaskSubmission() {
             </Card>
           )} */}
 
-          <Card className="border-border bg-card">
+          {/* <Card className="border-border bg-card">
             <CardContent className="p-4">
               <div className="flex items-start gap-3">
                 <CheckCircle2
@@ -954,7 +1230,7 @@ export default function TaskSubmission() {
                 </div>
               </div>
             </CardContent>
-          </Card>
+          </Card> */}
 
           <Card className="border-border bg-card">
             <CardHeader className="pb-3">
@@ -1054,12 +1330,64 @@ export default function TaskSubmission() {
           </Card>
         </div>
       </div>
+
+      {/* IN-PAGE DOCUMENT PREVIEW MODAL */}
+      {previewUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) {
+              closePreview();
+            }
+          }}
+        >
+          <div
+            className="flex flex-col w-full max-w-[95vw] h-[92vh] overflow-hidden rounded-xl bg-background shadow-2xl"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-4 px-5 py-3 border-b">
+              <div className="min-w-0">
+                <h2 className="font-semibold truncate">{previewFileName}</h2>
+                <p className="text-sm text-muted-foreground">File Preview</p>
+              </div>
+
+              <Button variant="outline" size="icon" onClick={closePreview}>
+                <X size={18} />
+              </Button>
+            </div>
+
+            <div className="relative flex-1 overflow-auto bg-muted/30">
+              {previewMimeType?.startsWith("image/") ? (
+                <div className="flex items-center justify-center min-w-full min-h-full p-6">
+                  <img
+                    src={previewUrl}
+                    alt={previewFileName}
+                    className="object-contain max-w-full max-h-full"
+                  />
+                </div>
+              ) : (
+                <iframe
+                  src={previewUrl}
+                  title={previewFileName}
+                  className="absolute inset-0 w-full h-full border-0"
+                />
+              )}
+            </div>
+
+            <div className="flex items-center justify-between px-5 py-2 text-xs border-t text-muted-foreground">
+              <span>
+                {previewMimeType?.startsWith("image/")
+                  ? "Image Preview"
+                  : "PDF Preview"}
+              </span>
+              <span>Press ESC to close</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
-// ==========================================
-// SUBTASK ROW
 //
 // One subtask under the task, with its own completion toggle, delete
 // (only for the employee who created it), and a per-subtask tag

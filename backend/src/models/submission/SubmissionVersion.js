@@ -77,6 +77,14 @@ const submissionVersionSchema = new mongoose.Schema(
       required: true,
     },
 
+    // Distinguishes an employee's own submission/resubmission from a
+    // revision document uploaded by an admin for the employee to act on.
+    uploaderRole: {
+      type: String,
+      enum: ["EMPLOYEE", "ADMIN"],
+      default: "EMPLOYEE",
+    },
+
     reviewStatus: {
       type: String,
       enum: ["PENDING", "APPROVED", "REJECTED"],

@@ -15,6 +15,16 @@ export const submitTaskRules = [
         .isLength({ max: 20000 }).withMessage("Text submission is too long")
 ];
 
+export const uploadAdminRevisionRules = [
+    param("submissionId")
+        .isMongoId().withMessage("Invalid submissionId"),
+
+    body("remark")
+        .optional({ nullable: true })
+        .isString()
+        .isLength({ max: 2000 }).withMessage("Remark is too long")
+];
+
 export const reviewSubmissionRules = [
     param("submissionId")
         .isMongoId().withMessage("Invalid submissionId"),

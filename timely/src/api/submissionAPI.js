@@ -39,6 +39,23 @@ export const submitTask = async ({
 export const reviewSubmission = (submissionId, data) =>
   api.patch(`/submissions/${submissionId}/review`, data);
 
+// Admin uploads a revision document against an employee's submission.
+export const uploadAdminRevision = async (submissionId, { remark = "", files = [] }) => {
+  const formData = new FormData();
+
+  formData.append("remark", remark);
+
+  files.forEach((file) => {
+    formData.append("files", file);
+  });
+
+  return api.post(`/submissions/${submissionId}/admin-revision`, formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+};
+
 export const getSubmissionHistory = (submissionId) =>
   api.get(`/submissions/${submissionId}/history`);
 

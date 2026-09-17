@@ -39,11 +39,17 @@ export const convertToPdf = async (buffer, extension = ".docx") => {
   const workDir = await fs.mkdtemp(path.join(os.tmpdir(), "doc2pdf-"));
   const inputPath = path.join(workDir, `input${extension}`);
 
+  // Lets you point at a specific LibreOffice binary via env var when
+  // `soffice` isn't on PATH — common on Windows, where the installer
+  // doesn't add it automatically. e.g.
+  //   SOFFICE_PATH="C:\Program Files\LibreOffice\program\soffice.exe"
+  const sofficeBinary = process.env.SOFFICE_PATH || "soffice";
+
   try {
     await fs.writeFile(inputPath, buffer);
 
     await new Promise((resolve, reject) => {
-      const proc = spawn("soffice", [
+      const proc = spawn(sofficeBinary, [
         "--headless",
         "--norestore",
         "--nolockcheck",
@@ -62,6 +68,17 @@ export const convertToPdf = async (buffer, extension = ".docx") => {
       });
 
       proc.on("error", (err) => {
+        if (err.code === "ENOENT") {
+          reject(
+            new Error(
+              `LibreOffice ("${sofficeBinary}") was not found on this machine. ` +
+                "Install LibreOffice, or set the SOFFICE_PATH environment " +
+                "variable to the full path of the soffice/soffice.exe binary.",
+            ),
+          );
+          return;
+        }
+
         // ENOENT here almost always means LibreOffice isn't installed
         // on this machine.
         reject(err);

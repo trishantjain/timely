@@ -3,7 +3,11 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 import { getTaskDetails } from "@/api/projectComponentAPI";
-import { getSubmissionHistory, reviewSubmission } from "@/api/submissionAPI";
+import {
+  getSubmissionHistory,
+  reviewSubmission,
+  uploadAdminRevision,
+} from "@/api/submissionAPI";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -169,6 +173,11 @@ export default function AdminTaskDetails() {
   // to show a per-row loading spinner instead of leaving the button
   // looking unresponsive while the user waits.
   const [loadingIndex, setLoadingIndex] = useState(null);
+
+  // Admin "upload revision document" state
+  const [revisionFiles, setRevisionFiles] = useState([]);
+  const [revisionRemark, setRevisionRemark] = useState("");
+  const [uploadingRevision, setUploadingRevision] = useState(false);
 
   const loadData = async () => {
     try {
@@ -371,6 +380,37 @@ export default function AdminTaskDetails() {
     }
   };
 
+  const handleUploadRevision = async () => {
+    if (!submission || revisionFiles.length === 0) {
+      alertDialog("Select at least one file to upload.");
+      return;
+    }
+
+    setUploadingRevision(true);
+
+    try {
+      await uploadAdminRevision(submission.submission.id, {
+        remark: revisionRemark,
+        files: revisionFiles,
+      });
+
+      setRevisionFiles([]);
+      setRevisionRemark("");
+
+      await alertDialog({
+        description: "Revision document uploaded.",
+        variant: "success",
+      });
+
+      await loadData();
+    } catch (err) {
+      console.error(err);
+      alertDialog(err.response?.data?.message || "Upload failed.");
+    } finally {
+      setUploadingRevision(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -505,6 +545,45 @@ export default function AdminTaskDetails() {
           <p className="mt-4 text-xs leading-5 text-center text-muted-foreground">
             This submission has already been reviewed.
           </p>
+        )}
+
+        {/* UPLOAD REVISION DOCUMENT */}
+        {currentSubmission._id === latest._id && (
+          <div className="pt-5 mt-5 border-t">
+            <label className="block mb-2 text-sm font-medium">
+              Upload Revision Document
+            </label>
+
+            <p className="mb-2 text-xs text-muted-foreground">
+              Upload a corrected/annotated file for the employee to review
+              and resubmit. This does not remove any existing submission.
+            </p>
+
+            <input
+              type="file"
+              multiple
+              onChange={(e) =>
+                setRevisionFiles(Array.from(e.target.files || []))
+              }
+              className="block w-full mb-2 text-sm"
+            />
+
+            <Textarea
+              value={revisionRemark}
+              onChange={(e) => setRevisionRemark(e.target.value)}
+              placeholder="Optional note for the employee..."
+              className="mb-2 resize-none min-h-[80px]"
+            />
+
+            <Button
+              variant="outline"
+              className="w-full"
+              disabled={uploadingRevision || revisionFiles.length === 0}
+              onClick={handleUploadRevision}
+            >
+              {uploadingRevision ? "Uploading..." : "Upload Revision"}
+            </Button>
+          </div>
         )}
       </div>
     </div>
@@ -878,6 +957,11 @@ export default function AdminTaskDetails() {
                               {isLatest && (
                                 <span className="inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-primary">
                                   Latest
+                                </span>
+                              )}
+                              {version.uploaderRole === "ADMIN" && (
+                                <span className="inline-flex items-center rounded-full border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-amber-700">
+                                  Admin Revision
                                 </span>
                               )}
                             </p>
