@@ -22,10 +22,12 @@ import { getEmployeeDirectory } from "@/api/employeeAPI";
 import api from "@/services/api";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 import { Badge } from "@/components/ui/badge";
 
 import DailyUpdatesTimeline from "@/components/task/DailyUpdatesTimeline";
+import PreviousSubmissions from "@/components/task/PreviousSubmissions";
 
 import {
   Upload,
@@ -216,6 +218,11 @@ export default function TaskSubmission() {
   const [previewMimeType, setPreviewMimeType] = useState("");
   const [previewingKey, setPreviewingKey] = useState(null);
 
+  // Which tab is active on the task page. Both tabs stay mounted
+  // (forceMount + CSS hide below) once opened, so switching back and
+  // forth doesn't re-trigger DailyUpdatesTimeline's own fetch.
+  const [activeTab, setActiveTab] = useState("task");
+
   const [textSubmission, setTextSubmission] = useState("");
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [supportingPdfs, setSupportingPdfs] = useState([]);
@@ -284,18 +291,46 @@ export default function TaskSubmission() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Every admin-uploaded revision document across the submission's
-  // history, newest first — these are hidden from the employee entirely
-  // if this view doesn't surface them.
-  const adminRevisions = useMemo(() => {
-    if (!submissionHistory?.history) return [];
+  // The single admin-uploaded revision that's still awaiting the
+  // employee's response — i.e. it's the newest version overall, so
+  // nothing has been submitted against it yet. Older admin revisions
+  // that a later resubmission already responded to are shown paired
+  // with that submission in "Previous Submissions" instead, so a
+  // resolved revision doesn't get shown twice.
+  const pendingAdminRevision = useMemo(() => {
+    const latest = submissionHistory?.history?.[0];
 
-    return submissionHistory.history.filter(
-      (version) => version.uploaderRole === "ADMIN",
-    );
+    return latest?.uploaderRole === "ADMIN" ? latest : null;
   }, [submissionHistory]);
 
-  const handleDownloadAdminFile = async (version, file) => {
+  // The employee's own past submitted versions, most recent first,
+  // excluding whichever one is their current/latest submission — reuses
+  // the same history the "Admin Feedback" section already fetches, so
+  // no separate submission-history system is introduced. Each one also
+  // carries the admin revision document that was uploaded in direct
+  // response to it, if any (the very next version, uploaded by an
+  // admin), so the caption the employee wrote, the admin's review
+  // comment, and any document the admin sent back all show up together.
+  const previousEmployeeVersions = useMemo(() => {
+    if (!submissionHistory?.history) return [];
+
+    const history = submissionHistory.history;
+
+    const employeeVersions = history.filter(
+      (version) => version.uploaderRole === "EMPLOYEE",
+    );
+
+    return employeeVersions.slice(1).map((version) => ({
+      ...version,
+      adminResponse:
+        history.find(
+          (v) =>
+            v.uploaderRole === "ADMIN" && v.version === version.version + 1,
+        ) || null,
+    }));
+  }, [submissionHistory]);
+
+  const handleDownloadFile = async (version, file) => {
     const key = `${version._id}-${file.index}`;
 
     setDownloadingKey(key);
@@ -332,7 +367,7 @@ export default function TaskSubmission() {
   // View an admin-uploaded file in-page instead of downloading it.
   // Word docs go through the server-side PDF conversion first, same
   // as the admin's own preview in ReviewSubmission.jsx.
-  const handleViewAdminFile = async (version, file) => {
+  const handleViewFile = async (version, file) => {
     const key = `${version._id}-${file.index}`;
 
     setPreviewingKey(key);
@@ -660,66 +695,70 @@ export default function TaskSubmission() {
   const isTextSubmission = submissionRule?.type === "TEXT";
 
   return (
-    <div className="max-w-5xl p-6 mx-auto lg:p-8">
+    <div className="w-full p-4 sm:p-6">
       <button
         onClick={() => navigate(-1)}
-        className="mb-5 text-sm transition-colors text-muted-foreground hover:text-foreground"
+        className="mb-3 text-sm transition-colors text-muted-foreground hover:text-foreground"
       >
         ← Back
       </button>
 
-      <div className="grid gap-5 lg:grid-cols-[1fr_280px]">
-        <div className="space-y-5">
+      <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
+        <div className="space-y-4">
           <Card className="border-border bg-card">
-            <CardHeader className="pb-4">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div>
-                  <p className="text-sm text-muted-foreground">
+            <CardContent className="p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground">
                     {project?.name}
                   </p>
 
-                  <CardTitle className="mt-1 text-xl">{task.title}</CardTitle>
+                  <h1 className="text-lg font-semibold leading-tight truncate">
+                    {task.title}
+                  </h1>
                 </div>
 
-                <Badge
-                  variant="outline"
-                  className="border-border bg-muted text-muted-foreground"
-                >
-                  {task.status}
-                </Badge>
+                <div className="flex items-center gap-3 shrink-0">
+                  <Badge
+                    variant="outline"
+                    className="border-border bg-muted text-muted-foreground"
+                  >
+                    {task.status}
+                  </Badge>
 
-                {task.deadline && (
-                  <Card className="border-border bg-card">
-                    <CardContent className="flex items-center gap-3 p-4">
-                      <Calendar size={18} className="text-muted-foreground" />
-
-                      <div>
-                        <p className="text-xs uppercase text-muted-foreground">
-                          Deadline
-                        </p>
-
-                        <p className="mt-1 text-sm font-medium">
-                          {new Date(task.deadline).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
+                  {task.deadline && (
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Calendar size={14} />
+                      {new Date(task.deadline).toLocaleDateString()}
+                    </div>
+                  )}
+                </div>
               </div>
-            </CardHeader>
 
-            <CardContent>
               {task.description && (
-                <p className="text-sm leading-6 text-muted-foreground">
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
                   {task.description}
                 </p>
               )}
             </CardContent>
           </Card>
 
-          {/* ADMIN FEEDBACK / REVISION DOCUMENTS
-              Files the admin attached via "Upload Revision Document"
-              on ReviewSubmission.jsx, plus any remark left with them. */}
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList>
+              <TabsTrigger value="task">Task</TabsTrigger>
+              <TabsTrigger value="daily">Daily Updates</TabsTrigger>
+            </TabsList>
+
+            <TabsContent
+              value="task"
+              forceMount
+              className="space-y-4 data-[state=inactive]:hidden"
+            >
+
+          {/* ADMIN FEEDBACK / REVISION DOCUMENT — the one admin revision
+              still awaiting the employee's response, if any. Once the
+              employee resubmits, this same version moves into
+              "Previous Submissions" paired with that resubmission. */}
           {loadingHistory ? (
             <Card className="border-border bg-card">
               <CardContent className="p-5 text-sm text-muted-foreground">
@@ -727,7 +766,7 @@ export default function TaskSubmission() {
               </CardContent>
             </Card>
           ) : (
-            adminRevisions.length > 0 && (
+            pendingAdminRevision && (
               <Card className="border-amber-200 bg-amber-50/60">
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center gap-2 text-base text-amber-900">
@@ -737,74 +776,69 @@ export default function TaskSubmission() {
                 </CardHeader>
 
                 <CardContent className="space-y-4">
-                  {adminRevisions.map((version) => (
-                    <div
-                      key={version._id}
-                      className="p-3 bg-white border rounded-lg border-amber-200"
-                    >
-                      {version.textSubmission && (
-                        <p className="mb-2 text-sm leading-6 text-amber-900">
-                          {version.textSubmission}
-                        </p>
-                      )}
+                  <div className="p-3 bg-white border rounded-lg border-amber-200">
+                    {pendingAdminRevision.textSubmission && (
+                      <p className="mb-2 text-sm leading-6 text-amber-900">
+                        {pendingAdminRevision.textSubmission}
+                      </p>
+                    )}
 
-                      <div className="space-y-2">
-                        {(version.files || []).map((file) => {
-                          const key = `${version._id}-${file.index}`;
+                    <div className="space-y-2">
+                      {(pendingAdminRevision.files || []).map((file) => {
+                        const key = `${pendingAdminRevision._id}-${file.index}`;
 
-                          return (
-                            <div
-                              key={key}
-                              className="flex items-center justify-between gap-3 p-2 border rounded-lg border-border bg-muted/40"
-                            >
-                              <div className="flex items-center min-w-0 gap-2">
-                                <Paperclip
-                                  size={16}
-                                  className="shrink-0 text-muted-foreground"
-                                />
+                        return (
+                          <div
+                            key={key}
+                            className="flex items-center justify-between gap-3 p-2 border rounded-lg border-border bg-muted/40"
+                          >
+                            <div className="flex items-center min-w-0 gap-2">
+                              <Paperclip
+                                size={16}
+                                className="shrink-0 text-muted-foreground"
+                              />
 
-                                <span className="text-sm truncate">
-                                  {file.originalName}
-                                </span>
-                              </div>
-
-                              <div className="flex items-center gap-2 shrink-0">
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  disabled={previewingKey === key}
-                                  onClick={() =>
-                                    handleViewAdminFile(version, file)
-                                  }
-                                >
-                                  <Eye size={14} className="mr-1.5" />
-                                  {previewingKey === key
-                                    ? "Opening..."
-                                    : "View"}
-                                </Button>
-
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  disabled={downloadingKey === key}
-                                  onClick={() =>
-                                    handleDownloadAdminFile(version, file)
-                                  }
-                                >
-                                  <Download size={14} className="mr-1.5" />
-                                  {downloadingKey === key
-                                    ? "Downloading..."
-                                    : "Download"}
-                                </Button>
-                              </div>
+                              <span className="text-sm truncate">
+                                {file.originalName}
+                              </span>
                             </div>
-                          );
-                        })}
-                      </div>
+
+                            <div className="flex items-center gap-2 shrink-0">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                disabled={previewingKey === key}
+                                onClick={() =>
+                                  handleViewFile(pendingAdminRevision, file)
+                                }
+                              >
+                                <Eye size={14} className="mr-1.5" />
+                                {previewingKey === key
+                                  ? "Opening..."
+                                  : "View"}
+                              </Button>
+
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                disabled={downloadingKey === key}
+                                onClick={() =>
+                                  handleDownloadFile(pendingAdminRevision, file)
+                                }
+                              >
+                                <Download size={14} className="mr-1.5" />
+                                {downloadingKey === key
+                                  ? "Downloading..."
+                                  : "Download"}
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  ))}
+                  </div>
                 </CardContent>
               </Card>
             )
@@ -1074,11 +1108,17 @@ export default function TaskSubmission() {
             </CardContent>
           </Card>
 
-          {/* DAILY UPDATES — separate from submission/review workflow */}
-          <DailyUpdatesTimeline
-            componentId={componentId}
-            taskId={taskId}
-            canPost
+          {/* PREVIOUS SUBMISSIONS — the employee's own earlier submitted
+              versions (not the current/latest one), reusing the same
+              submission-version history the "Admin Feedback" section
+              above already fetches. Presentation lives in
+              components/task/PreviousSubmissions.jsx. */}
+          <PreviousSubmissions
+            versions={previousEmployeeVersions}
+            onView={handleViewFile}
+            onDownload={handleDownloadFile}
+            previewingKey={previewingKey}
+            downloadingKey={downloadingKey}
           />
 
           {/* ================= SUBTASKS ================= */}
@@ -1162,6 +1202,20 @@ export default function TaskSubmission() {
               )}
             </CardContent>
           </Card>
+            </TabsContent>
+
+            <TabsContent
+              value="daily"
+              forceMount
+              className="data-[state=inactive]:hidden"
+            >
+              <DailyUpdatesTimeline
+                componentId={componentId}
+                taskId={taskId}
+                canPost
+              />
+            </TabsContent>
+          </Tabs>
         </div>
 
         <div className="space-y-4">
@@ -1201,7 +1255,7 @@ export default function TaskSubmission() {
             </Card>
           )} */}
 
-          {/* <Card className="border-border bg-card">
+          <Card className="border-border bg-card">
             <CardContent className="p-4">
               <div className="flex items-start gap-3">
                 <CheckCircle2
@@ -1230,7 +1284,7 @@ export default function TaskSubmission() {
                 </div>
               </div>
             </CardContent>
-          </Card> */}
+          </Card>
 
           <Card className="border-border bg-card">
             <CardHeader className="pb-3">

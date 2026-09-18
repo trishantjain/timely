@@ -424,8 +424,35 @@ export default function EmployeeProjectDetails() {
                           </Badge>
                         </div>
 
+                        {version?.uploaderRole === "ADMIN" && (
+                          <div className="flex flex-wrap items-center justify-between gap-2 p-2 mt-3 border rounded-md bg-amber-50 border-amber-200">
+                            <p className="text-xs font-medium text-amber-700">
+                              Your admin uploaded a revision document. Review
+                              it and resubmit your corrected file.
+                            </p>
+
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() =>
+                                navigate(
+                                  `/employee/tasks/${doc.projectComponent?._id}/${doc.taskId}`,
+                                )
+                              }
+                            >
+                              Review &amp; Resubmit
+                            </Button>
+                          </div>
+                        )}
+
                         {files.length > 0 && (
                           <div className="mt-3 space-y-1.5">
+                            <p className="text-[11px] font-medium tracking-wide uppercase text-muted-foreground">
+                              {version?.uploaderRole === "ADMIN"
+                                ? "Admin's revision document"
+                                : "Your submitted file(s)"}
+                            </p>
+
                             {files.map((file) => (
                               <a
                                 key={file.index}
