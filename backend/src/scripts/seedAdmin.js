@@ -11,11 +11,11 @@ const existingAdmin = await User.findOne({ role: "admin" })
 
 if (!existingAdmin) {
 
-  const password = await bcrypt.hash("123456", 10)
+  const password = await bcrypt.hash("cto@1234", 10)
 
   await User.create({
     username: "admin",
-    email: "admin@test.com",
+    email: "cto@technotrendz.co.in",
     password,
     role: "admin"
   })
