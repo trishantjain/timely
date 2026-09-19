@@ -22,13 +22,15 @@ const notificationLogSchema = new mongoose.Schema(
   {
     type: {
       type: String,
-      enum: ["TASK_ASSIGNED", "PENDING_DIGEST"],
+      enum: ["TASK_ASSIGNED", "PENDING_DIGEST", "ADMIN_STATUS_DIGEST"],
       required: true,
     },
 
     // Uniquely identifies "this exact notification" within its type,
-    // e.g. `${taskId}:${employeeId}` for TASK_ASSIGNED, or
-    // `${date}:${slot}:${employeeId}` for PENDING_DIGEST.
+    // e.g. `${taskId}:${employeeId}` for TASK_ASSIGNED,
+    // `${date}:${slot}:${employeeId}` for PENDING_DIGEST, or
+    // `${date}:${slot}:ADMIN_TASK_STATUS` for ADMIN_STATUS_DIGEST
+    // (one consolidated report per slot, so no employee in the key).
     dedupeKey: {
       type: String,
       required: true,

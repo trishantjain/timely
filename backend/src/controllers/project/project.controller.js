@@ -227,9 +227,10 @@ export const getProjects = async (req, res) => {
     // FETCH PROJECTS
     // =========================================
 
-    const projects = await Project.find({
-      "members.user_id": req.user.id,
-    })
+    const projectFilter =
+      req.user.role === "admin" ? {} : { "members.user_id": req.user.id };
+
+    const projects = await Project.find(projectFilter)
       .populate("members.user_id", "username email")
       .populate("domains", "name color")
       .lean();

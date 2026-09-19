@@ -1,5 +1,8 @@
 import cron from "node-cron";
-import { runPendingTaskDigest } from "../services/reminder.services.js";
+import {
+  runPendingTaskDigest,
+  runAdminTaskStatusDigest,
+} from "../services/reminder.services.js";
 import logger from "../utils/logger.js";
 
 // TIMELY is currently operated in India; Asia/Kolkata is used
@@ -21,6 +24,12 @@ export const startReminderScheduler = () => {
       runPendingTaskDigest("AM").catch((err) =>
         logger.error("scheduler", "9:00 AM pending-task digest failed", err),
       );
+      // Admin consolidated task-status report rides the same tick.
+      // Chained off nothing and independently caught so neither digest
+      // can prevent the other from running.
+      runAdminTaskStatusDigest("AM").catch((err) =>
+        logger.error("scheduler", "9:00 AM admin task-status digest failed", err),
+      );
     },
     { timezone: TIMEZONE },
   );
@@ -32,11 +41,14 @@ export const startReminderScheduler = () => {
       runPendingTaskDigest("PM").catch((err) =>
         logger.error("scheduler", "9:00 PM pending-task digest failed", err),
       );
+      runAdminTaskStatusDigest("PM").catch((err) =>
+        logger.error("scheduler", "9:00 PM admin task-status digest failed", err),
+      );
     },
     { timezone: TIMEZONE },
   );
 
-  logger.info("scheduler", `Pending-task digest scheduler started (timezone: ${TIMEZONE}).`);
+  logger.info("scheduler", `Reminder scheduler started — employee pending-task digest + admin task-status digest (timezone: ${TIMEZONE}).`);
 };
 
 export default startReminderScheduler;
