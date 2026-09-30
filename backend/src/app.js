@@ -72,27 +72,29 @@ const apiLimiter = rateLimit({
 });
 app.use("/api", apiLimiter);
 
-if (process.env.NODE_ENV !== "production") {
-    app.use((req, res, next) => {
+// Lightweight request timer. Runs in every environment (including
+// production) so we have a real baseline instead of guessing — logs
+// method, path, status code, and duration only. No headers, body, or
+// user data, so nothing sensitive ends up in logs.
+app.use((req, res, next) => {
 
-        const start = process.hrtime.bigint();
+    const start = process.hrtime.bigint();
 
-        res.on("finish", () => {
+    res.on("finish", () => {
 
-            const end = process.hrtime.bigint();
+        const end = process.hrtime.bigint();
 
-            console.log(
-                `${req.method} ${req.originalUrl} : ${
-                    Number(end - start) / 1_000_000
-                } ms`
-            );
+        const durationMs = Number(end - start) / 1_000_000;
 
-        });
-
-        next();
+        console.log(
+            `[REQ] ${req.method} ${req.originalUrl} -> ${res.statusCode} : ${durationMs.toFixed(1)} ms`
+        );
 
     });
-}
+
+    next();
+
+});
 
 app.get("/", (req, res) => {
     res.json({

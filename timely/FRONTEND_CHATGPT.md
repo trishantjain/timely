@@ -1,0 +1,2505 @@
+# Timely Frontend — ChatGPT Code Dump
+Generated: 2026-03-07T09:13:13.626Z
+Workspace folder: D:/TIMELY/timely
+Mode: default (trimmed)
+
+Paste this whole file into ChatGPT. Each section is a source file.
+
+---
+
+## components.json
+
+```json
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "new-york",
+  "rsc": false,
+  "tsx": false,
+  "tailwind": {
+    "config": "tailwind.config.js",
+    "css": "src/index.css",
+    "baseColor": "stone",
+    "cssVariables": true,
+    "prefix": ""
+  },
+  "iconLibrary": "lucide",
+  "aliases": {
+    "components": "@/components",
+    "utils": "@/lib/utils",
+    "ui": "@/components/ui",
+    "lib": "@/lib",
+    "hooks": "@/hooks"
+  },
+  "registries": {}
+}
+
+```
+
+---
+
+## eslint.config.js
+
+```javascript
+import js from '@eslint/js'
+import globals from 'globals'
+import reactHooks from 'eslint-plugin-react-hooks'
+import reactRefresh from 'eslint-plugin-react-refresh'
+import { defineConfig, globalIgnores } from 'eslint/config'
+
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{js,jsx}'],
+    extends: [
+      js.configs.recommended,
+      reactHooks.configs.flat.recommended,
+      reactRefresh.configs.vite,
+    ],
+    languageOptions: {
+      ecmaVersion: 2020,
+      globals: globals.browser,
+      parserOptions: {
+        ecmaVersion: 'latest',
+        ecmaFeatures: { jsx: true },
+        sourceType: 'module',
+      },
+    },
+    rules: {
+      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+    },
+  },
+])
+
+```
+
+---
+
+## index.html
+
+```html
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>timely</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
+
+```
+
+---
+
+## jsconfig.json
+
+```json
+{
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  }
+}
+```
+
+---
+
+## package.json
+
+```json
+{
+  "name": "timely",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@radix-ui/react-avatar": "^1.1.11",
+    "@radix-ui/react-dialog": "^1.1.15",
+    "@radix-ui/react-label": "^2.1.8",
+    "@radix-ui/react-select": "^2.2.6",
+    "@radix-ui/react-separator": "^1.1.8",
+    "@radix-ui/react-slot": "^1.2.4",
+    "axios": "^1.13.6",
+    "button": "^1.1.1",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.577.0",
+    "radix-ui": "^1.4.3",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-router-dom": "^7.13.1",
+    "tailwind-merge": "^3.5.0",
+    "tailwindcss-animate": "^1.0.7"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.1",
+    "autoprefixer": "^10.4.27",
+    "eslint": "^9.39.1",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.4.24",
+    "globals": "^16.5.0",
+    "postcss": "^8.5.8",
+    "tailwindcss": "^3.4.4",
+    "vite": "^7.3.1"
+  }
+}
+
+```
+
+---
+
+## postcss.config.js
+
+```javascript
+export default {
+  plugins: {
+    tailwindcss: {},
+    autoprefixer: {},
+  },
+}
+
+```
+
+---
+
+## README.md
+
+```markdown
+# React + Vite
+
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+
+Currently, two official plugins are available:
+
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+
+## React Compiler
+
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+
+## Expanding the ESLint configuration
+
+If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+
+```
+
+---
+
+## src/api/authAPI.js
+
+```javascript
+import api from "../services/api"
+
+export const loginUser = (data) => api.post("/auth/login", data)
+
+export const createUser = (data) => api.post("/auth/create-user", data)
+```
+
+---
+
+## src/api/projectAPI.js
+
+```javascript
+import api from "../services/api"
+
+export const createProject = (data) => api.post("/projects", data)
+
+export const getProjects = () => api.get("/projects")
+
+export const addMember = (projectId, data) =>
+  api.post(`/projects/${projectId}/add-member`, data)
+```
+
+---
+
+## src/api/taskAPI.js
+
+```javascript
+import api from "../services/api"
+
+export const createTask = (data) =>
+  api.post("/tasks", data)
+
+export const getProjectTasks = (projectId) =>
+  api.get(`/tasks/project/${projectId}`)
+```
+
+---
+
+## src/App.css
+
+```css
+#root {
+  /* max-width: 1280px; */
+  /* margin: 0 auto; */
+  /* padding: 2rem; */
+  text-align: center;
+  width: 100%;
+  height: 100%;
+  
+}
+
+.logo {
+  height: 6em;
+  padding: 1.5em;
+  will-change: filter;
+  transition: filter 300ms;
+}
+.logo:hover {
+  filter: drop-shadow(0 0 2em #646cffaa);
+}
+.logo.react:hover {
+  filter: drop-shadow(0 0 2em #61dafbaa);
+}
+
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    animation: logo-spin infinite 20s linear;
+  }
+}
+
+.card {
+  padding: 2em;
+}
+
+.read-the-docs {
+  color: #888;
+}
+
+```
+
+---
+
+## src/App.jsx
+
+```jsx
+// import { useState } from 'react'
+// import reactLogo from './assets/react.svg'
+// import viteLogo from '/vite.svg'
+import './App.css'
+import { BrowserRouter, Routes, Route } from "react-router-dom"
+
+import Login from "./pages/Login"
+import AdminDashboard from "./pages/AdminDashboard"
+import UserDashboard from "./pages/UserDashboard"
+import ProtectedRoute from './components/dashboard/ProtectedRoute'
+import ProjectDetails from './pages/ProjectDetails'
+
+
+function App() {
+  // const [count, setCount] = useState(0)
+
+  return (
+    <>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={<Login />} />
+
+          <Route path="/admin" element={
+            <ProtectedRoute role="admin">
+              <AdminDashboard />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/admin/project/:id" element={
+            <ProtectedRoute role="admin">
+              <ProjectDetails />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <UserDashboard />
+            </ProtectedRoute>
+          } />
+        </Routes>
+      </BrowserRouter>
+    </>
+  )
+}
+
+export default App
+
+```
+
+---
+
+## src/components/dashboard/AddMemberDialog.jsx
+
+```jsx
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+
+export default function AddMemberDialog() {
+
+    const [userId, setUserId] = useState("")
+
+    const handleAdd = () => {
+        console.log("Add member:", userId)
+    }
+
+    return (
+
+        <div className="flex gap-2">
+
+            <Input
+                placeholder="User ID"
+                value={userId}
+                onChange={(e) => setUserId(e.target.value)}
+            />
+
+            <Button onClick={handleAdd}>
+                Add
+            </Button>
+
+        </div>
+
+    )
+
+}
+```
+
+---
+
+## src/components/dashboard/AddTaskDialog.jsx
+
+```jsx
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+
+export default function AddTaskDialog({ projectId }) {
+    const [title, setTitle] = useState("")
+
+    const handleCreate = () => {
+        console.log("Create task for project:", projectId, title)
+    }
+
+    return (
+
+        <div className="flex gap-2">
+
+            <Input
+                placeholder="Task name"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+            />
+
+            <Button onClick={handleCreate}>
+                Add Task
+            </Button>
+
+        </div>
+
+    )
+};
+```
+
+---
+
+## src/components/dashboard/AssignTaskCard.jsx
+
+```jsx
+import { useMemo, useState } from "react"
+
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
+
+export default function AssignTaskCard() {
+    const assignees = useMemo(
+        () => ["Sarah Chen", "Marcus Miller", "Elena Rodriguez", "David Kim"],
+        []
+    )
+
+    const [title, setTitle] = useState("")
+    const [dueDate, setDueDate] = useState("")
+    const [assignee, setAssignee] = useState("")
+    const [priority, setPriority] = useState("Medium")
+    const [description, setDescription] = useState("")
+
+    return (
+        <Card>
+            <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-semibold">Assign New Task</CardTitle>
+            </CardHeader>
+
+            <CardContent>
+                <div className="grid gap-4">
+                    <div className="grid gap-2">
+                        <Label htmlFor="task-title" className="text-xs text-muted-foreground">
+                            TASK TITLE
+                        </Label>
+                        <Input
+                            id="task-title"
+                            placeholder="e.g. Design User Profile"
+                            value={title}
+                            onChange={(e) => setTitle(e.target.value)}
+                        />
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <div className="grid gap-2">
+                            <Label htmlFor="task-due" className="text-xs text-muted-foreground">
+                                DUE DATE
+                            </Label>
+                            <Input
+                                id="task-due"
+                                type="date"
+                                value={dueDate}
+                                onChange={(e) => setDueDate(e.target.value)}
+                            />
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label className="text-xs text-muted-foreground">ASSIGNEE</Label>
+                            <Select value={assignee} onValueChange={setAssignee}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Select assignee" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {assignees.map((name) => (
+                                        <SelectItem key={name} value={name}>
+                                            {name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <div className="grid gap-2">
+                            <Label className="text-xs text-muted-foreground">PRIORITY</Label>
+                            <Select value={priority} onValueChange={setPriority}>
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Low">Low</SelectItem>
+                                    <SelectItem value="Medium">Medium</SelectItem>
+                                    <SelectItem value="High">High</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label className="text-xs text-muted-foreground">PROJECT</Label>
+                            <Select defaultValue="Cloud Infrastructure Migration">
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Cloud Infrastructure Migration">
+                                        Cloud Infrastructure Migration
+                                    </SelectItem>
+                                    <SelectItem value="Mobile App Redesign">Mobile App Redesign</SelectItem>
+                                    <SelectItem value="Annual Security Audit">Annual Security Audit</SelectItem>
+                                    <SelectItem value="AI Recommendation Engine">
+                                        AI Recommendation Engine
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label
+                            htmlFor="task-desc"
+                            className="text-xs text-muted-foreground"
+                        >
+                            DESCRIPTION
+                        </Label>
+                        <Textarea
+                            id="task-desc"
+                            placeholder="Explain the task requirements and success criteria..."
+                            className="min-h-[96px]"
+                            value={description}
+                            onChange={(e) => setDescription(e.target.value)}
+                        />
+                    </div>
+
+                    <div className="flex justify-end">
+                        <Button
+                            onClick={() => {
+                                // UI-only: no persistence wired yet.
+                                setTitle("")
+                                setDueDate("")
+                                setAssignee("")
+                                setPriority("Medium")
+                                setDescription("")
+                            }}
+                        >
+                            Assign Task
+                        </Button>
+                    </div>
+                </div>
+            </CardContent>
+        </Card>
+    )
+}
+
+```
+
+---
+
+## src/components/dashboard/CreateProjectDialog.jsx
+
+```jsx
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
+} from "@/components/ui/dialog"
+
+import { createProject } from "@/api/projectAPI"
+
+export default function CreateProjectDialog({ refreshProjects }) {
+
+    const [open, setOpen] = useState(false);
+    
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+
+  const handleCreate = async () => {
+
+    try {
+
+      await createProject({
+        name,
+        description
+      });
+
+      refreshProjects();
+
+      setName("");
+      setDescription("");
+
+      // close dialog
+      setOpen(false);
+
+    } catch (err) {
+      console.error(err)
+    }
+
+  }
+
+  return (
+
+    <Dialog open={open} onOpenChange={setOpen}>
+
+      <DialogTrigger asChild>
+        <Button>+ New Project</Button>
+      </DialogTrigger>
+
+      <DialogContent>
+
+        <DialogHeader>
+          <DialogTitle>Create Project</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4">
+
+          <Input
+            placeholder="Project Name"
+            value={name}
+            onChange={(e)=>setName(e.target.value)}
+          />
+
+          <Input
+            placeholder="Description"
+            value={description}
+            onChange={(e)=>setDescription(e.target.value)}
+          />
+
+          <Button onClick={handleCreate}>
+            Create Project
+          </Button>
+
+        </div>
+
+      </DialogContent>
+
+    </Dialog>
+
+  )
+}
+```
+
+---
+
+## src/components/dashboard/CreateUserDialog.jsx
+
+```jsx
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { createUser } from "@/api/authAPI"
+
+export default function CreateUserDialog() {
+
+  const [username,setUsername] = useState("")
+  const [email,setEmail] = useState("")
+  const [password,setPassword] = useState("")
+
+  const handleCreate = async () => {
+
+    try{
+
+      await createUser({
+        username,
+        email,
+        password
+      })
+
+      setUsername("")
+      setEmail("")
+      setPassword("")
+
+    }catch(err){
+      console.error(err)
+    }
+
+  }
+
+  return(
+
+    <div className="space-y-3">
+
+      <Input
+        placeholder="Username"
+        value={username}
+        onChange={(e)=>setUsername(e.target.value)}
+      />
+
+      <Input
+        placeholder="Email"
+        value={email}
+        onChange={(e)=>setEmail(e.target.value)}
+      />
+
+      <Input
+        type="password"
+        placeholder="Password"
+        value={password}
+        onChange={(e)=>setPassword(e.target.value)}
+      />
+
+      <Button onClick={handleCreate}>
+        Create User
+      </Button>
+
+    </div>
+
+  )
+
+}
+```
+
+---
+
+## src/components/dashboard/ProjectList.jsx
+
+```jsx
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
+import { Folder, ListTodo, Search, Users } from "lucide-react"
+import { useNavigate } from "react-router-dom";
+
+
+export default function ProjectList({ projects = [] }) {
+    const navigate = useNavigate();
+
+    return (
+        <Card>
+            <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-semibold">ALL PROJECTS</CardTitle>
+                    <Folder className="w-4 h-4 text-muted-foreground" />
+                </div>
+                <div className="relative mt-2">
+                    <Search className="absolute w-4 h-4 -translate-y-1/2 left-3 top-1/2 text-muted-foreground" />
+                    <Input className="pl-9" placeholder="Search..." />
+                </div>
+            </CardHeader>
+
+            <CardContent className="space-y-3">
+                {projects?.map((project) => (
+                    <div
+                        key={project._id}
+                        onClick={() => navigate(`/admin/project/${project._id}`)}
+                        className="p-4 transition border rounded-lg cursor-pointer hover:bg-muted"
+                    >
+                        <div className="flex items-start justify-between">
+                            <div>
+                                <div className="text-sm font-semibold">
+                                    {project.name}
+                                </div>
+                                <div className="mt-1 text-xs text-muted-foreground">
+                                    {project.description}
+                                </div>
+                            </div>
+                            <Badge variant={project.status === "active" ? "secondary" : "outline"} className="shrink-0">
+                                {project.status}
+                            </Badge>
+                        </div>
+
+                        <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
+                            <div className="flex items-center gap-1">
+                                <Users className="h-3.5 w-3.5" />
+                                {project.members?.length || 0} members
+                            </div>
+                            <div className="flex items-center gap-1">
+                                <ListTodo className="h-3.5 w-3.5" />
+                                {project.tasks?.length || 0} tasks
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </CardContent>
+        </Card >
+    )
+}
+
+```
+
+---
+
+## src/components/dashboard/ProjectTeamCard.jsx
+
+```jsx
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
+import { Plus } from "lucide-react"
+
+// const members = [
+//     { name: "Sarah Chen", initials: "SC" },
+//     { name: "Marcus Miller", initials: "MM" },
+//     { name: "Elena Rodriguez", initials: "ER" },
+//     { name: "David Kim", initials: "DK" },
+//     { name: "Jordan Smyth", initials: "JS" },
+// ]
+
+export default function ProjectTeamCard({ project }) {
+
+    if (!project) return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="text-sm font-semibold">
+                    Project Team
+                </CardTitle>
+            </CardHeader>
+
+            <CardContent className="text-sm text-muted-foreground">
+                Select a project to view team members
+            </CardContent>
+        </Card>
+    );
+
+    const members = project.members || [];
+
+    return (
+        <Card>
+
+            <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-semibold">
+                    Project Team
+                </CardTitle>
+            </CardHeader>
+
+            <CardContent className="space-y-3">
+
+                {members.map((m) => (
+
+                    <div
+                        key={m.user_id._id}
+                        className="flex items-center gap-3"
+                    >
+
+                        <Avatar className="w-8 h-8">
+                            <AvatarFallback>
+                                {m.user_id.username.slice(0, 2).toUpperCase()}
+                            </AvatarFallback>
+                        </Avatar>
+
+                        <div className="text-sm">
+                            {m.user_id.username}
+                        </div>
+
+                    </div>
+
+                ))}
+
+                <Button
+                    variant="outline"
+                    className="justify-start w-full gap-2"
+                >
+                    <Plus className="w-4 h-4" />
+                    Add Member
+                </Button>
+
+            </CardContent>
+
+        </Card>
+    )
+}
+
+```
+
+---
+
+## src/components/dashboard/ProtectedRoute.jsx
+
+```jsx
+import { Navigate } from "react-router-dom"
+
+const ProtectedRoute = ({ children, role }) => {
+
+    const token = localStorage.getItem("token")
+    const userRole = localStorage.getItem("role")
+
+    // IF TOKEN NOT PRESENT, REDIRECT TO LOGIN
+    if (!token) {
+        return <Navigate to="/" />
+    }
+
+    // IF ROLE IS SPECIFIED AND USER ROLE DOESN'T MATCH, REDIRECT TO LOGIN
+    if (role && role !== userRole) {
+        return <Navigate to="/" />
+    }
+
+    return children
+}
+
+export default ProtectedRoute
+```
+
+---
+
+## src/components/dashboard/StatsCards.jsx
+
+```jsx
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+
+
+export default function StatsCards({ stats }) {
+    const cards = [
+        {
+            label: "Active Projects",
+            value: stats.projects
+        },
+        {
+            label: "Pending Tasks",
+            value: stats.pending
+        },
+        {
+            label: "Completed",
+            value: stats.completed
+        },
+        {
+            label: "Alerts",
+            value: stats.alerts
+        }
+    ]
+
+
+    return (
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+
+            {cards.map((card) => (
+                <Card key={card.label}>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium text-muted-foreground">
+                            {card.label}
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="text-2xl font-semibold">{card.value}</div>
+                    </CardContent>
+                </Card>
+            ))}
+
+        </div>
+
+    )
+}
+```
+
+---
+
+## src/components/dashboard/TaskTable.jsx
+
+```jsx
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table"
+import { Filter } from "lucide-react"
+
+const tasks = [];
+
+export default function TaskTable() {
+    return (
+        <Card>
+            <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <CardTitle className="text-sm font-semibold">Task Console</CardTitle>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                            Tracking real-time progress and user updates.
+                        </p>
+                    </div>
+
+                    <Button variant="outline" size="sm" className="gap-2">
+                        <Filter className="w-4 h-4" />
+                        Filter
+                    </Button>
+                </div>
+            </CardHeader>
+
+            <CardContent>
+                <div className="overflow-x-auto">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead className="min-w-[280px]">Task Details</TableHead>
+                                <TableHead>Assignee</TableHead>
+                                <TableHead>Due Date</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead className="min-w-[180px]">Last Update</TableHead>
+                            </TableRow>
+                        </TableHeader>
+
+                        <TableBody>
+                            {tasks.map((task) => (
+                                <TableRow key={task.title}>
+                                    <TableCell>
+                                        <div className="text-sm font-medium">{task.title}</div>
+                                        <div className="mt-1 text-xs text-muted-foreground">
+                                            {task.description}
+                                        </div>
+                                    </TableCell>
+                                    <TableCell className="text-sm">{task.assignee}</TableCell>
+                                    <TableCell className="text-sm text-muted-foreground">
+                                        {task.due}
+                                    </TableCell>
+                                    <TableCell>
+                                        <Badge variant={task.status.variant}>{task.status.label}</Badge>
+                                    </TableCell>
+                                    <TableCell className="text-sm text-muted-foreground">
+                                        {task.update}
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                </div>
+            </CardContent>
+        </Card>
+    )
+}
+```
+
+---
+
+## src/components/layout/Header.jsx
+
+```jsx
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Button } from "@/components/ui/button"
+import CreateProjectDialog from "../dashboard/CreateProjectDialog"
+import { Menu } from "lucide-react"
+
+export default function Header({ refreshProjects, toggleSidebar }) {
+    return (
+        <div className="flex items-center justify-between px-6 py-4 border-b bg-background">
+            <Button
+                    variant="outline"
+                    size="icon"
+                    className="lg:hidden"
+                    onClick={toggleSidebar}
+                >
+                    <Menu className="w-4 h-4" />
+                </Button>
+            <div>
+                <h2 className="text-lg font-semibold leading-none">Admin Dashboard</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                    Manage projects, teams, and track real-time task progress.
+                </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+                <Button variant="outline">Invite Member</Button>
+                <CreateProjectDialog refreshProjects={refreshProjects} />
+                <Avatar className="ml-2 h-9 w-9">
+                    <AvatarFallback>AJ</AvatarFallback>
+                </Avatar>
+            </div>
+        </div>
+    )
+}
+```
+
+---
+
+## src/components/layout/Navbar.jsx
+
+```jsx
+import { Button } from "@/components/ui/button"
+
+export default function Navbar() {
+  return (
+    <div className="flex justify-between items-center p-4 border-b bg-white">
+      <h1 className="text-xl font-bold">Task Manager</h1>
+
+      <Button variant="outline">
+        Logout
+      </Button>
+    </div>
+  )
+}
+```
+
+---
+
+## src/components/layout/Sidebar.jsx
+
+```jsx
+import { Folder, LayoutDashboard, ListTodo, LogOut, Settings, Users } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+
+export default function Sidebar({ projectId }) {
+    const logout = () => {
+        localStorage.clear()
+        window.location.href = "/"
+    }
+
+    const [tasks, setTasks] = useState([]);
+
+    useEffect(() => {
+
+        if (!projectId) return
+
+        const loadTasks = async () => {
+
+            try {
+
+                // later connect API
+                // const res = await getProjectTasks(projectId)
+                // setTasks(res.data)
+
+                setTasks([]);
+
+            } catch (err) {
+                console.error(err);
+            }
+
+        }
+
+        loadTasks()
+
+    }, [projectId])
+
+    return (
+        <div className="flex flex-col h-full p-4">
+            <div className="mb-6">
+                <div className="text-lg font-semibold">
+                    TIMELY AI
+                </div>
+            </div>
+
+            <div className="mb-3 text-xs font-medium text-muted-foreground">RESOURCES</div>
+
+            <nav className="space-y-2">
+                <Link to="/admin" className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md bg-muted">
+                    <LayoutDashboard className="w-4 h-4" />
+                    Admin Dashboard
+                </Link>
+
+                {projectId && (
+
+                    <div className="mt-4">
+
+                        <div className="mb-2 text-xs text-muted-foreground">
+                            TASKS
+                        </div>
+
+                        {tasks.map(task => (
+
+                            <div
+                                key={task.id}
+                                className="flex items-center gap-2 px-3 py-2 text-sm rounded-md hover:bg-muted"
+                            >
+                                <ListTodo className="w-4 h-4" />
+
+                                {task.title}
+                            </div>
+                        ))}
+
+                    </div>
+
+                )}
+            </nav>
+
+            <div className="pt-6 mt-auto space-y-1">
+                <div onClick={logout}
+                    className="flex items-center gap-3 px-3 py-2 text-sm rounded-md cursor-pointer text-destructive hover:bg-destructive/10">
+                    <LogOut className="w-4 h-4" />
+                    Logout
+                </div>
+            </div>
+        </div>
+    )
+}
+```
+
+---
+
+## src/components/tasks/TaskTable.jsx
+
+```jsx
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from "@/components/ui/table"
+
+import { Button } from "@/components/ui/button"
+
+export default function TaskTable({tasks}) {
+
+  return (
+
+    <Table>
+
+      <TableHeader>
+        <TableRow>
+          <TableHead>Task</TableHead>
+          <TableHead>Project</TableHead>
+          <TableHead>Status</TableHead>
+          <TableHead>Due Date</TableHead>
+          <TableHead>Action</TableHead>
+        </TableRow>
+      </TableHeader>
+
+      <TableBody>
+
+        {tasks.map(task=>(
+          <TableRow key={task.id}>
+
+            <TableCell>{task.title}</TableCell>
+            <TableCell>{task.project}</TableCell>
+            <TableCell>{task.status}</TableCell>
+            <TableCell>{task.dueDate}</TableCell>
+
+            <TableCell>
+              <Button size="sm">
+                Mark Done
+              </Button>
+            </TableCell>
+
+          </TableRow>
+        ))}
+
+      </TableBody>
+
+    </Table>
+
+  )
+}
+```
+
+---
+
+## src/components/ui/avatar.jsx
+
+```jsx
+import * as React from "react"
+import * as AvatarPrimitive from "@radix-ui/react-avatar"
+
+import { cn } from "@/lib/utils"
+
+const Avatar = React.forwardRef(({ className, ...props }, ref) => (
+  <AvatarPrimitive.Root
+    ref={ref}
+    className={cn("relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full", className)}
+    {...props} />
+))
+Avatar.displayName = AvatarPrimitive.Root.displayName
+
+const AvatarImage = React.forwardRef(({ className, ...props }, ref) => (
+  <AvatarPrimitive.Image
+    ref={ref}
+    className={cn("aspect-square h-full w-full", className)}
+    {...props} />
+))
+AvatarImage.displayName = AvatarPrimitive.Image.displayName
+
+const AvatarFallback = React.forwardRef(({ className, ...props }, ref) => (
+  <AvatarPrimitive.Fallback
+    ref={ref}
+    className={cn(
+      "flex h-full w-full items-center justify-center rounded-full bg-muted",
+      className
+    )}
+    {...props} />
+))
+AvatarFallback.displayName = AvatarPrimitive.Fallback.displayName
+
+export { Avatar, AvatarImage, AvatarFallback }
+
+```
+
+---
+
+## src/components/ui/badge.jsx
+
+```jsx
+import * as React from "react"
+import { cva } from "class-variance-authority";
+
+import { cn } from "@/lib/utils"
+
+const badgeVariants = cva(
+  "inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+  {
+    variants: {
+      variant: {
+        default:
+          "border-transparent bg-primary text-primary-foreground shadow hover:bg-primary/80",
+        secondary:
+          "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        destructive:
+          "border-transparent bg-destructive text-destructive-foreground shadow hover:bg-destructive/80",
+        outline: "text-foreground",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+    },
+  }
+)
+
+function Badge({
+  className,
+  variant,
+  ...props
+}) {
+  return (<div className={cn(badgeVariants({ variant }), className)} {...props} />);
+}
+
+export { Badge, badgeVariants }
+
+```
+
+---
+
+## src/components/ui/button.jsx
+
+```jsx
+import * as React from "react"
+import { Slot } from "@radix-ui/react-slot"
+import { cva } from "class-variance-authority";
+
+import { cn } from "@/lib/utils"
+
+const buttonVariants = cva(
+  "inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  {
+    variants: {
+      variant: {
+        default:
+          "bg-primary text-primary-foreground shadow hover:bg-primary/90",
+        destructive:
+          "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90",
+        outline:
+          "border border-input bg-background shadow-sm hover:bg-accent hover:text-accent-foreground",
+        secondary:
+          "bg-secondary text-secondary-foreground shadow-sm hover:bg-secondary/80",
+        ghost: "hover:bg-accent hover:text-accent-foreground",
+        link: "text-primary underline-offset-4 hover:underline",
+      },
+      size: {
+        default: "h-9 px-4 py-2",
+        sm: "h-8 rounded-md px-3 text-xs",
+        lg: "h-10 rounded-md px-8",
+        icon: "h-9 w-9",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  }
+)
+
+const Button = React.forwardRef(({ className, variant, size, asChild = false, ...props }, ref) => {
+  const Comp = asChild ? Slot : "button"
+  return (
+    <Comp
+      className={cn(buttonVariants({ variant, size, className }))}
+      ref={ref}
+      {...props} />
+  );
+})
+Button.displayName = "Button"
+
+// eslint-disable-next-line react-refresh/only-export-components
+export { Button, buttonVariants }
+
+```
+
+---
+
+## src/components/ui/card.jsx
+
+```jsx
+import * as React from "react"
+
+import { cn } from "@/lib/utils"
+
+const Card = React.forwardRef(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn("rounded-xl border bg-card text-card-foreground shadow", className)}
+    {...props} />
+))
+Card.displayName = "Card"
+
+const CardHeader = React.forwardRef(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn("flex flex-col space-y-1.5 p-6", className)}
+    {...props} />
+))
+CardHeader.displayName = "CardHeader"
+
+const CardTitle = React.forwardRef(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn("font-semibold leading-none tracking-tight", className)}
+    {...props} />
+))
+CardTitle.displayName = "CardTitle"
+
+const CardDescription = React.forwardRef(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn("text-sm text-muted-foreground", className)}
+    {...props} />
+))
+CardDescription.displayName = "CardDescription"
+
+const CardContent = React.forwardRef(({ className, ...props }, ref) => (
+  <div ref={ref} className={cn("p-6 pt-0", className)} {...props} />
+))
+CardContent.displayName = "CardContent"
+
+const CardFooter = React.forwardRef(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn("flex items-center p-6 pt-0", className)}
+    {...props} />
+))
+CardFooter.displayName = "CardFooter"
+
+export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent }
+
+```
+
+---
+
+## src/components/ui/dialog.jsx
+
+```jsx
+import * as React from "react"
+import * as DialogPrimitive from "@radix-ui/react-dialog"
+import { X } from "lucide-react"
+
+import { cn } from "@/lib/utils"
+
+const Dialog = DialogPrimitive.Root
+
+const DialogTrigger = DialogPrimitive.Trigger
+
+const DialogPortal = DialogPrimitive.Portal
+
+const DialogClose = DialogPrimitive.Close
+
+const DialogOverlay = React.forwardRef(({ className, ...props }, ref) => (
+  <DialogPrimitive.Overlay
+    ref={ref}
+    className={cn(
+      "fixed inset-0 z-50 bg-black/80  data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+      className
+    )}
+    {...props} />
+))
+DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
+
+const DialogContent = React.forwardRef(({ className, children, ...props }, ref) => (
+  <DialogPortal>
+    <DialogOverlay />
+    <DialogPrimitive.Content
+      ref={ref}
+      className={cn(
+        "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg",
+        className
+      )}
+      {...props}>
+      {children}
+      <DialogPrimitive.Close
+        className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
+        <X className="h-4 w-4" />
+        <span className="sr-only">Close</span>
+      </DialogPrimitive.Close>
+    </DialogPrimitive.Content>
+  </DialogPortal>
+))
+DialogContent.displayName = DialogPrimitive.Content.displayName
+
+const DialogHeader = ({
+  className,
+  ...props
+}) => (
+  <div
+    className={cn("flex flex-col space-y-1.5 text-center sm:text-left", className)}
+    {...props} />
+)
+DialogHeader.displayName = "DialogHeader"
+
+const DialogFooter = ({
+  className,
+  ...props
+}) => (
+  <div
+    className={cn("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2", className)}
+    {...props} />
+)
+DialogFooter.displayName = "DialogFooter"
+
+const DialogTitle = React.forwardRef(({ className, ...props }, ref) => (
+  <DialogPrimitive.Title
+    ref={ref}
+    className={cn("text-lg font-semibold leading-none tracking-tight", className)}
+    {...props} />
+))
+DialogTitle.displayName = DialogPrimitive.Title.displayName
+
+const DialogDescription = React.forwardRef(({ className, ...props }, ref) => (
+  <DialogPrimitive.Description
+    ref={ref}
+    className={cn("text-sm text-muted-foreground", className)}
+    {...props} />
+))
+DialogDescription.displayName = DialogPrimitive.Description.displayName
+
+export {
+  Dialog,
+  DialogPortal,
+  DialogOverlay,
+  DialogTrigger,
+  DialogClose,
+  DialogContent,
+  DialogHeader,
+  DialogFooter,
+  DialogTitle,
+  DialogDescription,
+}
+
+```
+
+---
+
+## src/components/ui/input.jsx
+
+```jsx
+import * as React from "react"
+
+import { cn } from "@/lib/utils"
+
+const Input = React.forwardRef(({ className, type, ...props }, ref) => {
+  return (
+    <input
+      type={type}
+      className={cn(
+        "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+        className
+      )}
+      ref={ref}
+      {...props} />
+  );
+})
+Input.displayName = "Input"
+
+export { Input }
+
+```
+
+---
+
+## src/components/ui/label.jsx
+
+```jsx
+"use client"
+
+import * as React from "react"
+import * as LabelPrimitive from "@radix-ui/react-label"
+import { cva } from "class-variance-authority";
+
+import { cn } from "@/lib/utils"
+
+const labelVariants = cva(
+  "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+)
+
+const Label = React.forwardRef(({ className, ...props }, ref) => (
+  <LabelPrimitive.Root ref={ref} className={cn(labelVariants(), className)} {...props} />
+))
+Label.displayName = LabelPrimitive.Root.displayName
+
+export { Label }
+
+```
+
+---
+
+## src/components/ui/select.jsx
+
+```jsx
+import * as React from "react"
+import * as SelectPrimitive from "@radix-ui/react-select"
+import { Check, ChevronDown, ChevronUp } from "lucide-react"
+
+import { cn } from "@/lib/utils"
+
+const Select = SelectPrimitive.Root
+
+const SelectGroup = SelectPrimitive.Group
+
+const SelectValue = SelectPrimitive.Value
+
+const SelectTrigger = React.forwardRef(({ className, children, ...props }, ref) => (
+  <SelectPrimitive.Trigger
+    ref={ref}
+    className={cn(
+      "flex h-9 w-full items-center justify-between rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1",
+      className
+    )}
+    {...props}>
+    {children}
+    <SelectPrimitive.Icon asChild>
+      <ChevronDown className="h-4 w-4 opacity-50" />
+    </SelectPrimitive.Icon>
+  </SelectPrimitive.Trigger>
+))
+SelectTrigger.displayName = SelectPrimitive.Trigger.displayName
+
+const SelectScrollUpButton = React.forwardRef(({ className, ...props }, ref) => (
+  <SelectPrimitive.ScrollUpButton
+    ref={ref}
+    className={cn("flex cursor-default items-center justify-center py-1", className)}
+    {...props}>
+    <ChevronUp className="h-4 w-4" />
+  </SelectPrimitive.ScrollUpButton>
+))
+SelectScrollUpButton.displayName = SelectPrimitive.ScrollUpButton.displayName
+
+const SelectScrollDownButton = React.forwardRef(({ className, ...props }, ref) => (
+  <SelectPrimitive.ScrollDownButton
+    ref={ref}
+    className={cn("flex cursor-default items-center justify-center py-1", className)}
+    {...props}>
+    <ChevronDown className="h-4 w-4" />
+  </SelectPrimitive.ScrollDownButton>
+))
+SelectScrollDownButton.displayName =
+  SelectPrimitive.ScrollDownButton.displayName
+
+const SelectContent = React.forwardRef(({ className, children, position = "popper", ...props }, ref) => (
+  <SelectPrimitive.Portal>
+    <SelectPrimitive.Content
+      ref={ref}
+      className={cn(
+        "relative z-50 max-h-[--radix-select-content-available-height] min-w-[8rem] overflow-y-auto overflow-x-hidden rounded-md border bg-popover text-popover-foreground shadow-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 origin-[--radix-select-content-transform-origin]",
+        position === "popper" &&
+          "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
+        className
+      )}
+      position={position}
+      {...props}>
+      <SelectScrollUpButton />
+      <SelectPrimitive.Viewport
+        className={cn("p-1", position === "popper" &&
+          "h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]")}>
+        {children}
+      </SelectPrimitive.Viewport>
+      <SelectScrollDownButton />
+    </SelectPrimitive.Content>
+  </SelectPrimitive.Portal>
+))
+SelectContent.displayName = SelectPrimitive.Content.displayName
+
+const SelectLabel = React.forwardRef(({ className, ...props }, ref) => (
+  <SelectPrimitive.Label
+    ref={ref}
+    className={cn("px-2 py-1.5 text-sm font-semibold", className)}
+    {...props} />
+))
+SelectLabel.displayName = SelectPrimitive.Label.displayName
+
+const SelectItem = React.forwardRef(({ className, children, ...props }, ref) => (
+  <SelectPrimitive.Item
+    ref={ref}
+    className={cn(
+      "relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-2 pr-8 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+      className
+    )}
+    {...props}>
+    <span className="absolute right-2 flex h-3.5 w-3.5 items-center justify-center">
+      <SelectPrimitive.ItemIndicator>
+        <Check className="h-4 w-4" />
+      </SelectPrimitive.ItemIndicator>
+    </span>
+    <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
+  </SelectPrimitive.Item>
+))
+SelectItem.displayName = SelectPrimitive.Item.displayName
+
+const SelectSeparator = React.forwardRef(({ className, ...props }, ref) => (
+  <SelectPrimitive.Separator
+    ref={ref}
+    className={cn("-mx-1 my-1 h-px bg-muted", className)}
+    {...props} />
+))
+SelectSeparator.displayName = SelectPrimitive.Separator.displayName
+
+export {
+  Select,
+  SelectGroup,
+  SelectValue,
+  SelectTrigger,
+  SelectContent,
+  SelectLabel,
+  SelectItem,
+  SelectSeparator,
+  SelectScrollUpButton,
+  SelectScrollDownButton,
+}
+
+```
+
+---
+
+## src/components/ui/separator.jsx
+
+```jsx
+import * as React from "react"
+import * as SeparatorPrimitive from "@radix-ui/react-separator"
+
+import { cn } from "@/lib/utils"
+
+const Separator = React.forwardRef((
+  { className, orientation = "horizontal", decorative = true, ...props },
+  ref
+) => (
+  <SeparatorPrimitive.Root
+    ref={ref}
+    decorative={decorative}
+    orientation={orientation}
+    className={cn(
+      "shrink-0 bg-border",
+      orientation === "horizontal" ? "h-[1px] w-full" : "h-full w-[1px]",
+      className
+    )}
+    {...props} />
+))
+Separator.displayName = SeparatorPrimitive.Root.displayName
+
+export { Separator }
+
+```
+
+---
+
+## src/components/ui/table.jsx
+
+```jsx
+import * as React from "react"
+
+import { cn } from "@/lib/utils"
+
+const Table = React.forwardRef(({ className, ...props }, ref) => (
+  <div className="relative w-full overflow-auto">
+    <table
+      ref={ref}
+      className={cn("w-full caption-bottom text-sm", className)}
+      {...props} />
+  </div>
+))
+Table.displayName = "Table"
+
+const TableHeader = React.forwardRef(({ className, ...props }, ref) => (
+  <thead ref={ref} className={cn("[&_tr]:border-b", className)} {...props} />
+))
+TableHeader.displayName = "TableHeader"
+
+const TableBody = React.forwardRef(({ className, ...props }, ref) => (
+  <tbody
+    ref={ref}
+    className={cn("[&_tr:last-child]:border-0", className)}
+    {...props} />
+))
+TableBody.displayName = "TableBody"
+
+const TableFooter = React.forwardRef(({ className, ...props }, ref) => (
+  <tfoot
+    ref={ref}
+    className={cn("border-t bg-muted/50 font-medium [&>tr]:last:border-b-0", className)}
+    {...props} />
+))
+TableFooter.displayName = "TableFooter"
+
+const TableRow = React.forwardRef(({ className, ...props }, ref) => (
+  <tr
+    ref={ref}
+    className={cn(
+      "border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted",
+      className
+    )}
+    {...props} />
+))
+TableRow.displayName = "TableRow"
+
+const TableHead = React.forwardRef(({ className, ...props }, ref) => (
+  <th
+    ref={ref}
+    className={cn(
+      "h-10 px-2 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+      className
+    )}
+    {...props} />
+))
+TableHead.displayName = "TableHead"
+
+const TableCell = React.forwardRef(({ className, ...props }, ref) => (
+  <td
+    ref={ref}
+    className={cn(
+      "p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+      className
+    )}
+    {...props} />
+))
+TableCell.displayName = "TableCell"
+
+const TableCaption = React.forwardRef(({ className, ...props }, ref) => (
+  <caption
+    ref={ref}
+    className={cn("mt-4 text-sm text-muted-foreground", className)}
+    {...props} />
+))
+TableCaption.displayName = "TableCaption"
+
+export {
+  Table,
+  TableHeader,
+  TableBody,
+  TableFooter,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableCaption,
+}
+
+```
+
+---
+
+## src/components/ui/textarea.jsx
+
+```jsx
+import * as React from "react"
+
+import { cn } from "@/lib/utils"
+
+const Textarea = React.forwardRef(({ className, ...props }, ref) => {
+  return (
+    <textarea
+      className={cn(
+        "flex min-h-[60px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+        className
+      )}
+      ref={ref}
+      {...props} />
+  );
+})
+Textarea.displayName = "Textarea"
+
+export { Textarea }
+
+```
+
+---
+
+## src/index.css
+
+```css
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  margin: 0;
+  display: flex;
+place-items: center;
+}
+
+
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 20 14.3% 4.1%;
+    --card: 0 0% 100%;
+    --card-foreground: 20 14.3% 4.1%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 20 14.3% 4.1%;
+    --primary: 24 9.8% 10%;
+    --primary-foreground: 60 9.1% 97.8%;
+    --secondary: 60 4.8% 95.9%;
+    --secondary-foreground: 24 9.8% 10%;
+    --muted: 60 4.8% 95.9%;
+    --muted-foreground: 25 5.3% 44.7%;
+    --accent: 60 4.8% 95.9%;
+    --accent-foreground: 24 9.8% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 60 9.1% 97.8%;
+    --border: 20 5.9% 90%;
+    --input: 20 5.9% 90%;
+    --ring: 20 14.3% 4.1%;
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 20 14.3% 4.1%;
+    --foreground: 60 9.1% 97.8%;
+    --card: 20 14.3% 4.1%;
+    --card-foreground: 60 9.1% 97.8%;
+    --popover: 20 14.3% 4.1%;
+    --popover-foreground: 60 9.1% 97.8%;
+    --primary: 60 9.1% 97.8%;
+    --primary-foreground: 24 9.8% 10%;
+    --secondary: 12 6.5% 15.1%;
+    --secondary-foreground: 60 9.1% 97.8%;
+    --muted: 12 6.5% 15.1%;
+    --muted-foreground: 24 5.4% 63.9%;
+    --accent: 12 6.5% 15.1%;
+    --accent-foreground: 60 9.1% 97.8%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 60 9.1% 97.8%;
+    --border: 12 6.5% 15.1%;
+    --input: 12 6.5% 15.1%;
+    --ring: 24 5.7% 82.9%;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+  }
+}
+
+
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply min-h-screen bg-background text-foreground;
+  }
+}
+```
+
+---
+
+## src/lib/utils.js
+
+```javascript
+import { clsx } from "clsx";
+import { twMerge } from "tailwind-merge"
+
+export function cn(...inputs) {
+  return twMerge(clsx(inputs));
+}
+
+```
+
+---
+
+## src/main.jsx
+
+```jsx
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import './index.css'
+import App from './App.jsx'
+
+createRoot(document.getElementById('root')).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+)
+
+```
+
+---
+
+## src/pages/AdminDashboard.jsx
+
+```jsx
+import Sidebar from "@/components/layout/Sidebar"
+import Header from "@/components/layout/Header"
+import StatsCards from "@/components/dashboard/StatsCards"
+import TaskTable from "@/components/dashboard/TaskTable"
+import ProjectList from "@/components/dashboard/ProjectList"
+import AssignTaskCard from "@/components/dashboard/AssignTaskCard"
+import ProjectTeamCard from "@/components/dashboard/ProjectTeamCard"
+import { getProjects } from "@/api/projectAPI"
+import { useState, useEffect } from "react"
+
+export default function AdminDashboard() {
+
+    // const [projectName, setProjectName] = useState("")
+    // const [description, setDescription] = useState("")
+    const [projects, setProjects] = useState([])
+    const [sidebarOpen, setSidebarOpen] = useState(false)
+    // const [selectedProject, setSelectedProject] = useState(null)
+
+    const fetchProjects = async () => {
+        try {
+            const res = await getProjects()
+            setProjects(res.data)
+        } catch (error) {
+            console.error("Error fetching projects:", error)
+        }
+    }
+
+    // const handleCreateProject = async () => {
+
+    //     await createProject({
+    //         name: projectName,
+    //         description: description
+    //     })
+
+    //     fetchProjects()
+    // }
+
+    useEffect(() => {
+        const loadProjects = async () => {
+            try {
+                const res = await getProjects()
+                setProjects(res.data)
+            } catch (err) {
+                console.error(err)
+            }
+        }
+
+        loadProjects()
+    }, [])
+
+    return (
+
+        <div className="flex w-full min-h-screen bg-muted/30">
+
+            {/* MOBILE SIDEBAR */}
+            {sidebarOpen && (
+                <div className="fixed inset-0 z-50 bg-black/40 lg:hidden">
+                    <div className="w-64 h-full bg-white">
+                        <Sidebar />
+                    </div>
+                </div>
+            )}
+
+            <div className="hidden w-64 border-r shrink-0 bg-background lg:block">
+                <Sidebar projectId={projects.projectId} />
+            </div>
+
+            <div className="flex flex-col flex-1">
+                <Header refreshProjects={fetchProjects} />
+
+                <div className="flex-1 p-6">
+                    <StatsCards stats={{
+                        projects: projects.length,
+                        pending: 0,
+                        completed: 0,
+                        alerts: 0
+                    }} />
+
+                    <div className="grid grid-cols-12 gap-6 mt-6">
+                        <div className="col-span-12 lg:col-span-4">
+                            <ProjectList
+                                projects={projects}
+                                toggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+                            />
+                        </div>
+
+                        {/* <div className="col-span-12 space-y-6 lg:col-span-5">
+                            <AssignTaskCard />
+                            <TaskTable />
+                        </div>
+
+                        <div className="col-span-12 lg:col-span-3">
+                            <ProjectTeamCard project={selectedProject} />
+                        </div> */}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    )
+}
+```
+
+---
+
+## src/pages/Assisnments.jsx
+
+```jsx
+import Sidebar from "@/components/layout/Sidebar"
+import Header from "@/components/layout/Header"
+
+export default function Assignments() {
+
+    const tasks = [
+        "Fix Authentication Middleware Bug",
+        "Design System Documentation",
+        "Database Migration Script"
+    ]
+
+    return (
+
+        <div className="flex">
+
+            <Sidebar />
+
+            <div className="flex-1">
+
+                <Header />
+
+                <div className="p-6 space-y-4">
+
+                    <h2 className="text-xl font-semibold">
+                        My Assignments
+                    </h2>
+
+                    {tasks.map((task, i) => (
+                        <div
+                            key={i}
+                            className="border rounded p-4 bg-white"
+                        >
+                            {task}
+                        </div>
+                    ))}
+
+                </div>
+
+            </div>
+
+        </div>
+
+    )
+
+}
+```
+
+---
+
+## src/pages/Login.jsx
+
+```jsx
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import api from "../services/api"
+import { useNavigate } from "react-router-dom"
+
+export default function Login() {
+
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const navigate = useNavigate();
+
+  const handleLogin = async () => {
+    try {
+      const res = await api.post("/auth/login",
+        {
+          email,
+          password
+        })
+
+      localStorage.setItem("token", res.data.token);
+      localStorage.setItem("role", res.data.user.role);
+
+      // NAVIGATING USER BASED ON ROLE
+      const role = res.data.user.role
+
+      if (role === "admin") {
+        navigate("/admin")
+      } else {
+        navigate("/dashboard")
+      }
+
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  const handleKeyDown = (e) => {
+
+    if (e.key === "Enter") {
+      handleLogin()
+    }
+
+  }
+
+  return (
+    <div className="flex items-center justify-center h-screen">
+
+      <div className="w-[350px] p-6 shadow rounded-xl space-y-4">
+
+        <h2 className="text-xl font-bold text-center">
+          Login
+        </h2>
+
+        <Input
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          onKeyDown={handleKeyDown}
+        />
+
+        <Input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          onKeyDown={handleKeyDown} 
+        />
+
+        <Button
+          className="w-full"
+          onClick={handleLogin}
+        >
+          Login
+        </Button>
+
+      </div>
+
+    </div>
+  )
+}
+```
+
+---
+
+## src/pages/ProjectDetails.jsx
+
+```jsx
+import Sidebar from "@/components/layout/Sidebar"
+import Header from "@/components/layout/Header"
+
+import { useParams } from "react-router-dom"
+import { Button } from "@/components/ui/button"
+
+export default function ProjectDetails() {
+
+    const { id } = useParams()
+
+    return (
+
+        <div className="flex w-full min-h-screen">
+
+            <div className="hidden w-64 border-r bg-background lg:block">
+                <Sidebar projectId={id} />
+            </div>
+
+            <div className="flex-1">
+
+                <Header />
+
+                <div className="p-6 space-y-6">
+                    <div className="flex items-center justify-between">
+
+                        <h2 className="text-xl font-semibold">
+                            Project
+                        </h2>
+
+                        <div className="flex gap-3">
+
+                            <Button>
+                                Add Member
+                            </Button>
+
+                            <Button >
+                                Add Task
+                            </Button>
+
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+    )
+}
+```
+
+---
+
+## src/pages/UserDashboard.jsx
+
+```jsx
+import { useEffect, useState } from "react"
+import Navbar from "../components/layout/Navbar"
+import TaskTable from "../components/tasks/TaskTable"
+
+// const tasks = [
+//   {
+//     id: 1,
+//     title: "Prepare EMS report",
+//     project: "EMS",
+//     status: "Pending",
+//     dueDate: "2026-03-10"
+//   }
+// ]
+
+export default function UserDashboard() {
+  const [tasks, setTasks] = useState([])
+
+  useEffect(() => {
+
+    const loadTasks = async () => {
+      // const res = await getMyTasks()
+      // setTasks(res.data)
+    }
+
+    loadTasks()
+
+  }, [])
+
+  return (
+
+    <div>
+
+      <Navbar />
+
+      <div className="p-6">
+        <h2 className="mb-4 text-xl font-bold">
+          My Tasks
+        </h2>
+
+        <TaskTable tasks={tasks} />
+
+      </div>
+
+    </div>
+
+  )
+}
+```
+
+---
+
+## src/services/api.js
+
+```javascript
+import axios from "axios"
+
+const api = axios.create({
+  baseURL: "http://localhost:5000/api"
+})
+
+// ADD TOKEN TO EVERY REQUEST
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token")
+
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`
+  }
+
+  return config
+})
+
+export default api
+```
+
+---
+
+## tailwind.config.js
+
+```javascript
+import tailwindcssAnimate from "tailwindcss-animate"
+
+/** @type {import('tailwindcss').Config} */
+export default {
+  darkMode: ["class"],
+  content: [
+    "./index.html",
+    "./src/**/*.{js,ts,jsx,tsx}",
+  ],
+  theme: {
+    extend: {
+      colors: {
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
+        primary: {
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
+        },
+        secondary: {
+          DEFAULT: "hsl(var(--secondary))",
+          foreground: "hsl(var(--secondary-foreground))",
+        },
+        destructive: {
+          DEFAULT: "hsl(var(--destructive))",
+          foreground: "hsl(var(--destructive-foreground))",
+        },
+        muted: {
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))",
+        },
+        accent: {
+          DEFAULT: "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))",
+        },
+        popover: {
+          DEFAULT: "hsl(var(--popover))",
+          foreground: "hsl(var(--popover-foreground))",
+        },
+        card: {
+          DEFAULT: "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))",
+        },
+        chart: {
+          1: "hsl(var(--chart-1))",
+          2: "hsl(var(--chart-2))",
+          3: "hsl(var(--chart-3))",
+          4: "hsl(var(--chart-4))",
+          5: "hsl(var(--chart-5))",
+        },
+      },
+      borderRadius: {
+        lg: "var(--radius)",
+        md: "calc(var(--radius) - 2px)",
+        sm: "calc(var(--radius) - 4px)",
+      },
+    },
+  },
+  plugins: [tailwindcssAnimate],
+}
+```
+
+---
+
+## vite.config.js
+
+```javascript
+import { defineConfig } from "vite"
+import react from "@vitejs/plugin-react"
+import path from "path"
+import { fileURLToPath } from "url"
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+
+export default defineConfig({
+  plugins: [react()],
+  base: "./",
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src")
+    }
+  }
+})
+```
+

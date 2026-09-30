@@ -313,4 +313,14 @@ projectComponentSchema.index({
   componentTemplate: 1,
 });
 
+// Supports getMyTasks' `$or` lookup (an employee's tasks, wherever they're
+// assigned/tagged) without a full collection scan. Multikey indexes on
+// nested array paths.
+projectComponentSchema.index({ "tasks.assignedEmployee": 1 });
+projectComponentSchema.index({ "tasks.tags.employee": 1 });
+projectComponentSchema.index({ "tasks.subtasks.tags.employee": 1 });
+
+// Supports getAllPendingTasks' org-wide `tasks.status` scan.
+projectComponentSchema.index({ "tasks.status": 1 });
+
 export default mongoose.model("ProjectComponent", projectComponentSchema);

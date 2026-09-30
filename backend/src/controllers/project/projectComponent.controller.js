@@ -318,6 +318,8 @@ export const assignTaskToEmployee = async (req, res) => {
 // GET MY TASKS
 // =========================================
 export const getMyTasks = async (req, res) => {
+  const fnStart = process.hrtime.bigint();
+
   console.log("\n========================================");
   console.log("[ProjectComponent] Get My Tasks");
   console.log("Employee :", req.user.id);
@@ -363,12 +365,20 @@ export const getMyTasks = async (req, res) => {
     // FIND COMPONENTS
     // =========================================
 
+    const dbStart = process.hrtime.bigint();
+
     const components = await ProjectComponent.find(query)
+      .select("name project projectModule tasks")
       .populate("project", "name")
       .populate("projectModule", "name")
-      .populate("tasks.assignedEmployee", "username email");
+      .populate("tasks.assignedEmployee", "username email")
+      .lean();
 
-    console.log(`[ProjectComponent] Components found: ${components.length}`);
+    const dbMs = Number(process.hrtime.bigint() - dbStart) / 1_000_000;
+
+    console.log(
+      `[getMyTasks] scope=${projectId ? "project" : "ALL"} components=${components.length} dbMs=${dbMs.toFixed(1)}`
+    );
 
     const myTasks = [];
 
@@ -511,7 +521,11 @@ export const getMyTasks = async (req, res) => {
       }
     }
 
-    console.log(`[ProjectComponent] ${myTasks.length} task(s) returned.`);
+    const totalMs = Number(process.hrtime.bigint() - fnStart) / 1_000_000;
+
+    console.log(
+      `[getMyTasks] ${myTasks.length} task(s) returned. totalMs=${totalMs.toFixed(1)}`
+    );
 
     return res.status(200).json({
       success: true,
@@ -654,7 +668,11 @@ export const getProjectPendingTasks = async (req, res) => {
 // project in one place rather than opening each project individually.
 // =========================================
 export const getAllPendingTasks = async (req, res) => {
+  const fnStart = process.hrtime.bigint();
+
   try {
+    const dbStart = process.hrtime.bigint();
+
     const components = await ProjectComponent.find({
       "tasks.status": { $in: EMPLOYEE_ACTION_PENDING_STATUSES },
     })
@@ -662,6 +680,12 @@ export const getAllPendingTasks = async (req, res) => {
       .populate("projectModule", "name")
       .populate("tasks.assignedEmployee", "username email")
       .lean();
+
+    const dbMs = Number(process.hrtime.bigint() - dbStart) / 1_000_000;
+
+    console.log(
+      `[getAllPendingTasks] components=${components.length} dbMs=${dbMs.toFixed(1)}`
+    );
 
     const pendingTasks = [];
 
@@ -710,6 +734,12 @@ export const getAllPendingTasks = async (req, res) => {
       if (!b.deadline) return -1;
       return new Date(a.deadline) - new Date(b.deadline);
     });
+
+    const totalMs = Number(process.hrtime.bigint() - fnStart) / 1_000_000;
+
+    console.log(
+      `[getAllPendingTasks] ${pendingTasks.length} pending task(s). totalMs=${totalMs.toFixed(1)}`
+    );
 
     return res.status(200).json({
       success: true,
@@ -785,6 +815,8 @@ export const getTaskDetails = async (req, res) => {
 };
 
 export const getEmployeeProjectTasks = async (req, res) => {
+  const fnStart = process.hrtime.bigint();
+
   try {
     const { projectId, employeeId } = req.params;
 
@@ -792,12 +824,18 @@ export const getEmployeeProjectTasks = async (req, res) => {
     // GET EMPLOYEE
     // =========================================
 
-    const employee = await User.findOne({
-      _id: employeeId,
-      role: "employee",
-    })
-      .select("username email expertise")
-      .populate("expertise", "name color");
+    // Employee and project lookups don't depend on each other's
+    // result, so run them in parallel instead of two sequential
+    // round trips.
+    const [employee, project] = await Promise.all([
+      User.findOne({
+        _id: employeeId,
+        role: "employee",
+      })
+        .select("username email expertise")
+        .populate("expertise", "name color"),
+      Project.findById(projectId).select("name description"),
+    ]);
 
     if (!employee) {
       return res.status(404).json({
@@ -805,13 +843,6 @@ export const getEmployeeProjectTasks = async (req, res) => {
         message: "Employee not found.",
       });
     }
-
-    // =========================================
-    // GET PROJECT
-    // =========================================
-
-    const project =
-      await Project.findById(projectId).select("name description");
 
     if (!project) {
       return res.status(404).json({
@@ -824,20 +855,18 @@ export const getEmployeeProjectTasks = async (req, res) => {
     // GET PROJECT COMPONENTS
     // =========================================
 
-    const components = await ProjectComponent.find({
-      project: projectId,
-    })
-      .populate("projectModule", "name")
-      .lean();
-
-    // =========================================
-    // GET EMPLOYEE SUBMISSIONS
-    // =========================================
-
-    const submissions = await Submission.find({
-      project: projectId,
-      assignedEmployee: employeeId,
-    }).lean();
+    // Also independent of each other, so run together.
+    const [components, submissions] = await Promise.all([
+      ProjectComponent.find({
+        project: projectId,
+      })
+        .populate("projectModule", "name")
+        .lean(),
+      Submission.find({
+        project: projectId,
+        assignedEmployee: employeeId,
+      }).lean(),
+    ]);
 
     // =========================================
     // CREATE SUBMISSION LOOKUP
@@ -898,6 +927,12 @@ export const getEmployeeProjectTasks = async (req, res) => {
     // =========================================
     // RESPONSE
     // =========================================
+
+    const totalMs = Number(process.hrtime.bigint() - fnStart) / 1_000_000;
+
+    console.log(
+      `[getEmployeeProjectTasks] components=${components.length} submissions=${submissions.length} tasks=${assignedTasks.length} totalMs=${totalMs.toFixed(1)}`
+    );
 
     return res.status(200).json({
       success: true,
